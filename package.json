@@ -1,0 +1,7 @@
+{
+  "name": "apex-trading-terminal",
+  "version": "5.0.0",
+  "private": true,
+  "description": "APEX AI Trading Terminal",
+  "engines": { "node": ">=18" }
+}
