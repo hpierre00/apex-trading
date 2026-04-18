@@ -6,23 +6,12 @@
 // Same-origin check prevents other sites from calling this function from the browser.
 
 exports.handler = async (event) => {
-  const origin = event.headers.origin || event.headers.Origin || '';
-  const host = event.headers.host || event.headers.Host || '';
-
-  // Accept only requests from our own Netlify domain (or localhost for dev).
-  const okOrigin = origin.includes(host) || origin.includes('localhost') || origin.includes('127.0.0.1');
-
   const cors = {
-    'Access-Control-Allow-Origin': origin || '*',
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Credentials': 'true',
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
-
-  if (!okOrigin) {
-    return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'Origin not allowed' }) };
-  }
 
   const KEY = process.env.ALPACA_KEY_ID;
   const SECRET = process.env.ALPACA_SECRET_KEY;

@@ -430,7 +430,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
       <div class="chart-container" id="chartContainer">
         <canvas class="chart-canvas" id="chart"></canvas>
-        <div class="chart-hint">DRAG to pan · WHEEL to zoom · SHIFT+DRAG for vertical · DOUBLE-CLICK to reset</div>
+        <div class="chart-hint">DRAG chart to pan · WHEEL to zoom · DRAG price axis to zoom price · SHIFT+DRAG vertical · DOUBLE-CLICK to reset</div>
         <div class="chart-controls">
           <button class="chart-ctrl-btn" id="zoomIn">+</button>
           <button class="chart-ctrl-btn" id="zoomOut">−</button>
@@ -516,6 +516,38 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   </div>
 </div>
 
+<!-- ===== INDICATORS MODAL ===== -->
+<div class="modal-backdrop" id="indModal">
+  <div class="modal">
+    <h3>CHART INDICATORS</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:12px">
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="indVWAP" checked>
+        <span>VWAP <span style="color:var(--text-dim);font-size:10px">(session volume-weighted)</span></span>
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="indMA" checked>
+        <span>Moving Averages <span style="color:var(--text-dim);font-size:10px">(MA50 blue, MA200 purple)</span></span>
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="indVolume" checked>
+        <span>Volume <span style="color:var(--text-dim);font-size:10px">(bottom panel)</span></span>
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="indGrid" checked>
+        <span>Price Grid</span>
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="indLastPx" checked>
+        <span>Last Price Line</span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('indModal')">DONE</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== STATUS MODAL ===== -->
 <div class="modal-backdrop" id="settingsModal">
   <div class="modal">
@@ -574,24 +606,30 @@ const state = {
    SIMULATED DATA GENERATION (until Alpaca connects)
    ============================================================ */
 
-function genCandles(symbol, count = 300) {
+function genCandles(symbol, count = 300, timeframe = '15m') {
   const base = { AAPL:185, TSLA:248, NVDA:155, MSFT:412, GOOGL:168, AMZN:182,
                  META:488, AMD:168, SPY:555, QQQ:478, NFLX:675, PLTR:26,
                  COIN:198, SOFI:9.2, RIVN:14, DIS:108, BA:178, JPM:218, XOM:116, BAC:42 }[symbol] || 100;
+  const tfMinutes = { '1m': 1, '5m': 5, '15m': 15, '1h': 60, '4h': 240, '1d': 1440 }[timeframe] || 15;
+  // Scale volatility to timeframe (longer TF = larger per-bar moves)
+  const volScale = Math.sqrt(tfMinutes / 15);
   const now = Date.now();
   const candles = [];
-  let price = base * (0.95 + Math.random() * 0.1);
+  // Deterministic seed per symbol+tf so switching back returns same data
+  let seed = (symbol.charCodeAt(0) * 31 + tfMinutes) % 997;
+  const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  let price = base * (0.95 + rand() * 0.1);
   for (let i = count; i > 0; i--) {
     const open = price;
-    const vol = base * 0.008 * (0.5 + Math.random());
-    const change = (Math.random() - 0.5) * vol;
+    const vol = base * 0.008 * (0.5 + rand()) * volScale;
+    const change = (rand() - 0.5) * vol;
     const close = Math.max(0.01, open + change);
-    const high = Math.max(open, close) + Math.random() * vol * 0.5;
-    const low = Math.min(open, close) - Math.random() * vol * 0.5;
+    const high = Math.max(open, close) + rand() * vol * 0.5;
+    const low = Math.min(open, close) - rand() * vol * 0.5;
     candles.push({
-      t: now - i * 15 * 60 * 1000,
+      t: now - i * tfMinutes * 60 * 1000,
       o: open, h: high, l: low, c: close,
-      v: Math.floor(100000 + Math.random() * 500000),
+      v: Math.floor((100000 + rand() * 500000) * volScale),
     });
     price = close;
   }
@@ -617,10 +655,13 @@ const chartState = {
   visibleStart: 200,      // leftmost visible candle index (fractional ok)
   visibleCount: 100,      // how many candles visible
   priceOffsetRatio: 0,    // vertical pan as ratio of price range
-  autoFitPrice: true,     // whether to auto-fit price on each render
+  priceScale: 1,          // vertical zoom factor (1 = auto-fit)
+  autoFitPrice: true,
   showVWAP: true,
   showMA: true,
   showVolume: true,
+  showGrid: true,
+  showLastPx: true,
 };
 
 const canvas = document.getElementById('chart');
@@ -671,6 +712,11 @@ function renderChart() {
   }
   const pad = (maxP - minP) * 0.08 || 1;
   minP -= pad; maxP += pad;
+  // apply vertical zoom (priceScale > 1 = zoomed in = smaller range shown)
+  const mid = (minP + maxP) / 2;
+  const halfRange = (maxP - minP) / 2 / chartState.priceScale;
+  minP = mid - halfRange;
+  maxP = mid + halfRange;
   // apply vertical pan offset
   const vshift = (maxP - minP) * chartState.priceOffsetRatio;
   minP += vshift; maxP += vshift;
@@ -683,15 +729,26 @@ function renderChart() {
   ctx.fillRect(0, 0, cw, ch);
 
   // --- grid
-  ctx.strokeStyle = '#12192480';
-  ctx.lineWidth = 1;
-  ctx.font = '10px monospace';
-  ctx.fillStyle = '#4a5468';
-  for (let i = 0; i <= 6; i++) {
-    const yy = (chartH * i) / 6;
-    ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(chartW, yy); ctx.stroke();
-    const p = minP + (maxP - minP) * (1 - i / 6);
-    ctx.fillText(p.toFixed(2), chartW + 4, yy + 3);
+  if (chartState.showGrid) {
+    ctx.strokeStyle = '#12192480';
+    ctx.lineWidth = 1;
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#4a5468';
+    for (let i = 0; i <= 6; i++) {
+      const yy = (chartH * i) / 6;
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(chartW, yy); ctx.stroke();
+      const p = minP + (maxP - minP) * (1 - i / 6);
+      ctx.fillText(p.toFixed(2), chartW + 4, yy + 3);
+    }
+  } else {
+    // still draw axis labels even if grid off
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#4a5468';
+    for (let i = 0; i <= 6; i++) {
+      const yy = (chartH * i) / 6;
+      const p = minP + (maxP - minP) * (1 - i / 6);
+      ctx.fillText(p.toFixed(2), chartW + 4, yy + 3);
+    }
   }
 
   // --- MAs
@@ -754,7 +811,7 @@ function renderChart() {
 
   // --- last price line
   const lastC = candles.at(-1);
-  if (lastC) {
+  if (lastC && chartState.showLastPx) {
     const ly = y(lastC.c);
     ctx.strokeStyle = '#f0b42980';
     ctx.setLineDash([3, 3]);
@@ -817,15 +874,21 @@ function drawVWAP(visible, y, candleW) {
    CHART INTERACTION — pan, zoom, wheel
    ============================================================ */
 
-let drag = { active: false, startX: 0, startY: 0, startVS: 0, startPO: 0, vertical: false };
+let drag = { active: false, startX: 0, startY: 0, startVS: 0, startPO: 0, startPS: 1, vertical: false, axisDrag: false };
 
 canvas.addEventListener('pointerdown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const localX = e.clientX - rect.left;
+  const chartW = cw - 60;
   drag.active = true;
   drag.startX = e.clientX;
   drag.startY = e.clientY;
   drag.startVS = chartState.visibleStart;
   drag.startPO = chartState.priceOffsetRatio;
-  drag.vertical = e.shiftKey || e.button === 2;
+  drag.startPS = chartState.priceScale;
+  // Drag on price axis (right 60px) = price scale / pan
+  drag.axisDrag = localX >= chartW;
+  drag.vertical = e.shiftKey || e.button === 2 || drag.axisDrag;
   canvas.classList.add('dragging');
   canvas.setPointerCapture(e.pointerId);
 });
@@ -835,7 +898,11 @@ canvas.addEventListener('pointermove', (e) => {
   const candleW = (cw - 60) / chartState.visibleCount;
   const dx = e.clientX - drag.startX;
   const dy = e.clientY - drag.startY;
-  if (drag.vertical) {
+  if (drag.axisDrag) {
+    // Drag up on axis = zoom in (larger priceScale), drag down = zoom out
+    const factor = Math.exp(-dy / 200);
+    chartState.priceScale = Math.max(0.1, Math.min(50, drag.startPS * factor));
+  } else if (drag.vertical) {
     chartState.priceOffsetRatio = drag.startPO - dy / 300;
   } else {
     chartState.visibleStart = drag.startVS - dx / candleW;
@@ -873,7 +940,17 @@ canvas.addEventListener('dblclick', () => {
   chartState.visibleCount = 100;
   chartState.visibleStart = Math.max(0, total - 100);
   chartState.priceOffsetRatio = 0;
+  chartState.priceScale = 1;
   renderChart();
+});
+
+// Cursor hint when hovering price axis
+canvas.addEventListener('mousemove', (e) => {
+  if (drag.active) return;
+  const rect = canvas.getBoundingClientRect();
+  const localX = e.clientX - rect.left;
+  const chartW = cw - 60;
+  canvas.style.cursor = localX >= chartW ? 'ns-resize' : 'crosshair';
 });
 
 document.getElementById('zoomIn').onclick = () => {
@@ -889,6 +966,7 @@ document.getElementById('resetView').onclick = () => {
   chartState.visibleCount = 100;
   chartState.visibleStart = Math.max(0, total - 100);
   chartState.priceOffsetRatio = 0;
+  chartState.priceScale = 1;
   renderChart();
 };
 
@@ -1256,6 +1334,23 @@ document.getElementById('alertBtn').addEventListener('click', () => {
   document.getElementById('alertCond').value = 'above';
   document.getElementById('alertNote').value = '';
   openModal('alertModal');
+});
+
+// INDICATORS modal
+document.getElementById('indBtn').addEventListener('click', () => {
+  document.getElementById('indVWAP').checked = chartState.showVWAP;
+  document.getElementById('indMA').checked = chartState.showMA;
+  document.getElementById('indVolume').checked = chartState.showVolume;
+  document.getElementById('indGrid').checked = chartState.showGrid;
+  document.getElementById('indLastPx').checked = chartState.showLastPx;
+  openModal('indModal');
+});
+['indVWAP', 'indMA', 'indVolume', 'indGrid', 'indLastPx'].forEach(id => {
+  document.getElementById(id).addEventListener('change', (e) => {
+    const key = { indVWAP: 'showVWAP', indMA: 'showMA', indVolume: 'showVolume', indGrid: 'showGrid', indLastPx: 'showLastPx' }[id];
+    chartState[key] = e.target.checked;
+    renderChart();
+  });
 });
 
 document.getElementById('alertSaveBtn').addEventListener('click', () => {
@@ -1660,12 +1755,16 @@ document.getElementById('tfGroup').addEventListener('click', async (e) => {
     const bars = await loadAlpacaBars(state.symbol, tfToAlpaca(state.timeframe), 300);
     if (bars && bars.length) {
       state.candles[state.symbol] = bars;
-      const total = bars.length;
-      chartState.visibleStart = Math.max(0, total - chartState.visibleCount);
-      chartState.priceOffsetRatio = 0;
-      renderChart();
     }
+  } else {
+    // Regenerate simulated data for this timeframe
+    state.candles[state.symbol] = genCandles(state.symbol, 300, state.timeframe);
   }
+  const total = state.candles[state.symbol].length;
+  chartState.visibleStart = Math.max(0, total - chartState.visibleCount);
+  chartState.priceOffsetRatio = 0;
+  chartState.priceScale = 1;
+  renderChart();
 });
 
 // market status
