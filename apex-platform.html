@@ -402,7 +402,10 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
       <div class="panel-body watchlist" id="watchlist"></div>
       <div class="panel-header">
         <span>POSITIONS</span>
-        <span style="color:var(--text-dim);font-size:10px" id="posTotal">P/L: $0.00</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="color:var(--text-dim);font-size:10px" id="posTotal">P/L: $0.00</span>
+          <button class="icon-btn" style="padding:2px 6px;font-size:10px" id="addPosBtn">+ ADD</button>
+        </div>
       </div>
       <div class="panel-body positions" id="positions"></div>
     </aside>
@@ -500,6 +503,36 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div class="sb">APEX v5.0.0</div>
   </footer>
 
+</div>
+
+<!-- ===== POSITIONS MODAL ===== -->
+<div class="modal-backdrop" id="positionModal">
+  <div class="modal" style="width:440px">
+    <h3 id="posModalTitle">ADD POSITION</h3>
+    <input type="hidden" id="posEditId">
+    <div class="field">
+      <label>SYMBOL</label>
+      <input id="posSym" placeholder="AAPL" maxlength="10" style="text-transform:uppercase">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field">
+        <label>QUANTITY</label>
+        <input id="posQty" type="number" step="0.0001" placeholder="100">
+      </div>
+      <div class="field">
+        <label>AVG COST</label>
+        <input id="posAvg" type="number" step="0.01" placeholder="178.20">
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text-dim);line-height:1.5">
+      Manually entered. Live P/L is calculated against the current price feed. Stored in your browser only.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="posDeleteBtn" style="display:none;color:var(--bear)">DELETE</button>
+      <button class="btn btn-ghost" onclick="closeModal('positionModal')">CANCEL</button>
+      <button class="btn btn-primary" id="posSaveBtn">SAVE</button>
+    </div>
+  </div>
 </div>
 
 <!-- ===== ADD WATCHLIST MODAL ===== -->
@@ -682,12 +715,14 @@ const state = {
   barCache: new Map(),
   barCacheTTL: 60 * 1000, // 60s for intraday; we bump this for daily+
   inFlightFetch: new Map(), // key -> Promise dedup
+  // External data caches (each entry: { data, loadedAt })
+  finnhubCache: new Map(),
+  fredCache: new Map(),
+  finnhubTTL: 5 * 60 * 1000,  // 5 min for company-level data (fundamentals, news)
+  fredTTL: 60 * 60 * 1000,    // 1 hr for macro (rates etc don't change intraday)
   candles: {},         // { symbol: [{t,o,h,l,c,v},...] }
   prices: {},          // { symbol: {px, chg, chgPct} }
-  positions: [
-    { sym: 'NVDA', qty: 50, avg: 142.30, curr: 155.80 },
-    { sym: 'AAPL', qty: 100, avg: 178.20, curr: 185.42 },
-  ],
+  positions: JSON.parse(localStorage.getItem('apex.positions') || 'null') || [],
   watchlist: JSON.parse(localStorage.getItem('apex.watchlist') || 'null') || ['AAPL','TSLA','NVDA','MSFT','SPY','QQQ','PLTR'],
   alerts: JSON.parse(localStorage.getItem('apex.alerts') || '[]'),
   alpaca: {
@@ -1778,19 +1813,27 @@ function renderWatchlist() {
 
 function renderPositions() {
   const el = document.getElementById('positions');
+  if (!state.positions.length) {
+    el.innerHTML = `<div style="padding:20px 12px;color:var(--text-faint);font-size:11px;line-height:1.6;text-align:center">
+      No positions. Click <b style="color:var(--gold)">+ ADD</b> above to add your IBKR holdings manually.
+    </div>`;
+    document.getElementById('posTotal').textContent = 'P/L: $0.00';
+    document.getElementById('posTotal').style.color = 'var(--text-dim)';
+    return;
+  }
   let totalPL = 0;
   el.innerHTML = state.positions.map(p => {
     const pl = (p.curr - p.avg) * p.qty;
     const plPct = ((p.curr - p.avg) / p.avg) * 100;
     totalPL += pl;
     const up = pl >= 0;
-    return `<div class="pos-row" onclick="selectSymbol('${p.sym}')">
+    return `<div class="pos-row" onclick="editPosition('${p.id}')" style="cursor:pointer" title="Click to edit, right-click to remove" oncontextmenu="event.preventDefault();removePosition('${p.id}');return false;">
       <div class="pos-top">
         <span class="pos-sym">${p.sym}</span>
         <span class="pos-pl ${up ? 'up' : 'down'}">${up ? '+' : ''}$${pl.toFixed(2)}</span>
       </div>
       <div class="pos-top">
-        <span class="pos-qty">${p.qty} @ ${p.avg.toFixed(2)}</span>
+        <span class="pos-qty">${p.qty} @ ${p.avg.toFixed(2)} → ${p.curr.toFixed(2)}</span>
         <span class="pos-pl ${up ? 'up' : 'down'}">${up ? '+' : ''}${plPct.toFixed(2)}%</span>
       </div>
     </div>`;
@@ -1798,6 +1841,79 @@ function renderPositions() {
   document.getElementById('posTotal').textContent = `P/L: ${totalPL >= 0 ? '+' : ''}$${totalPL.toFixed(2)}`;
   document.getElementById('posTotal').style.color = totalPL >= 0 ? 'var(--bull)' : 'var(--bear)';
 }
+
+function savePositions() {
+  localStorage.setItem('apex.positions', JSON.stringify(state.positions));
+}
+
+document.getElementById('addPosBtn').addEventListener('click', () => openPositionModal(null));
+function openPositionModal(id) {
+  document.getElementById('posEditId').value = id || '';
+  document.getElementById('posModalTitle').textContent = id ? 'EDIT POSITION' : 'ADD POSITION';
+  document.getElementById('posDeleteBtn').style.display = id ? 'inline-block' : 'none';
+  if (id) {
+    const p = state.positions.find(x => x.id === id);
+    if (p) {
+      document.getElementById('posSym').value = p.sym;
+      document.getElementById('posQty').value = p.qty;
+      document.getElementById('posAvg').value = p.avg;
+    }
+  } else {
+    document.getElementById('posSym').value = state.symbol;
+    document.getElementById('posQty').value = '';
+    document.getElementById('posAvg').value = '';
+  }
+  openModal('positionModal');
+  setTimeout(() => document.getElementById('posSym').focus(), 50);
+}
+
+function editPosition(id) { openPositionModal(id); }
+window.editPosition = editPosition;
+
+function removePosition(id) {
+  const p = state.positions.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Remove ${p.sym} position?`)) return;
+  state.positions = state.positions.filter(x => x.id !== id);
+  savePositions();
+  renderPositions();
+}
+window.removePosition = removePosition;
+
+document.getElementById('posSaveBtn').addEventListener('click', () => {
+  const id = document.getElementById('posEditId').value;
+  const sym = document.getElementById('posSym').value.trim().toUpperCase();
+  const qty = parseFloat(document.getElementById('posQty').value);
+  const avg = parseFloat(document.getElementById('posAvg').value);
+  if (!sym || !/^[A-Z.\-]{1,10}$/.test(sym)) { toast('Invalid ticker', 'bear'); return; }
+  if (!isFinite(qty) || qty === 0) { toast('Invalid quantity', 'bear'); return; }
+  if (!isFinite(avg) || avg <= 0) { toast('Invalid average cost', 'bear'); return; }
+  const curr = state.prices[sym]?.px || avg;
+  if (id) {
+    const p = state.positions.find(x => x.id === id);
+    if (p) { p.sym = sym; p.qty = qty; p.avg = avg; p.curr = curr; }
+  } else {
+    state.positions.push({ id: 'p' + Date.now(), sym, qty, avg, curr });
+  }
+  // If we don't already track this symbol's price, seed it so we have data on next render
+  if (!state.candles[sym]) state.candles[sym] = genCandles(sym, 300, state.timeframe);
+  if (!state.prices[sym]) {
+    const last = state.candles[sym].at(-1);
+    const prev = state.candles[sym].slice(-20)[0]?.c || last.c;
+    state.prices[sym] = { px: last.c, chg: last.c - prev, chgPct: ((last.c - prev) / prev) * 100 };
+  }
+  savePositions();
+  renderPositions();
+  closeModal('positionModal');
+  toast(id ? 'Position updated' : 'Position added', 'bull');
+});
+
+document.getElementById('posDeleteBtn').addEventListener('click', () => {
+  const id = document.getElementById('posEditId').value;
+  if (!id) return;
+  removePosition(id);
+  closeModal('positionModal');
+});
 
 function renderTicker() {
   const el = document.getElementById('tickerTrack');
@@ -1889,64 +2005,216 @@ async function runAgents() {
     const el = document.getElementById(`agent-${a.id}`);
     if (!el) continue;
     el.querySelector('.agent-status').classList.add('thinking');
-    el.querySelector('.agent-status').innerHTML = '<span class="dot"></span>ANALYZING';
+    el.querySelector('.agent-status').innerHTML = '<span class="dot"></span>FETCHING';
     el.querySelector('.agent-verdict').textContent = 'computing...';
     el.querySelector('.agent-bar-fill').style.width = '0%';
-    await sleep(400 + Math.random() * 600);
-    const v = computeAgent(a.id, candles);
+    const v = await computeAgent(a.id, candles);
     verdicts[a.id] = v;
     el.querySelector('.agent-status').classList.remove('thinking');
     el.querySelector('.agent-status').innerHTML = `<span class="dot"></span>${v.label.toUpperCase()}`;
     el.querySelector('.agent-status').style.color = v.score > 0 ? 'var(--bull)' : v.score < 0 ? 'var(--bear)' : 'var(--text-dim)';
     el.querySelector('.agent-bar-fill').style.width = Math.abs(v.score * 100) + '%';
     el.querySelector('.agent-bar-fill').style.background = v.score > 0 ? 'var(--bull)' : 'var(--bear)';
-    el.querySelector('.agent-verdict').textContent = v.reason;
+    const verdictEl = el.querySelector('.agent-verdict');
+    verdictEl.innerHTML = `${v.reason}${v.source ? `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">source: ${v.source}</div>` : ''}`;
   }
   generateSignal(verdicts);
 }
 
-function computeAgent(id, candles) {
+/* ============================================================
+   DATA SOURCE HELPERS — Finnhub + FRED via Netlify proxies
+   ============================================================ */
+
+async function finnhub(path, params = {}) {
+  const cacheKey = path + JSON.stringify(params);
+  const cached = state.finnhubCache.get(cacheKey);
+  if (cached && Date.now() - cached.loadedAt < state.finnhubTTL) return cached.data;
+  try {
+    const r = await fetch('/.netlify/functions/finnhub-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, params }),
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    state.finnhubCache.set(cacheKey, { data, loadedAt: Date.now() });
+    if (state.finnhubCache.size > 200) {
+      const first = state.finnhubCache.keys().next().value;
+      state.finnhubCache.delete(first);
+    }
+    return data;
+  } catch { return null; }
+}
+
+async function fred(seriesId, limit = 30) {
+  const cacheKey = `${seriesId}:${limit}`;
+  const cached = state.fredCache.get(cacheKey);
+  if (cached && Date.now() - cached.loadedAt < state.fredTTL) return cached.data;
+  try {
+    const r = await fetch('/.netlify/functions/fred-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ series_id: seriesId, limit }),
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    state.fredCache.set(cacheKey, { data, loadedAt: Date.now() });
+    return data;
+  } catch { return null; }
+}
+
+// Convert FRED observations (newest-first) into a parsed numeric array
+function fredValues(resp) {
+  if (!resp || !resp.observations) return [];
+  return resp.observations.map(o => parseFloat(o.value)).filter(v => isFinite(v));
+}
+
+/* ============================================================
+   AGENT COMPUTE — real data sources, no Math.random
+   ============================================================ */
+
+async function computeAgent(id, candles) {
   const last = candles.at(-1);
-  // Adaptive lookback: ~20 bars on intraday, ~50 on daily for more stable signals
   const lookback = state.timeframe === '1d' ? 50 : state.timeframe === '4h' ? 30 : 20;
   const slice = candles.slice(-lookback);
   const avg = slice.reduce((s, c) => s + c.c, 0) / slice.length;
   const pctChange = ((last.c - slice[0].c) / slice[0].c) * 100;
   switch (id) {
     case 'chart': {
-      // Scale the score normalisation to the timeframe so an 0.5% move on 1m
-      // isn't treated the same as a 0.5% move on 1d.
       const tfNorm = state.timeframe === '1d' ? 8 : state.timeframe === '4h' ? 5 : state.timeframe === '1h' ? 3 : 1.5;
       const score = Math.max(-1, Math.min(1, pctChange / tfNorm));
       const label = score > 0.3 ? 'bullish' : score < -0.3 ? 'bearish' : 'neutral';
-      return { score, label, reason: `${pctChange.toFixed(2)}% over ${lookback} ${state.timeframe} bars; ${last.c > avg ? 'above' : 'below'} SMA${lookback}` };
+      return { score, label, reason: `${pctChange.toFixed(2)}% over ${lookback} ${state.timeframe} bars; ${last.c > avg ? 'above' : 'below'} SMA${lookback}`, source: 'price action' };
     }
     case 'sentiment': {
-      const score = (Math.random() - 0.4) * 1.5;
-      const clamped = Math.max(-1, Math.min(1, score));
-      return { score: clamped, label: clamped > 0 ? 'positive' : 'negative',
-               reason: clamped > 0 ? 'bullish social mentions, funds accumulating' : 'mixed news, retail hesitant' };
+      // Real source: Finnhub company news, last 7 days, sentiment classified per article
+      const today = new Date();
+      const weekAgo = new Date(today.getTime() - 7 * 86400000);
+      const fmt = (d) => d.toISOString().slice(0, 10);
+      const news = await finnhub('/company-news', { symbol: state.symbol, from: fmt(weekAgo), to: fmt(today) });
+      if (!news || !Array.isArray(news) || news.length === 0) {
+        return { score: 0, label: 'no data', reason: `No news found for ${state.symbol} in last 7d`, source: 'Finnhub news' };
+      }
+      // Finnhub returns headlines + summaries. Score with a simple keyword classifier.
+      // We weight the most recent articles slightly more.
+      const POS = ['beat', 'beats', 'surge', 'surges', 'soar', 'rally', 'rallies', 'jump', 'jumps', 'gain', 'gains', 'upgrade', 'upgraded', 'bullish', 'outperform', 'record', 'high', 'strong', 'positive', 'profit', 'growth'];
+      const NEG = ['miss', 'misses', 'plunge', 'plunges', 'fall', 'falls', 'drop', 'drops', 'tumble', 'downgrade', 'downgraded', 'bearish', 'underperform', 'low', 'weak', 'negative', 'loss', 'cut', 'cuts', 'warning', 'concern'];
+      let totalScore = 0, weight = 0;
+      const recentN = Math.min(news.length, 30);
+      for (let i = 0; i < recentN; i++) {
+        const article = news[i];
+        const text = ((article.headline || '') + ' ' + (article.summary || '')).toLowerCase();
+        let articleScore = 0;
+        for (const p of POS) if (text.includes(p)) articleScore += 1;
+        for (const n of NEG) if (text.includes(n)) articleScore -= 1;
+        const w = 1 - (i / recentN) * 0.5; // most-recent weighted up to 2x
+        totalScore += articleScore * w;
+        weight += w;
+      }
+      const normalized = weight > 0 ? Math.max(-1, Math.min(1, (totalScore / weight) / 3)) : 0;
+      const label = normalized > 0.2 ? 'positive' : normalized < -0.2 ? 'negative' : 'neutral';
+      return {
+        score: normalized,
+        label,
+        reason: `${recentN} articles in 7d; net keyword sentiment ${normalized > 0 ? '+' : ''}${normalized.toFixed(2)}`,
+        source: 'Finnhub news (keyword classifier)',
+      };
     }
     case 'fundamental': {
-      const score = 0.2 + (Math.random() - 0.5) * 0.8;
-      return { score, label: score > 0 ? 'strong' : 'weak',
-               reason: score > 0 ? 'solid earnings, margin expansion' : 'revenue miss, guidance cut' };
+      // Real source: Finnhub /stock/metric (annual + TTM ratios) + /stock/recommendation
+      const [metric, recs] = await Promise.all([
+        finnhub('/stock/metric', { symbol: state.symbol, metric: 'all' }),
+        finnhub('/stock/recommendation', { symbol: state.symbol }),
+      ]);
+      if (!metric || !metric.metric) {
+        return { score: 0, label: 'no data', reason: `No fundamentals for ${state.symbol}`, source: 'Finnhub fundamentals' };
+      }
+      const m = metric.metric;
+      // Composite score from a handful of meaningful ratios. Each contributes -1..+1.
+      const factors = [];
+      // Profitability
+      if (isFinite(m.roeTTM)) factors.push(scaleSign(m.roeTTM, 5, 25));   // ROE 5-25% is decent->good
+      if (isFinite(m.netProfitMarginTTM)) factors.push(scaleSign(m.netProfitMarginTTM, 0, 20));
+      // Valuation (lower P/E better, capped)
+      if (isFinite(m.peNormalizedAnnual) && m.peNormalizedAnnual > 0) {
+        // Inverted: P/E of 15 = neutral, 10 = good, 30 = bad
+        factors.push(Math.max(-1, Math.min(1, (15 - m.peNormalizedAnnual) / 15)));
+      }
+      // Revenue growth
+      if (isFinite(m.revenueGrowthTTMYoy)) factors.push(scaleSign(m.revenueGrowthTTMYoy, -10, 20));
+      // Analyst recommendations (most recent month)
+      if (Array.isArray(recs) && recs.length > 0) {
+        const r = recs[0];
+        const totalAnalysts = r.strongBuy + r.buy + r.hold + r.sell + r.strongSell;
+        if (totalAnalysts > 0) {
+          const analystScore = ((r.strongBuy * 1 + r.buy * 0.5 - r.sell * 0.5 - r.strongSell * 1) / totalAnalysts);
+          factors.push(Math.max(-1, Math.min(1, analystScore * 1.5)));
+        }
+      }
+      if (factors.length === 0) {
+        return { score: 0, label: 'incomplete', reason: 'Insufficient ratios available', source: 'Finnhub fundamentals' };
+      }
+      const score = factors.reduce((s, v) => s + v, 0) / factors.length;
+      const label = score > 0.25 ? 'strong' : score < -0.25 ? 'weak' : 'mixed';
+      const reasonBits = [];
+      if (isFinite(m.peNormalizedAnnual)) reasonBits.push(`P/E ${m.peNormalizedAnnual.toFixed(1)}`);
+      if (isFinite(m.roeTTM)) reasonBits.push(`ROE ${m.roeTTM.toFixed(1)}%`);
+      if (isFinite(m.revenueGrowthTTMYoy)) reasonBits.push(`Rev growth ${m.revenueGrowthTTMYoy.toFixed(1)}%`);
+      return {
+        score, label,
+        reason: reasonBits.join(', ') || 'composite from ' + factors.length + ' factors',
+        source: 'Finnhub fundamentals + analyst recs',
+      };
     }
     case 'risk': {
       const vol = Math.sqrt(slice.reduce((s, c) => s + Math.pow((c.h - c.l) / c.c, 2), 0) / slice.length);
-      const score = -vol * 10;
-      const clamped = Math.max(-1, Math.min(1, score));
-      return { score: clamped, label: vol > 0.03 ? 'elevated' : 'normal',
-               reason: `ATR ratio ${(vol * 100).toFixed(2)}% — ${vol > 0.03 ? 'size down' : 'normal size ok'}` };
+      const score = Math.max(-1, Math.min(1, -vol * 10));
+      return {
+        score, label: vol > 0.03 ? 'elevated' : 'normal',
+        reason: `ATR ratio ${(vol * 100).toFixed(2)}% — ${vol > 0.03 ? 'size down' : 'normal size ok'}`,
+        source: 'price action',
+      };
     }
     case 'macro': {
-      const score = (Math.random() - 0.5) * 1.4;
-      const clamped = Math.max(-1, Math.min(1, score));
-      return { score: clamped, label: clamped > 0 ? 'supportive' : 'headwind',
-               reason: clamped > 0 ? 'rates stable, risk-on tape' : 'yields rising, equity pressure' };
+      // Real source: FRED for rates + 10y2y spread
+      const [tenY, twoY, spread, ff] = await Promise.all([
+        fred('DGS10', 5),
+        fred('DGS2', 5),
+        fred('T10Y2Y', 5),
+        fred('DFF', 5),
+      ]);
+      const tenYVals = fredValues(tenY);
+      const twoYVals = fredValues(twoY);
+      const spreadVals = fredValues(spread);
+      const ffVals = fredValues(ff);
+      if (tenYVals.length === 0 || spreadVals.length === 0) {
+        return { score: 0, label: 'no data', reason: 'FRED data unavailable', source: 'FRED' };
+      }
+      const tenYNow = tenYVals[0], tenYPrev = tenYVals[Math.min(4, tenYVals.length - 1)];
+      const tenYDelta = tenYNow - tenYPrev;
+      const spreadNow = spreadVals[0];
+      // Simple macro scoring:
+      // - Rising yields hurt risk assets => -score
+      // - Inverted yield curve (negative spread) is risk-off => -score
+      let score = 0;
+      if (tenYDelta > 0.05) score -= 0.4; // material rise
+      else if (tenYDelta < -0.05) score += 0.4;
+      if (spreadNow < 0) score -= 0.3;     // inversion
+      else if (spreadNow > 1) score += 0.2; // healthy steep curve
+      score = Math.max(-1, Math.min(1, score));
+      const label = score > 0.2 ? 'supportive' : score < -0.2 ? 'headwind' : 'neutral';
+      const reason = `10Y ${tenYNow.toFixed(2)}% (${tenYDelta >= 0 ? '+' : ''}${tenYDelta.toFixed(2)} 5d), 10y2y spread ${spreadNow.toFixed(2)}%${ffVals.length ? `, FF ${ffVals[0].toFixed(2)}%` : ''}`;
+      return { score, label, reason, source: 'FRED (Treasury yields + curve)' };
     }
   }
-  return { score: 0, label: 'neutral', reason: '' };
+  return { score: 0, label: 'neutral', reason: '', source: '' };
+}
+
+// Scale a value to [-1, +1] given thresholds for "neutral" and "very strong"
+function scaleSign(value, neutral, strong) {
+  if (!isFinite(value)) return 0;
+  const range = strong - neutral;
+  return Math.max(-1, Math.min(1, (value - neutral) / range));
 }
 
 function generateSignal(verdicts) {
@@ -2079,21 +2347,47 @@ function deleteAlert(id) {
 }
 window.deleteAlert = deleteAlert;
 
-function renderNewsTab() {
+async function renderNewsTab() {
   const content = document.getElementById('tabContent');
-  const items = [
-    { time: '1m ago', headline: `${state.symbol} breaks above key resistance on heavy volume`, source: 'MarketWatch' },
-    { time: '14m ago', headline: 'Fed minutes show split on rate path, traders dial back cut odds', source: 'Reuters' },
-    { time: '32m ago', headline: 'Semiconductors rally as AI capex guidance lifts sector', source: 'Bloomberg' },
-    { time: '1h ago', headline: 'Options flow: unusual activity in mega-cap tech', source: 'Unusual Whales' },
-    { time: '2h ago', headline: 'VIX compresses to multi-week lows, risk-on tape continues', source: 'CNBC' },
-  ];
-  content.innerHTML = items.map(n => `
-    <div class="news-item">
-      <div class="news-time">${n.time} · <span class="news-source">${n.source}</span></div>
-      <div class="news-headline">${n.headline}</div>
-    </div>
-  `).join('');
+  content.innerHTML = `<div class="empty">Loading news for ${state.symbol}...</div>`;
+  // Pull last 7 days of company news
+  const today = new Date();
+  const weekAgo = new Date(today.getTime() - 7 * 86400000);
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  const news = await finnhub('/company-news', {
+    symbol: state.symbol,
+    from: fmt(weekAgo),
+    to: fmt(today),
+  });
+  if (!news || !Array.isArray(news) || news.length === 0) {
+    content.innerHTML = `<div class="empty">No news found for ${state.symbol} in the last 7 days. Try a more widely-covered ticker (AAPL, TSLA, NVDA, SPY).</div>`;
+    return;
+  }
+  // Limit to 30 most recent for performance
+  const items = news.slice(0, 30);
+  content.innerHTML = items.map(n => {
+    const d = new Date(n.datetime * 1000);
+    const ago = relativeTime(d);
+    const safeUrl = (n.url || '#').replace(/"/g, '&quot;');
+    const safeHeadline = escapeHtml(n.headline || '(no headline)');
+    const safeSummary = escapeHtml(n.summary || '');
+    const safeSource = escapeHtml(n.source || 'unknown');
+    return `<div class="news-item" style="padding:10px 12px">
+      <div class="news-time">${ago} · <span class="news-source">${safeSource}</span></div>
+      <div class="news-headline" style="font-weight:600;margin-top:2px">
+        <a href="${safeUrl}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none">${safeHeadline}</a>
+      </div>
+      ${safeSummary ? `<div style="color:var(--text-dim);font-size:10px;line-height:1.5;margin-top:4px">${safeSummary.slice(0, 200)}${safeSummary.length > 200 ? '...' : ''}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function relativeTime(d) {
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (sec < 60) return sec + 's ago';
+  if (sec < 3600) return Math.floor(sec / 60) + 'm ago';
+  if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
+  return Math.floor(sec / 86400) + 'd ago';
 }
 
 function renderOverviewTab() {
