@@ -577,29 +577,15 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
 <!-- ===== INDICATORS MODAL ===== -->
 <div class="modal-backdrop" id="indModal">
-  <div class="modal">
+  <div class="modal" style="width:520px;max-width:95vw">
     <h3>CHART INDICATORS</h3>
-    <div style="display:flex;flex-direction:column;gap:10px;font-size:12px">
-      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="indVWAP" checked>
-        <span>VWAP <span style="color:var(--text-dim);font-size:10px">(session volume-weighted)</span></span>
-      </label>
-      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="indMA" checked>
-        <span>Moving Averages <span style="color:var(--text-dim);font-size:10px">(MA50 blue, MA200 purple)</span></span>
-      </label>
-      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="indVolume" checked>
-        <span>Volume <span style="color:var(--text-dim);font-size:10px">(bottom panel)</span></span>
-      </label>
-      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="indGrid" checked>
-        <span>Price Grid</span>
-      </label>
-      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="indLastPx" checked>
-        <span>Last Price Line</span>
-      </label>
+    <div class="field">
+      <input id="indSearch" placeholder="Search indicators... (e.g. rsi, bollinger, volume)" style="width:100%">
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="indCatFilters"></div>
+    <div id="indList" style="max-height:300px;overflow-y:auto;padding-right:8px"></div>
+    <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-top:8px">
+      Overlays draw on the price chart. Sub-panel indicators show below (only one at a time to keep the chart readable).
     </div>
     <div class="modal-actions">
       <button class="btn btn-primary" onclick="closeModal('indModal')">DONE</button>
@@ -717,18 +703,66 @@ function initData() {
    CHART RENDERER — pannable, zoomable
    ============================================================ */
 
+/* ============================================================
+   INDICATOR REGISTRY
+   All available indicators: trend, momentum, volatility, volume.
+   type: 'overlay' draws on price chart; 'subpanel' uses bottom strip; 'display' is a render toggle.
+   ============================================================ */
+
+const INDICATOR_DEFS = [
+  // Trend (overlay)
+  { id: 'sma20', name: 'SMA 20', cat: 'Trend', type: 'overlay', desc: '20-period simple moving average' },
+  { id: 'sma50', name: 'SMA 50', cat: 'Trend', type: 'overlay', desc: '50-period simple moving average' },
+  { id: 'sma200', name: 'SMA 200', cat: 'Trend', type: 'overlay', desc: '200-period simple moving average' },
+  { id: 'ema9', name: 'EMA 9', cat: 'Trend', type: 'overlay', desc: '9-period exponential moving average (fast)' },
+  { id: 'ema21', name: 'EMA 21', cat: 'Trend', type: 'overlay', desc: '21-period exponential moving average' },
+  { id: 'ema50', name: 'EMA 50', cat: 'Trend', type: 'overlay', desc: '50-period exponential moving average' },
+  // Volatility (overlay)
+  { id: 'bb', name: 'Bollinger Bands', cat: 'Volatility', type: 'overlay', desc: '20-period SMA ± 2 standard deviations' },
+  { id: 'kc', name: 'Keltner Channels', cat: 'Volatility', type: 'overlay', desc: '20-period EMA ± 2 ATR' },
+  { id: 'donchian', name: 'Donchian Channels', cat: 'Volatility', type: 'overlay', desc: 'Highest high / lowest low over 20 periods' },
+  // Volume (overlay)
+  { id: 'vwap', name: 'VWAP', cat: 'Volume', type: 'overlay', desc: 'Session volume-weighted average price' },
+  // Momentum (subpanel)
+  { id: 'rsi', name: 'RSI', cat: 'Momentum', type: 'subpanel', desc: 'Relative Strength Index (14). Overbought >70, oversold <30.' },
+  { id: 'macd', name: 'MACD', cat: 'Momentum', type: 'subpanel', desc: 'MACD line (12,26) with 9-period signal and histogram' },
+  { id: 'stoch', name: 'Stochastic', cat: 'Momentum', type: 'subpanel', desc: 'Stochastic Oscillator (14,3,3)' },
+  { id: 'cci', name: 'CCI', cat: 'Momentum', type: 'subpanel', desc: 'Commodity Channel Index (20). ±100 extreme zones.' },
+  { id: 'williams', name: 'Williams %R', cat: 'Momentum', type: 'subpanel', desc: 'Williams %R (14). Inverted oscillator.' },
+  { id: 'roc', name: 'Rate of Change', cat: 'Momentum', type: 'subpanel', desc: 'Percent price change over 12 periods' },
+  // Volatility (subpanel)
+  { id: 'atr', name: 'ATR', cat: 'Volatility', type: 'subpanel', desc: 'Average True Range (14). Absolute volatility.' },
+  // Volume (subpanel)
+  { id: 'obv', name: 'OBV', cat: 'Volume', type: 'subpanel', desc: 'On-Balance Volume. Cumulative volume tied to direction.' },
+  { id: 'mfi', name: 'Money Flow Index', cat: 'Volume', type: 'subpanel', desc: 'Volume-weighted RSI (14)' },
+  // Display toggles
+  { id: 'volume', name: 'Volume', cat: 'Display', type: 'display', desc: 'Volume bars below price chart' },
+  { id: 'grid', name: 'Price Grid', cat: 'Display', type: 'display', desc: 'Horizontal grid lines' },
+  { id: 'lastPx', name: 'Last Price Line', cat: 'Display', type: 'display', desc: 'Dashed line at most recent close' },
+];
+
+// Persist indicator state
+const savedInd = JSON.parse(localStorage.getItem('apex.indicators') || 'null');
+const savedSub = localStorage.getItem('apex.subPanel') || 'none';
+
 const chartState = {
-  visibleStart: 200,      // leftmost visible candle index (fractional ok)
-  visibleCount: 100,      // how many candles visible
-  priceOffsetRatio: 0,    // vertical pan as ratio of price range
-  priceScale: 1,          // vertical zoom factor (1 = auto-fit)
-  autoFitPrice: true,
-  showVWAP: true,
-  showMA: true,
-  showVolume: true,
-  showGrid: true,
-  showLastPx: true,
+  visibleStart: 200,
+  visibleCount: 100,
+  priceOffsetRatio: 0,
+  priceScale: 1,
+  indicators: savedInd || {
+    sma50: true, sma200: true, vwap: true,
+    volume: true, grid: true, lastPx: true,
+  },
+  subPanel: savedSub, // only one active at a time
 };
+
+function saveIndicatorState() {
+  localStorage.setItem('apex.indicators', JSON.stringify(chartState.indicators));
+  localStorage.setItem('apex.subPanel', chartState.subPanel);
+}
+
+function indOn(id) { return !!chartState.indicators[id]; }
 
 const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
@@ -773,9 +807,10 @@ function renderChart() {
 
   const AXIS_W = 60;
   const TIME_H = 22;
-  const VOL_H = chartState.showVolume ? 50 : 0;
+  const VOL_H = indOn('volume') ? 50 : 0;
+  const SUB_H = chartState.subPanel !== 'none' ? 80 : 0;
   const chartW = cw - AXIS_W;
-  const chartH = ch - TIME_H - VOL_H;
+  const chartH = ch - TIME_H - VOL_H - SUB_H;
 
   const start = Math.floor(chartState.visibleStart);
   const count = Math.ceil(chartState.visibleCount);
@@ -792,53 +827,46 @@ function renderChart() {
   }
   const pad = (maxP - minP) * 0.08 || 1;
   minP -= pad; maxP += pad;
-  // apply vertical zoom (priceScale > 1 = zoomed in = smaller range shown)
   const mid = (minP + maxP) / 2;
   const halfRange = (maxP - minP) / 2 / chartState.priceScale;
   minP = mid - halfRange;
   maxP = mid + halfRange;
-  // apply vertical pan offset
   const vshift = (maxP - minP) * chartState.priceOffsetRatio;
   minP += vshift; maxP += vshift;
 
   const candleW = chartW / chartState.visibleCount;
   const y = (p) => chartH * (1 - (p - minP) / (maxP - minP));
+  const xAt = (i) => (i - chartState.visibleStart) * candleW + candleW / 2;
 
   // --- clear
   ctx.fillStyle = '#05080d';
   ctx.fillRect(0, 0, cw, ch);
 
-  // --- grid
-  if (chartState.showGrid) {
-    ctx.strokeStyle = '#12192480';
-    ctx.lineWidth = 1;
-    ctx.font = '10px monospace';
-    ctx.fillStyle = '#4a5468';
-    for (let i = 0; i <= 6; i++) {
-      const yy = (chartH * i) / 6;
+  // --- grid + axis labels
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#4a5468';
+  for (let i = 0; i <= 6; i++) {
+    const yy = (chartH * i) / 6;
+    if (indOn('grid')) {
+      ctx.strokeStyle = '#12192480';
+      ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(chartW, yy); ctx.stroke();
-      const p = minP + (maxP - minP) * (1 - i / 6);
-      ctx.fillText(p.toFixed(2), chartW + 4, yy + 3);
     }
-  } else {
-    // still draw axis labels even if grid off
-    ctx.font = '10px monospace';
-    ctx.fillStyle = '#4a5468';
-    for (let i = 0; i <= 6; i++) {
-      const yy = (chartH * i) / 6;
-      const p = minP + (maxP - minP) * (1 - i / 6);
-      ctx.fillText(p.toFixed(2), chartW + 4, yy + 3);
-    }
+    const p = minP + (maxP - minP) * (1 - i / 6);
+    ctx.fillText(p.toFixed(2), chartW + 4, yy + 3);
   }
 
-  // --- MAs
-  if (chartState.showMA) {
-    drawMA(candles, start, end, 50, y, candleW, '#2e7fff');
-    drawMA(candles, start, end, 200, y, candleW, '#9d4edd');
-  }
-
-  // --- VWAP (session-based approximation)
-  if (chartState.showVWAP) drawVWAP(visible, y, candleW);
+  // --- Overlay indicators (drawn under candles)
+  if (indOn('sma20')) drawSMA(candles, start, end, 20, y, xAt, '#ff9800');
+  if (indOn('sma50')) drawSMA(candles, start, end, 50, y, xAt, '#2e7fff');
+  if (indOn('sma200')) drawSMA(candles, start, end, 200, y, xAt, '#9d4edd');
+  if (indOn('ema9')) drawEMA(candles, start, end, 9, y, xAt, '#26a69a');
+  if (indOn('ema21')) drawEMA(candles, start, end, 21, y, xAt, '#ef5350');
+  if (indOn('ema50')) drawEMA(candles, start, end, 50, y, xAt, '#ffb300');
+  if (indOn('bb')) drawBollinger(candles, start, end, 20, 2, y, xAt);
+  if (indOn('kc')) drawKeltner(candles, start, end, 20, 2, y, xAt);
+  if (indOn('donchian')) drawDonchian(candles, start, end, 20, y, xAt);
+  if (indOn('vwap')) drawVWAP(visible, y, candleW);
 
   // --- candles
   for (let i = 0; i < visible.length; i++) {
@@ -847,12 +875,10 @@ function renderChart() {
     const up = c.c >= c.o;
     ctx.strokeStyle = up ? '#0ecb81' : '#f6465d';
     ctx.fillStyle = up ? '#0ecb81' : '#f6465d';
-    // wick
     ctx.beginPath();
     ctx.moveTo(xCenter, y(c.h));
     ctx.lineTo(xCenter, y(c.l));
     ctx.stroke();
-    // body
     const bodyTop = Math.min(y(c.o), y(c.c));
     const bodyH = Math.max(1, Math.abs(y(c.o) - y(c.c)));
     const bw = Math.max(1, candleW * 0.7);
@@ -860,7 +886,7 @@ function renderChart() {
   }
 
   // --- volume
-  if (chartState.showVolume && maxV > 0) {
+  if (indOn('volume') && maxV > 0) {
     const volTop = chartH + 2;
     ctx.fillStyle = '#12192480';
     ctx.fillRect(0, volTop, chartW, VOL_H - 4);
@@ -876,6 +902,12 @@ function renderChart() {
     ctx.fillText('VOL', 4, volTop + 10);
   }
 
+  // --- Sub-panel indicator
+  if (chartState.subPanel !== 'none' && SUB_H > 0) {
+    const subTop = chartH + VOL_H;
+    drawSubPanel(candles, start, end, subTop, SUB_H, chartW, xAt);
+  }
+
   // --- time axis
   const timeY = ch - TIME_H + 14;
   ctx.fillStyle = '#4a5468';
@@ -885,13 +917,17 @@ function renderChart() {
     const idx = Math.floor(start + (count / labels) * i);
     if (!candles[idx]) continue;
     const d = new Date(candles[idx].t);
-    const label = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    const mins = tfMinutes(state.timeframe);
+    // Show date for multi-day spans, time for intraday
+    const label = mins >= 1440
+      ? (d.getMonth() + 1) + '/' + d.getDate() + (mins >= 10080 ? '/' + String(d.getFullYear()).slice(2) : '')
+      : d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
     ctx.fillText(label, (chartW / labels) * i + 4, timeY);
   }
 
   // --- last price line
   const lastC = candles.at(-1);
-  if (lastC && chartState.showLastPx) {
+  if (lastC && indOn('lastPx')) {
     const ly = y(lastC.c);
     ctx.strokeStyle = '#f0b42980';
     ctx.setLineDash([3, 3]);
@@ -918,19 +954,528 @@ function renderChart() {
   });
 }
 
-function drawMA(candles, start, end, period, y, candleW, color) {
-  if (start - period < 0) return;
+/* ============================================================
+   INDICATOR DRAW FUNCTIONS
+   ============================================================ */
+
+function drawSMA(candles, start, end, period, y, xAt, color) {
+  if (candles.length < period) return;
   ctx.strokeStyle = color; ctx.lineWidth = 1.5;
   ctx.beginPath();
   let first = true;
-  for (let i = start; i < end; i++) {
+  for (let i = Math.max(start, period - 1); i < end; i++) {
     let sum = 0;
     for (let j = i - period + 1; j <= i; j++) sum += candles[j].c;
     const ma = sum / period;
-    const x = (i - chartState.visibleStart) * candleW + candleW / 2;
+    const x = xAt(i);
     if (first) { ctx.moveTo(x, y(ma)); first = false; } else ctx.lineTo(x, y(ma));
   }
   ctx.stroke();
+}
+
+function drawEMA(candles, start, end, period, y, xAt, color) {
+  if (candles.length < period) return;
+  const k = 2 / (period + 1);
+  // Seed EMA with SMA of first `period` bars
+  let ema = 0;
+  for (let i = 0; i < period; i++) ema += candles[i].c;
+  ema /= period;
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  let first = true;
+  for (let i = period; i < end; i++) {
+    ema = candles[i].c * k + ema * (1 - k);
+    if (i >= start) {
+      const x = xAt(i);
+      if (first) { ctx.moveTo(x, y(ema)); first = false; } else ctx.lineTo(x, y(ema));
+    }
+  }
+  ctx.stroke();
+}
+
+function drawBollinger(candles, start, end, period, mult, y, xAt) {
+  if (candles.length < period) return;
+  const upper = [], middle = [], lower = [];
+  for (let i = period - 1; i < end; i++) {
+    let sum = 0;
+    for (let j = i - period + 1; j <= i; j++) sum += candles[j].c;
+    const mean = sum / period;
+    let variance = 0;
+    for (let j = i - period + 1; j <= i; j++) variance += Math.pow(candles[j].c - mean, 2);
+    const std = Math.sqrt(variance / period);
+    upper.push({ i, v: mean + mult * std });
+    middle.push({ i, v: mean });
+    lower.push({ i, v: mean - mult * std });
+  }
+  const drawLine = (arr, color, dash) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 1;
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    let first = true;
+    for (const p of arr) {
+      if (p.i < start) continue;
+      const x = xAt(p.i);
+      if (first) { ctx.moveTo(x, y(p.v)); first = false; } else ctx.lineTo(x, y(p.v));
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  drawLine(upper, '#7cb342');
+  drawLine(middle, '#7cb34280', [3, 3]);
+  drawLine(lower, '#7cb342');
+}
+
+function drawKeltner(candles, start, end, period, mult, y, xAt) {
+  if (candles.length < period) return;
+  const k = 2 / (period + 1);
+  let ema = 0;
+  for (let i = 0; i < period; i++) ema += candles[i].c;
+  ema /= period;
+  const atrs = [];
+  for (let i = 1; i < candles.length; i++) {
+    const prev = candles[i - 1];
+    atrs.push(Math.max(candles[i].h - candles[i].l,
+      Math.abs(candles[i].h - prev.c), Math.abs(candles[i].l - prev.c)));
+  }
+  let atr = 0;
+  for (let i = 0; i < period; i++) atr += atrs[i];
+  atr /= period;
+  const upper = [], middle = [], lower = [];
+  for (let i = period; i < end; i++) {
+    ema = candles[i].c * k + ema * (1 - k);
+    atr = ((period - 1) * atr + atrs[i - 1]) / period;
+    upper.push({ i, v: ema + mult * atr });
+    middle.push({ i, v: ema });
+    lower.push({ i, v: ema - mult * atr });
+  }
+  const drawLine = (arr, color, dash) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 1;
+    if (dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
+    ctx.beginPath();
+    let first = true;
+    for (const p of arr) {
+      if (p.i < start) continue;
+      const x = xAt(p.i);
+      if (first) { ctx.moveTo(x, y(p.v)); first = false; } else ctx.lineTo(x, y(p.v));
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  drawLine(upper, '#29b6f6');
+  drawLine(middle, '#29b6f680', [2, 3]);
+  drawLine(lower, '#29b6f6');
+}
+
+function drawDonchian(candles, start, end, period, y, xAt) {
+  if (candles.length < period) return;
+  const upper = [], lower = [];
+  for (let i = period - 1; i < end; i++) {
+    let hi = -Infinity, lo = Infinity;
+    for (let j = i - period + 1; j <= i; j++) {
+      if (candles[j].h > hi) hi = candles[j].h;
+      if (candles[j].l < lo) lo = candles[j].l;
+    }
+    upper.push({ i, v: hi });
+    lower.push({ i, v: lo });
+  }
+  const drawLine = (arr, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 1;
+    ctx.beginPath();
+    let first = true;
+    for (const p of arr) {
+      if (p.i < start) continue;
+      const x = xAt(p.i);
+      if (first) { ctx.moveTo(x, y(p.v)); first = false; } else ctx.lineTo(x, y(p.v));
+    }
+    ctx.stroke();
+  };
+  drawLine(upper, '#ec407a');
+  drawLine(lower, '#ec407a');
+}
+
+/* ============================================================
+   SUB-PANEL INDICATORS
+   ============================================================ */
+
+function drawSubPanel(candles, start, end, top, height, chartW, xAt) {
+  // background
+  ctx.fillStyle = '#0a0f1680';
+  ctx.fillRect(0, top, chartW, height);
+  ctx.strokeStyle = '#1a2332';
+  ctx.beginPath(); ctx.moveTo(0, top); ctx.lineTo(chartW, top); ctx.stroke();
+
+  const pad = 4;
+  const ay = (v, min, max) => top + pad + (height - 2 * pad) * (1 - (v - min) / (max - min));
+
+  switch (chartState.subPanel) {
+    case 'rsi': return drawRSISubPanel(candles, start, end, top, height, chartW, xAt, ay);
+    case 'macd': return drawMACDSubPanel(candles, start, end, top, height, chartW, xAt);
+    case 'stoch': return drawStochSubPanel(candles, start, end, top, height, chartW, xAt, ay);
+    case 'cci': return drawCCISubPanel(candles, start, end, top, height, chartW, xAt);
+    case 'williams': return drawWilliamsSubPanel(candles, start, end, top, height, chartW, xAt, ay);
+    case 'roc': return drawROCSubPanel(candles, start, end, top, height, chartW, xAt);
+    case 'atr': return drawATRSubPanel(candles, start, end, top, height, chartW, xAt);
+    case 'obv': return drawOBVSubPanel(candles, start, end, top, height, chartW, xAt);
+    case 'mfi': return drawMFISubPanel(candles, start, end, top, height, chartW, xAt, ay);
+  }
+}
+
+function drawRSISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
+  const period = 14;
+  if (candles.length < period + 1) return;
+  const rsis = computeRSI(candles, period);
+  // 70/30 lines
+  ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(0, ay(70, 0, 100)); ctx.lineTo(chartW, ay(70, 0, 100)); ctx.stroke();
+  ctx.strokeStyle = '#0ecb8140';
+  ctx.beginPath(); ctx.moveTo(0, ay(30, 0, 100)); ctx.lineTo(chartW, ay(30, 0, 100)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = '#ab47bc'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  let first = true;
+  for (let i = period; i < end; i++) {
+    if (i >= start) {
+      const x = xAt(i), py = ay(rsis[i] || 50, 0, 100);
+      if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+    }
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillText('RSI 14', 4, top + 10);
+  ctx.fillText('70', chartW + 4, ay(70, 0, 100) + 3);
+  ctx.fillText('30', chartW + 4, ay(30, 0, 100) + 3);
+}
+
+function computeRSI(candles, period) {
+  const rsis = new Array(candles.length).fill(null);
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = candles[i].c - candles[i - 1].c;
+    if (d > 0) avgGain += d; else avgLoss -= d;
+  }
+  avgGain /= period; avgLoss /= period;
+  rsis[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  for (let i = period + 1; i < candles.length; i++) {
+    const d = candles[i].c - candles[i - 1].c;
+    const g = d > 0 ? d : 0, l = d < 0 ? -d : 0;
+    avgGain = (avgGain * (period - 1) + g) / period;
+    avgLoss = (avgLoss * (period - 1) + l) / period;
+    rsis[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  }
+  return rsis;
+}
+
+function drawMACDSubPanel(candles, start, end, top, h, chartW, xAt) {
+  const fast = 12, slow = 26, signalP = 9;
+  if (candles.length < slow + signalP) return;
+  // EMAs
+  const emaFast = computeEMAArr(candles, fast);
+  const emaSlow = computeEMAArr(candles, slow);
+  const macd = candles.map((_, i) => (emaFast[i] ?? 0) - (emaSlow[i] ?? 0));
+  const signalArr = computeEMAFromArr(macd, signalP);
+  const hist = macd.map((v, i) => v - (signalArr[i] ?? 0));
+  // Range
+  let lo = Infinity, hi = -Infinity;
+  for (let i = Math.max(start, slow); i < end; i++) {
+    lo = Math.min(lo, macd[i], signalArr[i] ?? 0, hist[i]);
+    hi = Math.max(hi, macd[i], signalArr[i] ?? 0, hist[i]);
+  }
+  if (!isFinite(lo) || !isFinite(hi)) return;
+  const pad = 4;
+  const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
+  const zero = ay(0);
+  // zero line
+  ctx.strokeStyle = '#4a546840'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(0, zero); ctx.lineTo(chartW, zero); ctx.stroke();
+  ctx.setLineDash([]);
+  // Histogram
+  const barW = (chartW / chartState.visibleCount) * 0.6;
+  for (let i = Math.max(start, slow); i < end; i++) {
+    const x = xAt(i), barH = ay(hist[i]) - zero;
+    ctx.fillStyle = hist[i] >= 0 ? 'rgba(14,203,129,0.5)' : 'rgba(246,70,93,0.5)';
+    ctx.fillRect(x - barW / 2, Math.min(zero, ay(hist[i])), barW, Math.abs(barH));
+  }
+  // MACD line
+  ctx.strokeStyle = '#2e7fff'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  let first = true;
+  for (let i = Math.max(start, slow); i < end; i++) {
+    const x = xAt(i), py = ay(macd[i]);
+    if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+  }
+  ctx.stroke();
+  // Signal
+  ctx.strokeStyle = '#f0b429';
+  ctx.beginPath(); first = true;
+  for (let i = Math.max(start, slow); i < end; i++) {
+    const x = xAt(i), py = ay(signalArr[i] ?? 0);
+    if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillText('MACD 12/26/9', 4, top + 10);
+}
+
+function computeEMAArr(candles, period) {
+  const out = new Array(candles.length).fill(null);
+  if (candles.length < period) return out;
+  const k = 2 / (period + 1);
+  let ema = 0;
+  for (let i = 0; i < period; i++) ema += candles[i].c;
+  ema /= period;
+  out[period - 1] = ema;
+  for (let i = period; i < candles.length; i++) {
+    ema = candles[i].c * k + ema * (1 - k);
+    out[i] = ema;
+  }
+  return out;
+}
+
+function computeEMAFromArr(arr, period) {
+  const out = new Array(arr.length).fill(null);
+  if (arr.length < period) return out;
+  const k = 2 / (period + 1);
+  let ema = 0, count = 0;
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] == null) continue;
+    if (count < period) { ema += arr[i]; count++; if (count === period) { ema /= period; out[i] = ema; } }
+    else { ema = arr[i] * k + ema * (1 - k); out[i] = ema; }
+  }
+  return out;
+}
+
+function drawStochSubPanel(candles, start, end, top, h, chartW, xAt, ay) {
+  const kP = 14, dP = 3;
+  if (candles.length < kP + dP) return;
+  const ks = [];
+  for (let i = 0; i < candles.length; i++) {
+    if (i < kP - 1) { ks.push(null); continue; }
+    let hi = -Infinity, lo = Infinity;
+    for (let j = i - kP + 1; j <= i; j++) {
+      if (candles[j].h > hi) hi = candles[j].h;
+      if (candles[j].l < lo) lo = candles[j].l;
+    }
+    ks.push(hi === lo ? 50 : ((candles[i].c - lo) / (hi - lo)) * 100);
+  }
+  // smooth %K
+  const smoothed = [];
+  for (let i = 0; i < ks.length; i++) {
+    if (ks[i] == null || i < kP + dP - 2) { smoothed.push(null); continue; }
+    let s = 0; for (let j = i - dP + 1; j <= i; j++) s += ks[j];
+    smoothed.push(s / dP);
+  }
+  // %D is SMA of smoothed %K
+  const dArr = [];
+  for (let i = 0; i < smoothed.length; i++) {
+    if (smoothed[i] == null || i < kP + 2 * dP - 3) { dArr.push(null); continue; }
+    let s = 0; for (let j = i - dP + 1; j <= i; j++) s += smoothed[j];
+    dArr.push(s / dP);
+  }
+  ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(0, ay(80, 0, 100)); ctx.lineTo(chartW, ay(80, 0, 100)); ctx.stroke();
+  ctx.strokeStyle = '#0ecb8140';
+  ctx.beginPath(); ctx.moveTo(0, ay(20, 0, 100)); ctx.lineTo(chartW, ay(20, 0, 100)); ctx.stroke();
+  ctx.setLineDash([]);
+  const line = (arr, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    ctx.beginPath(); let first = true;
+    for (let i = Math.max(start, 0); i < end; i++) {
+      if (arr[i] == null) continue;
+      const x = xAt(i), py = ay(arr[i], 0, 100);
+      if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+    }
+    ctx.stroke();
+  };
+  line(smoothed, '#2e7fff');
+  line(dArr, '#f0b429');
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillText('Stoch 14,3,3', 4, top + 10);
+}
+
+function drawCCISubPanel(candles, start, end, top, h, chartW, xAt) {
+  const period = 20;
+  if (candles.length < period) return;
+  const cci = new Array(candles.length).fill(null);
+  for (let i = period - 1; i < candles.length; i++) {
+    const tps = [];
+    for (let j = i - period + 1; j <= i; j++) tps.push((candles[j].h + candles[j].l + candles[j].c) / 3);
+    const mean = tps.reduce((s, v) => s + v, 0) / period;
+    const mad = tps.reduce((s, v) => s + Math.abs(v - mean), 0) / period;
+    cci[i] = mad === 0 ? 0 : (tps[tps.length - 1] - mean) / (0.015 * mad);
+  }
+  let lo = Infinity, hi = -Infinity;
+  for (let i = Math.max(start, period - 1); i < end; i++) {
+    if (cci[i] != null) { lo = Math.min(lo, cci[i]); hi = Math.max(hi, cci[i]); }
+  }
+  if (!isFinite(lo)) return;
+  lo = Math.min(lo, -100); hi = Math.max(hi, 100);
+  const pad = 4;
+  const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
+  ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(0, ay(100)); ctx.lineTo(chartW, ay(100)); ctx.stroke();
+  ctx.strokeStyle = '#0ecb8140';
+  ctx.beginPath(); ctx.moveTo(0, ay(-100)); ctx.lineTo(chartW, ay(-100)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = '#ab47bc'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); let first = true;
+  for (let i = Math.max(start, period - 1); i < end; i++) {
+    if (cci[i] == null) continue;
+    const x = xAt(i), py = ay(cci[i]);
+    if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillText('CCI 20', 4, top + 10);
+}
+
+function drawWilliamsSubPanel(candles, start, end, top, h, chartW, xAt, ay) {
+  const period = 14;
+  if (candles.length < period) return;
+  const wrs = new Array(candles.length).fill(null);
+  for (let i = period - 1; i < candles.length; i++) {
+    let hi = -Infinity, lo = Infinity;
+    for (let j = i - period + 1; j <= i; j++) {
+      if (candles[j].h > hi) hi = candles[j].h;
+      if (candles[j].l < lo) lo = candles[j].l;
+    }
+    wrs[i] = hi === lo ? -50 : ((hi - candles[i].c) / (hi - lo)) * -100;
+  }
+  ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(0, ay(-20, -100, 0)); ctx.lineTo(chartW, ay(-20, -100, 0)); ctx.stroke();
+  ctx.strokeStyle = '#0ecb8140';
+  ctx.beginPath(); ctx.moveTo(0, ay(-80, -100, 0)); ctx.lineTo(chartW, ay(-80, -100, 0)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = '#26a69a'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); let first = true;
+  for (let i = Math.max(start, period - 1); i < end; i++) {
+    if (wrs[i] == null) continue;
+    const x = xAt(i), py = ay(wrs[i], -100, 0);
+    if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillText('Williams %R 14', 4, top + 10);
+}
+
+function drawROCSubPanel(candles, start, end, top, h, chartW, xAt) {
+  const period = 12;
+  if (candles.length < period) return;
+  const rocs = new Array(candles.length).fill(null);
+  for (let i = period; i < candles.length; i++) {
+    rocs[i] = ((candles[i].c - candles[i - period].c) / candles[i - period].c) * 100;
+  }
+  let lo = Infinity, hi = -Infinity;
+  for (let i = Math.max(start, period); i < end; i++) {
+    if (rocs[i] != null) { lo = Math.min(lo, rocs[i]); hi = Math.max(hi, rocs[i]); }
+  }
+  if (!isFinite(lo)) return;
+  const pad = 4;
+  const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
+  ctx.strokeStyle = '#4a546840'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(0, ay(0)); ctx.lineTo(chartW, ay(0)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = '#29b6f6'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); let first = true;
+  for (let i = Math.max(start, period); i < end; i++) {
+    if (rocs[i] == null) continue;
+    const x = xAt(i), py = ay(rocs[i]);
+    if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillText('ROC 12', 4, top + 10);
+}
+
+function drawATRSubPanel(candles, start, end, top, h, chartW, xAt) {
+  const period = 14;
+  if (candles.length < period + 1) return;
+  const atrs = new Array(candles.length).fill(null);
+  const trs = [];
+  for (let i = 1; i < candles.length; i++) {
+    const prev = candles[i - 1], c = candles[i];
+    trs.push(Math.max(c.h - c.l, Math.abs(c.h - prev.c), Math.abs(c.l - prev.c)));
+  }
+  let atr = 0;
+  for (let i = 0; i < period; i++) atr += trs[i];
+  atr /= period;
+  atrs[period] = atr;
+  for (let i = period + 1; i < candles.length; i++) {
+    atr = (atr * (period - 1) + trs[i - 1]) / period;
+    atrs[i] = atr;
+  }
+  let lo = Infinity, hi = -Infinity;
+  for (let i = Math.max(start, period); i < end; i++) {
+    if (atrs[i] != null) { lo = Math.min(lo, atrs[i]); hi = Math.max(hi, atrs[i]); }
+  }
+  if (!isFinite(lo)) return;
+  const pad = 4;
+  const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
+  ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); let first = true;
+  for (let i = Math.max(start, period); i < end; i++) {
+    if (atrs[i] == null) continue;
+    const x = xAt(i), py = ay(atrs[i]);
+    if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillText('ATR 14', 4, top + 10);
+}
+
+function drawOBVSubPanel(candles, start, end, top, h, chartW, xAt) {
+  const obv = new Array(candles.length).fill(0);
+  for (let i = 1; i < candles.length; i++) {
+    const prev = obv[i - 1];
+    if (candles[i].c > candles[i - 1].c) obv[i] = prev + candles[i].v;
+    else if (candles[i].c < candles[i - 1].c) obv[i] = prev - candles[i].v;
+    else obv[i] = prev;
+  }
+  let lo = Infinity, hi = -Infinity;
+  for (let i = Math.max(start, 1); i < end; i++) { lo = Math.min(lo, obv[i]); hi = Math.max(hi, obv[i]); }
+  if (!isFinite(lo)) return;
+  const pad = 4;
+  const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
+  ctx.strokeStyle = '#ab47bc'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); let first = true;
+  for (let i = Math.max(start, 1); i < end; i++) {
+    const x = xAt(i), py = ay(obv[i]);
+    if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillText('OBV', 4, top + 10);
+}
+
+function drawMFISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
+  const period = 14;
+  if (candles.length < period + 1) return;
+  const mfis = new Array(candles.length).fill(null);
+  const tps = candles.map(c => (c.h + c.l + c.c) / 3);
+  const rawFlow = candles.map((c, i) => tps[i] * c.v);
+  for (let i = period; i < candles.length; i++) {
+    let pos = 0, neg = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      if (j === 0) continue;
+      if (tps[j] > tps[j - 1]) pos += rawFlow[j];
+      else if (tps[j] < tps[j - 1]) neg += rawFlow[j];
+    }
+    mfis[i] = neg === 0 ? 100 : 100 - 100 / (1 + pos / neg);
+  }
+  ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(0, ay(80, 0, 100)); ctx.lineTo(chartW, ay(80, 0, 100)); ctx.stroke();
+  ctx.strokeStyle = '#0ecb8140';
+  ctx.beginPath(); ctx.moveTo(0, ay(20, 0, 100)); ctx.lineTo(chartW, ay(20, 0, 100)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); let first = true;
+  for (let i = Math.max(start, period); i < end; i++) {
+    if (mfis[i] == null) continue;
+    const x = xAt(i), py = ay(mfis[i], 0, 100);
+    if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillText('MFI 14', 4, top + 10);
 }
 
 function drawVWAP(visible, y, candleW) {
@@ -1062,7 +1607,7 @@ function renderCrosshair(mouseX, mouseY) {
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
   ctx.moveTo(mouseX, 0);
-  ctx.lineTo(mouseX, ch - 22 - (chartState.showVolume ? 50 : 0));
+  ctx.lineTo(mouseX, ch - 22 - (indOn('volume') ? 50 : 0) - (chartState.subPanel !== 'none' ? 80 : 0));
   ctx.moveTo(0, mouseY);
   ctx.lineTo(chartW, mouseY);
   ctx.stroke();
@@ -1499,22 +2044,106 @@ document.getElementById('alertBtn').addEventListener('click', () => {
   openModal('alertModal');
 });
 
-// INDICATORS modal
+// INDICATORS modal (searchable, categorized)
 document.getElementById('indBtn').addEventListener('click', () => {
-  document.getElementById('indVWAP').checked = chartState.showVWAP;
-  document.getElementById('indMA').checked = chartState.showMA;
-  document.getElementById('indVolume').checked = chartState.showVolume;
-  document.getElementById('indGrid').checked = chartState.showGrid;
-  document.getElementById('indLastPx').checked = chartState.showLastPx;
+  document.getElementById('indSearch').value = '';
+  state.indCatFilter = null;
+  renderIndicatorList();
+  renderIndicatorCatFilters();
   openModal('indModal');
+  setTimeout(() => document.getElementById('indSearch').focus(), 50);
 });
-['indVWAP', 'indMA', 'indVolume', 'indGrid', 'indLastPx'].forEach(id => {
-  document.getElementById(id).addEventListener('change', (e) => {
-    const key = { indVWAP: 'showVWAP', indMA: 'showMA', indVolume: 'showVolume', indGrid: 'showGrid', indLastPx: 'showLastPx' }[id];
-    chartState[key] = e.target.checked;
-    renderChart();
+
+document.getElementById('indSearch').addEventListener('input', renderIndicatorList);
+
+function renderIndicatorCatFilters() {
+  const cats = Array.from(new Set(INDICATOR_DEFS.map(i => i.cat)));
+  const host = document.getElementById('indCatFilters');
+  host.innerHTML = `<button class="btn btn-ghost ind-cat" data-cat="" style="padding:3px 8px;font-size:10px">ALL</button>` +
+    cats.map(c => `<button class="btn btn-ghost ind-cat" data-cat="${c}" style="padding:3px 8px;font-size:10px">${c.toUpperCase()}</button>`).join('');
+  host.querySelectorAll('.ind-cat').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.indCatFilter = btn.dataset.cat || null;
+      host.querySelectorAll('.ind-cat').forEach(b => b.style.background = '');
+      btn.style.background = 'var(--gold)';
+      btn.style.color = 'var(--bg)';
+      renderIndicatorList();
+    });
   });
-});
+}
+
+function renderIndicatorList() {
+  const q = document.getElementById('indSearch').value.trim().toLowerCase();
+  const cat = state.indCatFilter;
+  const host = document.getElementById('indList');
+  const filtered = INDICATOR_DEFS.filter(i => {
+    if (cat && i.cat !== cat) return false;
+    if (!q) return true;
+    return i.name.toLowerCase().includes(q)
+        || i.cat.toLowerCase().includes(q)
+        || i.desc.toLowerCase().includes(q)
+        || i.id.toLowerCase().includes(q);
+  });
+  if (!filtered.length) {
+    host.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-dim);font-size:11px">No indicators match your search.</div>';
+    return;
+  }
+  // Group by category
+  const byCat = {};
+  filtered.forEach(i => { (byCat[i.cat] ||= []).push(i); });
+  host.innerHTML = Object.entries(byCat).map(([catName, items]) => `
+    <div style="margin-bottom:10px">
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:4px">${catName.toUpperCase()}</div>
+      ${items.map(ind => {
+        const checked = ind.type === 'subpanel'
+          ? chartState.subPanel === ind.id
+          : !!chartState.indicators[ind.id];
+        return `
+          <label style="display:flex;gap:10px;padding:6px 4px;cursor:pointer;align-items:flex-start;border-radius:3px" onmouseover="this.style.background='var(--panel-2)'" onmouseout="this.style.background=''">
+            <input type="${ind.type === 'subpanel' ? 'radio' : 'checkbox'}" name="${ind.type === 'subpanel' ? 'subPanelChoice' : ''}" data-ind="${ind.id}" data-type="${ind.type}" ${checked ? 'checked' : ''} style="margin-top:3px">
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:600">${ind.name} <span style="color:var(--text-faint);font-size:10px;font-weight:400">${ind.type === 'subpanel' ? '(sub-panel)' : ind.type === 'overlay' ? '(overlay)' : ''}</span></div>
+              <div style="font-size:10px;color:var(--text-dim);line-height:1.4">${ind.desc}</div>
+            </div>
+          </label>
+        `;
+      }).join('')}
+    </div>
+  `).join('');
+  // Wire toggles
+  host.querySelectorAll('input[data-ind]').forEach(inp => {
+    inp.addEventListener('change', (e) => {
+      const id = e.target.dataset.ind;
+      const type = e.target.dataset.type;
+      if (type === 'subpanel') {
+        chartState.subPanel = e.target.checked ? id : 'none';
+        // Radio buttons: only the selected one is on, but allow unchecking via clicking active
+      } else {
+        chartState.indicators[id] = e.target.checked;
+      }
+      saveIndicatorState();
+      renderChart();
+    });
+  });
+  // Add a "none" option for sub-panels so user can clear them
+  if (!cat || cat === 'Momentum' || cat === 'Volatility' || cat === 'Volume') {
+    // If we have at least one subpanel shown, inject a "Clear sub-panel" button
+    const hasSubPanelShown = filtered.some(i => i.type === 'subpanel');
+    if (hasSubPanelShown && chartState.subPanel !== 'none') {
+      host.insertAdjacentHTML('afterbegin', `
+        <div style="padding:6px 0;margin-bottom:8px;border-bottom:1px solid var(--border)">
+          <button class="btn btn-ghost" id="clearSubPanel" style="padding:4px 10px;font-size:10px;width:100%">CLEAR SUB-PANEL (${INDICATOR_DEFS.find(i => i.id === chartState.subPanel)?.name || ''})</button>
+        </div>
+      `);
+      document.getElementById('clearSubPanel').addEventListener('click', () => {
+        chartState.subPanel = 'none';
+        saveIndicatorState();
+        renderChart();
+        renderIndicatorList();
+      });
+    }
+  }
+}
 
 document.getElementById('alertSaveBtn').addEventListener('click', () => {
   const sym = document.getElementById('alertSym').value.trim().toUpperCase();
@@ -1773,8 +2402,8 @@ function computeRangeDates(range, customStart, customEnd) {
   const end = new Date();
   let start = null;
   switch (range) {
-    case '1D':  start = new Date(end); start.setDate(end.getDate() - 1); break;
-    case '5D':  start = new Date(end); start.setDate(end.getDate() - 7); break; // pad for weekends
+    case '1D':  start = new Date(end); start.setDate(end.getDate() - 3); break; // weekend-safe
+    case '5D':  start = new Date(end); start.setDate(end.getDate() - 10); break; // covers 5 trading days + weekends
     case '1M':  start = new Date(end); start.setMonth(end.getMonth() - 1); break;
     case '3M':  start = new Date(end); start.setMonth(end.getMonth() - 3); break;
     case '6M':  start = new Date(end); start.setMonth(end.getMonth() - 6); break;
