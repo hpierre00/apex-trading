@@ -416,30 +416,20 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <div class="sym-chg up" id="symChg">+2.14 (+1.17%)</div>
         </div>
         <div class="spacer"></div>
-        <div class="tf-group" id="tfGroup">
-          <button class="tf-btn" data-tf="1m">1m</button>
-          <button class="tf-btn" data-tf="3m">3m</button>
-          <button class="tf-btn" data-tf="5m">5m</button>
-          <button class="tf-btn active" data-tf="15m">15m</button>
-          <button class="tf-btn" data-tf="30m">30m</button>
-          <button class="tf-btn" data-tf="1h">1h</button>
-          <button class="tf-btn" data-tf="4h">4h</button>
-          <button class="tf-btn" data-tf="1d">1D</button>
-          <button class="tf-btn" data-tf="1w">1W</button>
-          <button class="tf-btn" data-tf="1mo">1M</button>
+        <div class="tf-group" id="periodGroup" style="flex-wrap:wrap">
+          <!-- Period = timeframe + range combined into a single choice.
+               Label is what the user sees; tf/range are what the engine uses. -->
+          <button class="tf-btn" data-period="1D_5m" data-tf="5m" data-range="1D">1D</button>
+          <button class="tf-btn" data-period="5D_15m" data-tf="15m" data-range="5D">5D</button>
+          <button class="tf-btn" data-period="1M_1h" data-tf="1h" data-range="1M">1M</button>
+          <button class="tf-btn" data-period="3M_1h" data-tf="1h" data-range="3M">3M</button>
+          <button class="tf-btn" data-period="6M_1d" data-tf="1d" data-range="6M">6M</button>
+          <button class="tf-btn" data-period="YTD_1d" data-tf="1d" data-range="YTD">YTD</button>
+          <button class="tf-btn active" data-period="1Y_1d" data-tf="1d" data-range="1Y">1Y</button>
+          <button class="tf-btn" data-period="5Y_1w" data-tf="1w" data-range="5Y">5Y</button>
+          <button class="tf-btn" data-period="ALL_1mo" data-tf="1mo" data-range="ALL">ALL</button>
         </div>
-        <div class="tf-group" id="rangeGroup" style="margin-left:4px">
-          <button class="tf-btn" data-range="1D">1D</button>
-          <button class="tf-btn" data-range="5D">5D</button>
-          <button class="tf-btn" data-range="1M">1M</button>
-          <button class="tf-btn" data-range="3M">3M</button>
-          <button class="tf-btn" data-range="6M">6M</button>
-          <button class="tf-btn" data-range="YTD">YTD</button>
-          <button class="tf-btn active" data-range="1Y">1Y</button>
-          <button class="tf-btn" data-range="5Y">5Y</button>
-          <button class="tf-btn" data-range="ALL">ALL</button>
-          <button class="tf-btn" data-range="custom" id="customRangeBtn">⋯</button>
-        </div>
+        <button class="icon-btn" id="advancedPeriodBtn" title="Custom timeframe × range" style="padding:4px 10px">⋯</button>
         <button class="icon-btn" id="alertBtn">🔔 ALERT</button>
         <button class="icon-btn" id="indBtn">INDICATORS</button>
       </div>
@@ -517,6 +507,56 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('addWatchModal')">CANCEL</button>
       <button class="btn btn-primary" id="addWatchSaveBtn">ADD</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADVANCED PERIOD MODAL ===== -->
+<div class="modal-backdrop" id="advPeriodModal">
+  <div class="modal" style="width:460px">
+    <h3>ADVANCED PERIOD</h3>
+    <div class="field">
+      <label>TIMEFRAME (bar size)</label>
+      <select id="advTf" style="width:100%">
+        <option value="1m">1 minute</option>
+        <option value="3m">3 minutes</option>
+        <option value="5m">5 minutes</option>
+        <option value="15m">15 minutes</option>
+        <option value="30m">30 minutes</option>
+        <option value="1h">1 hour</option>
+        <option value="4h">4 hours</option>
+        <option value="1d" selected>1 day</option>
+        <option value="1w">1 week</option>
+        <option value="1mo">1 month</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>RANGE (time window)</label>
+      <select id="advRange" style="width:100%">
+        <option value="1D">1 day</option>
+        <option value="5D">5 days</option>
+        <option value="1M">1 month</option>
+        <option value="3M">3 months</option>
+        <option value="6M">6 months</option>
+        <option value="YTD">Year to date</option>
+        <option value="1Y" selected>1 year</option>
+        <option value="5Y">5 years</option>
+        <option value="ALL">All available</option>
+        <option value="custom">Custom dates...</option>
+      </select>
+    </div>
+    <div class="field" id="advCustomDates" style="display:none">
+      <label>START DATE</label>
+      <input id="advCustomStart" type="date" style="width:100%;margin-bottom:8px">
+      <label>END DATE (blank = today)</label>
+      <input id="advCustomEnd" type="date" style="width:100%">
+    </div>
+    <div style="font-size:10px;color:var(--text-dim);line-height:1.5">
+      Tip: very fine timeframes (1m, 3m) over long ranges may be truncated. The system auto-suggests the closest viable combination.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('advPeriodModal')">CANCEL</button>
+      <button class="btn btn-primary" id="advPeriodApplyBtn">APPLY</button>
     </div>
   </div>
 </div>
@@ -625,9 +665,14 @@ const TICKERS = ['AAPL','TSLA','NVDA','MSFT','GOOGL','AMZN','META','AMD','SPY','
 
 const state = {
   symbol: 'AAPL',
-  timeframe: '15m',
+  timeframe: '1d',
   range: '1Y',
+  period: '1Y_1d', // tracks merged period selection
   customRange: { start: null, end: null },
+  // bar cache: key=`${sym}|${tf}|${range}` value={ bars, loadedAt }
+  barCache: new Map(),
+  barCacheTTL: 60 * 1000, // 60s for intraday; we bump this for daily+
+  inFlightFetch: new Map(), // key -> Promise dedup
   candles: {},         // { symbol: [{t,o,h,l,c,v},...] }
   prices: {},          // { symbol: {px, chg, chgPct} }
   positions: [
@@ -787,6 +832,45 @@ function clampView() {
   const minVisible = Math.min(10, total);
   chartState.visibleCount = Math.max(minVisible, Math.min(total * 2, chartState.visibleCount));
   chartState.visibleStart = Math.max(-chartState.visibleCount * 0.5, Math.min(total - 1, chartState.visibleStart));
+}
+
+// Rate-limited render: coalesce rapid-fire calls (e.g. from WS ticks) into
+// one draw per animation frame (~60fps cap). Prevents layout thrash when
+// many ticks/bars arrive at once.
+let _renderScheduled = false;
+function scheduleRender() {
+  if (_renderScheduled) return;
+  _renderScheduled = true;
+  requestAnimationFrame(() => {
+    _renderScheduled = false;
+    renderChart();
+  });
+}
+
+let _headerScheduled = false;
+function scheduleHeaderUpdate() {
+  if (_headerScheduled) return;
+  _headerScheduled = true;
+  requestAnimationFrame(() => {
+    _headerScheduled = false;
+    updateSymHeader();
+  });
+}
+
+// Watchlist updates can be slower (DOM-heavy) — throttle to 2/sec max
+let _watchlistScheduled = false;
+let _watchlistLastUpdate = 0;
+function scheduleWatchlistUpdate() {
+  if (_watchlistScheduled) return;
+  const elapsed = Date.now() - _watchlistLastUpdate;
+  const delay = Math.max(0, 500 - elapsed);
+  _watchlistScheduled = true;
+  setTimeout(() => {
+    _watchlistScheduled = false;
+    _watchlistLastUpdate = Date.now();
+    renderWatchlist();
+    renderPositions();
+  }, delay);
 }
 
 function renderChart() {
@@ -2235,10 +2319,9 @@ document.getElementById('customRangeSaveBtn').addEventListener('click', async ()
   if (!s) { toast('Start date required', 'bear'); return; }
   state.range = 'custom';
   state.customRange = { start: s, end: e };
-  document.querySelectorAll('#rangeGroup .tf-btn').forEach(x => x.classList.remove('active'));
-  document.querySelector('#rangeGroup [data-range="custom"]').classList.add('active');
+  // Clear active state on preset period buttons (this is a custom combo)
+  document.querySelectorAll('#periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
   closeModal('customRangeModal');
-  autoSuggestTimeframe();
   await reloadChart();
 });
 
@@ -2341,59 +2424,96 @@ async function runHealthChecks() {
    ============================================================ */
 
 // Load historical bars from Alpaca through the proxy.
-// Handles pagination via next_page_token so long ranges don't silently truncate.
-// Returns { bars, meta } where meta describes truncation/errors for UI feedback.
+// Includes:
+//   - In-memory cache keyed by sym|tf|range|custom. Cache-hit returns instantly.
+//   - In-flight dedup: parallel requests for the same key share one promise.
+//   - Pagination via next_page_token so long ranges don't silently truncate.
 async function loadAlpacaBars(symbol, tf, range = '1Y', customStart = null, customEnd = null) {
-  const alpacaTf = tfToAlpaca(tf);
-  const { start, end } = computeRangeDates(range, customStart, customEnd);
-  const basePath = `/v2/stocks/${symbol}/bars`;
-  const baseParams = {
-    timeframe: alpacaTf,
-    limit: 10000,
-    feed: state.alpaca.feed,
-    adjustment: 'split', // split-adjusted prices for correct historical continuity
-    sort: 'asc',
-  };
-  if (start) baseParams.start = start.toISOString();
-  if (end) baseParams.end = end.toISOString();
+  const cacheKey = `${symbol}|${tf}|${range}|${customStart || ''}|${customEnd || ''}`;
 
-  const allBars = [];
-  let pageToken = null;
-  let pages = 0;
-  const MAX_PAGES = 10; // safety: 100k bars max
+  // 1. Cache hit?
+  const cached = state.barCache.get(cacheKey);
+  if (cached) {
+    // Daily+ data cached for 10 min (historical doesn't change during trading day)
+    // Intraday cached for 60s (the live WS will fold in new bars anyway)
+    const ttl = tfMinutes(tf) >= 1440 ? 600000 : 60000;
+    if (Date.now() - cached.loadedAt < ttl) {
+      return { bars: cached.bars, meta: { cached: true, count: cached.bars.length } };
+    }
+  }
 
-  try {
-    do {
-      const params = { ...baseParams };
-      if (pageToken) params.page_token = pageToken;
-      const r = await fetch('/.netlify/functions/alpaca-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: basePath, params }),
-      });
-      if (!r.ok) {
-        const errText = await r.text().catch(() => '');
-        return { bars: [], meta: { error: `HTTP ${r.status}: ${errText.slice(0, 200)}` } };
-      }
-      const data = await r.json();
-      if (data.bars && data.bars.length) {
-        for (const b of data.bars) {
-          allBars.push({
-            t: new Date(b.t).getTime(),
-            o: b.o, h: b.h, l: b.l, c: b.c, v: b.v,
-          });
+  // 2. Dedup: if another fetch for this key is already in flight, wait for it
+  if (state.inFlightFetch.has(cacheKey)) {
+    return state.inFlightFetch.get(cacheKey);
+  }
+
+  // 3. Actually fetch
+  const fetchPromise = (async () => {
+    const alpacaTf = tfToAlpaca(tf);
+    const { start, end } = computeRangeDates(range, customStart, customEnd);
+    const basePath = `/v2/stocks/${symbol}/bars`;
+    const baseParams = {
+      timeframe: alpacaTf,
+      limit: 10000,
+      feed: state.alpaca.feed,
+      adjustment: 'split',
+      sort: 'asc',
+    };
+    if (start) baseParams.start = start.toISOString();
+    if (end) baseParams.end = end.toISOString();
+
+    const allBars = [];
+    let pageToken = null;
+    let pages = 0;
+    const MAX_PAGES = 10;
+
+    try {
+      do {
+        const params = { ...baseParams };
+        if (pageToken) params.page_token = pageToken;
+        const r = await fetch('/.netlify/functions/alpaca-proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: basePath, params }),
+        });
+        if (!r.ok) {
+          const errText = await r.text().catch(() => '');
+          return { bars: [], meta: { error: `HTTP ${r.status}: ${errText.slice(0, 200)}` } };
         }
-      }
-      pageToken = data.next_page_token || null;
-      pages++;
-    } while (pageToken && pages < MAX_PAGES);
+        const data = await r.json();
+        if (data.bars && data.bars.length) {
+          for (const b of data.bars) {
+            allBars.push({
+              t: new Date(b.t).getTime(),
+              o: b.o, h: b.h, l: b.l, c: b.c, v: b.v,
+            });
+          }
+        }
+        pageToken = data.next_page_token || null;
+        pages++;
+      } while (pageToken && pages < MAX_PAGES);
 
-    const truncated = !!pageToken; // more pages existed but we stopped
-    let bars = allBars;
-    if (tfNeedsAggregation(tf)) bars = aggregateBars(bars, tf);
-    return { bars, meta: { truncated, pages, count: bars.length } };
-  } catch (e) {
-    return { bars: [], meta: { error: String(e) } };
+      const truncated = !!pageToken;
+      let bars = allBars;
+      if (tfNeedsAggregation(tf)) bars = aggregateBars(bars, tf);
+      // Cache the result
+      state.barCache.set(cacheKey, { bars, loadedAt: Date.now() });
+      // Keep cache bounded
+      if (state.barCache.size > 50) {
+        const firstKey = state.barCache.keys().next().value;
+        state.barCache.delete(firstKey);
+      }
+      return { bars, meta: { truncated, pages, count: bars.length } };
+    } catch (e) {
+      return { bars: [], meta: { error: String(e) } };
+    }
+  })();
+
+  state.inFlightFetch.set(cacheKey, fetchPromise);
+  try {
+    return await fetchPromise;
+  } finally {
+    state.inFlightFetch.delete(cacheKey);
   }
 }
 
@@ -2527,14 +2647,41 @@ async function connectAlpaca() {
         }
       } else if (m.T === 't') {
         if (!state.prices[m.S]) state.prices[m.S] = { px: 0, chg: 0, chgPct: 0 };
+        const prevPx = state.prices[m.S].px;
         state.prices[m.S].px = m.p;
+        // Recompute chg/chgPct against the opening candle of the visible range
+        const candles = state.candles[m.S];
+        if (candles && candles.length) {
+          const openRef = candles.at(-20)?.c || candles[0].c;
+          state.prices[m.S].chg = m.p - openRef;
+          state.prices[m.S].chgPct = (state.prices[m.S].chg / openRef) * 100;
+          // Update the last candle's close, high, low so chart shows live price movement
+          const last = candles.at(-1);
+          if (last) {
+            last.c = m.p;
+            if (m.p > last.h) last.h = m.p;
+            if (m.p < last.l) last.l = m.p;
+          }
+        }
         state.alpaca.lastTickAt = Date.now();
+        if (m.S === state.symbol) {
+          scheduleRender();
+          scheduleHeaderUpdate();
+        }
+        scheduleWatchlistUpdate();
       } else if (m.T === 'b') {
         const arr = state.candles[m.S];
         if (arr) {
-          arr.push({ t: new Date(m.t).getTime(), o: m.o, h: m.h, l: m.l, c: m.c, v: m.v });
-          if (arr.length > 500) arr.shift();
-          if (m.S === state.symbol) renderChart();
+          // If the bar timestamp matches the last candle, replace it; otherwise append
+          const ts = new Date(m.t).getTime();
+          const last = arr.at(-1);
+          if (last && last.t === ts) {
+            last.o = m.o; last.h = m.h; last.l = m.l; last.c = m.c; last.v = m.v;
+          } else {
+            arr.push({ t: ts, o: m.o, h: m.h, l: m.l, c: m.c, v: m.v });
+            if (arr.length > 5000) arr.shift();
+          }
+          if (m.S === state.symbol) scheduleRender();
         }
         state.alpaca.lastTickAt = Date.now();
       } else if (m.T === 'error') {
@@ -2762,101 +2909,69 @@ document.getElementById('symSearch').addEventListener('keydown', (e) => {
   e.target.value = '';
 });
 
-// timeframe buttons (bars within range)
-document.getElementById('tfGroup').addEventListener('click', async (e) => {
+// Single period selector (timeframe + range combined)
+document.getElementById('periodGroup').addEventListener('click', async (e) => {
   const b = e.target.closest('.tf-btn');
   if (!b) return;
-  document.querySelectorAll('#tfGroup .tf-btn').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('#periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
   b.classList.add('active');
   state.timeframe = b.dataset.tf;
-  // If range becomes incompatible (e.g. 1W tf on 1D range), auto-extend
-  const prevRange = state.range;
-  autoSuggestRange();
-  if (prevRange !== state.range) {
-    document.querySelectorAll('#rangeGroup .tf-btn').forEach(x => {
-      x.classList.toggle('active', x.dataset.range === state.range);
-    });
-  }
-  await reloadChart();
-});
-
-// When TF changes to coarse (1W/1M), range may be too short; suggest a longer range
-function autoSuggestRange() {
-  const tMins = tfMinutes(state.timeframe);
-  const rangeMinutes = {
-    '1D': 1440, '5D': 7200, '1M': 43200, '3M': 129600, '6M': 259200,
-    'YTD': 365 * 1440 / 2, '1Y': 525600, '5Y': 2628000, 'ALL': 5256000,
-  };
-  const rMins = rangeMinutes[state.range] || 525600;
-  // Want at least 10 bars for a useful chart
-  if (rMins / tMins < 10) {
-    const longer = ['1D', '5D', '1M', '3M', '6M', '1Y', '5Y', 'ALL'];
-    for (const r of longer) {
-      if ((rangeMinutes[r] / tMins) >= 20) {
-        state.range = r;
-        break;
-      }
-    }
-  }
-}
-
-// range buttons (time window)
-document.getElementById('rangeGroup').addEventListener('click', async (e) => {
-  const b = e.target.closest('.tf-btn');
-  if (!b) return;
-  const range = b.dataset.range;
-  if (range === 'custom') {
-    openModal('customRangeModal');
-    return;
-  }
-  document.querySelectorAll('#rangeGroup .tf-btn').forEach(x => x.classList.remove('active'));
-  b.classList.add('active');
-  state.range = range;
+  state.range = b.dataset.range;
+  state.period = b.dataset.period;
   state.customRange = { start: null, end: null };
-  // Auto-suggest a reasonable TF if the current TF would return too much data or too little
-  autoSuggestTimeframe();
+  await reloadChart();
+  // Pre-fetch the adjacent periods so clicking them feels instant
+  prefetchAdjacentPeriods();
+});
+
+// Advanced period modal
+document.getElementById('advancedPeriodBtn').addEventListener('click', () => {
+  document.getElementById('advTf').value = state.timeframe;
+  document.getElementById('advRange').value = state.range;
+  document.getElementById('advCustomDates').style.display =
+    state.range === 'custom' ? 'block' : 'none';
+  openModal('advPeriodModal');
+});
+document.getElementById('advRange').addEventListener('change', (e) => {
+  document.getElementById('advCustomDates').style.display =
+    e.target.value === 'custom' ? 'block' : 'none';
+});
+document.getElementById('advPeriodApplyBtn').addEventListener('click', async () => {
+  const tf = document.getElementById('advTf').value;
+  const range = document.getElementById('advRange').value;
+  if (range === 'custom') {
+    const s = document.getElementById('advCustomStart').value;
+    const e = document.getElementById('advCustomEnd').value || new Date().toISOString().slice(0, 10);
+    if (!s) { toast('Start date required', 'bear'); return; }
+    state.customRange = { start: s, end: e };
+  } else {
+    state.customRange = { start: null, end: null };
+  }
+  state.timeframe = tf;
+  state.range = range;
+  state.period = `${range}_${tf}`;
+  // Clear active state on preset period buttons (advanced = custom combo)
+  document.querySelectorAll('#periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
+  closeModal('advPeriodModal');
   await reloadChart();
 });
 
-// When range is short but TF is too coarse (e.g. 1W tf + 1D range), or range is long
-// but TF is too fine (e.g. 1m tf + 5Y range), upgrade toward a usable combination.
-function autoSuggestTimeframe() {
-  const rangeMinutes = {
-    '1D': 1440, '5D': 7200, '1M': 43200, '3M': 129600, '6M': 259200,
-    'YTD': 365 * 1440 / 2, // rough
-    '1Y': 525600, '5Y': 2628000, 'ALL': 5256000,
-  };
-  const rMins = rangeMinutes[state.range] || 525600;
-  const tMins = tfMinutes(state.timeframe);
-  // Aim for 30-500 bars at native (non-aggregated) resolution
-  let newTf = state.timeframe;
-  if (rMins / tMins < 10) {
-    // Range too short for timeframe: step down
-    const smaller = ['1mo', '1w', '1d', '4h', '1h', '30m', '15m', '5m', '3m', '1m'];
-    const idx = smaller.indexOf(state.timeframe);
-    if (idx >= 0 && idx < smaller.length - 1) {
-      // Pick a TF that gives at least 20 bars
-      for (let i = idx + 1; i < smaller.length; i++) {
-        if (rMins / tfMinutes(smaller[i]) >= 20) { newTf = smaller[i]; break; }
-      }
-    }
-  } else if (rMins / tMins > 5000) {
-    // Range too long for timeframe: step up to avoid 10k-bar cap
-    const larger = ['1m', '3m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo'];
-    const idx = larger.indexOf(state.timeframe);
-    if (idx >= 0) {
-      for (let i = idx + 1; i < larger.length; i++) {
-        if (rMins / tfMinutes(larger[i]) <= 3000) { newTf = larger[i]; break; }
-      }
-    }
-  }
-  if (newTf !== state.timeframe) {
-    state.timeframe = newTf;
-    document.querySelectorAll('#tfGroup .tf-btn').forEach(x => {
-      x.classList.toggle('active', x.dataset.tf === newTf);
-    });
-  }
+// Pre-fetch adjacent periods in background for instant feel
+function prefetchAdjacentPeriods() {
+  if (state.alpaca.state !== 'live') return;
+  const periodButtons = document.querySelectorAll('#periodGroup .tf-btn');
+  const currentIdx = Array.from(periodButtons).findIndex(b => b.classList.contains('active'));
+  if (currentIdx === -1) return;
+  // Prefetch previous and next period, fire-and-forget
+  [currentIdx - 1, currentIdx + 1].forEach(idx => {
+    const btn = periodButtons[idx];
+    if (!btn) return;
+    loadAlpacaBars(state.symbol, btn.dataset.tf, btn.dataset.range); // cached for next click
+  });
 }
+
+function autoSuggestTimeframe() { /* retained for backward compat, no-op with merged selector */ }
+function autoSuggestRange() { /* retained for backward compat, no-op with merged selector */ }
 
 async function reloadChart() {
   const sym = state.symbol;
