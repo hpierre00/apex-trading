@@ -416,18 +416,27 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <div class="sym-chg up" id="symChg">+2.14 (+1.17%)</div>
         </div>
         <div class="spacer"></div>
-        <div class="tf-group" id="periodGroup" style="flex-wrap:wrap">
-          <!-- Period = timeframe + range combined into a single choice.
-               Label is what the user sees; tf/range are what the engine uses. -->
-          <button class="tf-btn" data-period="1D_5m" data-tf="5m" data-range="1D">1D</button>
-          <button class="tf-btn" data-period="5D_15m" data-tf="15m" data-range="5D">5D</button>
-          <button class="tf-btn" data-period="1M_1h" data-tf="1h" data-range="1M">1M</button>
-          <button class="tf-btn" data-period="3M_1h" data-tf="1h" data-range="3M">3M</button>
-          <button class="tf-btn" data-period="6M_1d" data-tf="1d" data-range="6M">6M</button>
-          <button class="tf-btn" data-period="YTD_1d" data-tf="1d" data-range="YTD">YTD</button>
+        <div class="tf-group" id="intradayGroup">
+          <!-- Intraday bar sizes. Each picks a sensible short range to match. -->
+          <button class="tf-btn" data-period="1m_1D"    data-tf="1m"  data-range="1D">1m</button>
+          <button class="tf-btn" data-period="3m_1D"    data-tf="3m"  data-range="1D">3m</button>
+          <button class="tf-btn" data-period="5m_1D"    data-tf="5m"  data-range="1D">5m</button>
+          <button class="tf-btn" data-period="15m_5D"   data-tf="15m" data-range="5D">15m</button>
+          <button class="tf-btn" data-period="30m_5D"   data-tf="30m" data-range="5D">30m</button>
+          <button class="tf-btn" data-period="1h_1M"    data-tf="1h"  data-range="1M">1h</button>
+          <button class="tf-btn" data-period="4h_3M"    data-tf="4h"  data-range="3M">4h</button>
+        </div>
+        <div class="tf-group" id="periodGroup" style="margin-left:4px">
+          <!-- Period buttons for swing/position perspectives -->
+          <button class="tf-btn" data-period="1D_5m"    data-tf="5m"  data-range="1D">1D</button>
+          <button class="tf-btn" data-period="5D_15m"   data-tf="15m" data-range="5D">5D</button>
+          <button class="tf-btn" data-period="1M_1h"    data-tf="1h"  data-range="1M">1M</button>
+          <button class="tf-btn" data-period="3M_1h"    data-tf="1h"  data-range="3M">3M</button>
+          <button class="tf-btn" data-period="6M_1d"    data-tf="1d"  data-range="6M">6M</button>
+          <button class="tf-btn" data-period="YTD_1d"   data-tf="1d"  data-range="YTD">YTD</button>
           <button class="tf-btn active" data-period="1Y_1d" data-tf="1d" data-range="1Y">1Y</button>
-          <button class="tf-btn" data-period="5Y_1w" data-tf="1w" data-range="5Y">5Y</button>
-          <button class="tf-btn" data-period="ALL_1mo" data-tf="1mo" data-range="ALL">ALL</button>
+          <button class="tf-btn" data-period="5Y_1w"    data-tf="1w"  data-range="5Y">5Y</button>
+          <button class="tf-btn" data-period="ALL_1mo"  data-tf="1mo" data-range="ALL">ALL</button>
         </div>
         <button class="icon-btn" id="advancedPeriodBtn" title="Custom timeframe × range" style="padding:4px 10px">⋯</button>
         <button class="icon-btn" id="alertBtn">🔔 ALERT</button>
@@ -2319,8 +2328,8 @@ document.getElementById('customRangeSaveBtn').addEventListener('click', async ()
   if (!s) { toast('Start date required', 'bear'); return; }
   state.range = 'custom';
   state.customRange = { start: s, end: e };
-  // Clear active state on preset period buttons (this is a custom combo)
-  document.querySelectorAll('#periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
+  // Clear active state on all preset buttons (this is a custom combo)
+  document.querySelectorAll('#intradayGroup .tf-btn, #periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
   closeModal('customRangeModal');
   await reloadChart();
 });
@@ -2909,20 +2918,22 @@ document.getElementById('symSearch').addEventListener('keydown', (e) => {
   e.target.value = '';
 });
 
-// Single period selector (timeframe + range combined)
-document.getElementById('periodGroup').addEventListener('click', async (e) => {
+// Period selector spans both Intraday and Period groups. Only one button
+// active across both groups at any time.
+function handlePeriodClick(e) {
   const b = e.target.closest('.tf-btn');
-  if (!b) return;
-  document.querySelectorAll('#periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
+  if (!b || !b.dataset.period) return;
+  // Clear active state across both groups
+  document.querySelectorAll('#intradayGroup .tf-btn, #periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
   b.classList.add('active');
   state.timeframe = b.dataset.tf;
   state.range = b.dataset.range;
   state.period = b.dataset.period;
   state.customRange = { start: null, end: null };
-  await reloadChart();
-  // Pre-fetch the adjacent periods so clicking them feels instant
-  prefetchAdjacentPeriods();
-});
+  reloadChart().then(prefetchAdjacentPeriods);
+}
+document.getElementById('intradayGroup').addEventListener('click', handlePeriodClick);
+document.getElementById('periodGroup').addEventListener('click', handlePeriodClick);
 
 // Advanced period modal
 document.getElementById('advancedPeriodBtn').addEventListener('click', () => {
@@ -2950,8 +2961,8 @@ document.getElementById('advPeriodApplyBtn').addEventListener('click', async () 
   state.timeframe = tf;
   state.range = range;
   state.period = `${range}_${tf}`;
-  // Clear active state on preset period buttons (advanced = custom combo)
-  document.querySelectorAll('#periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
+  // Clear active state on all preset buttons (advanced = custom combo)
+  document.querySelectorAll('#intradayGroup .tf-btn, #periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
   closeModal('advPeriodModal');
   await reloadChart();
 });
@@ -2959,19 +2970,18 @@ document.getElementById('advPeriodApplyBtn').addEventListener('click', async () 
 // Pre-fetch adjacent periods in background for instant feel
 function prefetchAdjacentPeriods() {
   if (state.alpaca.state !== 'live') return;
-  const periodButtons = document.querySelectorAll('#periodGroup .tf-btn');
-  const currentIdx = Array.from(periodButtons).findIndex(b => b.classList.contains('active'));
+  const allBtns = document.querySelectorAll('#intradayGroup .tf-btn, #periodGroup .tf-btn');
+  const currentIdx = Array.from(allBtns).findIndex(b => b.classList.contains('active'));
   if (currentIdx === -1) return;
-  // Prefetch previous and next period, fire-and-forget
   [currentIdx - 1, currentIdx + 1].forEach(idx => {
-    const btn = periodButtons[idx];
+    const btn = allBtns[idx];
     if (!btn) return;
-    loadAlpacaBars(state.symbol, btn.dataset.tf, btn.dataset.range); // cached for next click
+    loadAlpacaBars(state.symbol, btn.dataset.tf, btn.dataset.range);
   });
 }
 
-function autoSuggestTimeframe() { /* retained for backward compat, no-op with merged selector */ }
-function autoSuggestRange() { /* retained for backward compat, no-op with merged selector */ }
+function autoSuggestTimeframe() { /* no-op: retained for backward compat */ }
+function autoSuggestRange() { /* no-op: retained for backward compat */ }
 
 async function reloadChart() {
   const sym = state.symbol;
