@@ -452,6 +452,9 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <button class="chart-ctrl-btn" id="zoomOut">−</button>
           <button class="chart-ctrl-btn" id="resetView">RESET</button>
         </div>
+        <div id="loadingBanner" style="display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(240,180,41,0.9);color:#05080d;font-size:10px;font-weight:700;letter-spacing:1.5px;padding:4px 12px;z-index:6">LOADING DATA...</div>
+        <div id="ohlcTip" style="display:none;position:absolute;pointer-events:none;background:rgba(10,15,22,0.95);border:1px solid var(--gold);padding:6px 10px;font-size:10px;line-height:1.5;z-index:7;white-space:nowrap;font-family:monospace"></div>
+        <div id="emptyMsg" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-dim);font-size:12px;text-align:center;max-width:340px;line-height:1.6">No bars for this timeframe × range.<br>Try a coarser timeframe or longer range.</div>
       </div>
 
       <!-- BOTTOM TABS -->
@@ -745,13 +748,27 @@ function resizeCanvas() {
 
 function clampView() {
   const total = (state.candles[state.symbol] || []).length;
-  chartState.visibleCount = Math.max(15, Math.min(500, chartState.visibleCount));
-  chartState.visibleStart = Math.max(0, Math.min(total - 5, chartState.visibleStart));
+  if (total === 0) return;
+  // Minimum visible candles: the lesser of 10 or total (so a 5-bar chart can show all 5)
+  const minVisible = Math.min(10, total);
+  chartState.visibleCount = Math.max(minVisible, Math.min(total * 2, chartState.visibleCount));
+  chartState.visibleStart = Math.max(-chartState.visibleCount * 0.5, Math.min(total - 1, chartState.visibleStart));
 }
 
 function renderChart() {
   const candles = state.candles[state.symbol] || [];
-  if (!candles.length || cw === 0) return;
+  const emptyEl = document.getElementById('emptyMsg');
+  if (!candles.length) {
+    // Clear canvas and show empty message
+    if (cw > 0) {
+      ctx.fillStyle = '#05080d';
+      ctx.fillRect(0, 0, cw, ch);
+    }
+    if (emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (cw === 0) return;
   clampView();
 
   const AXIS_W = 60;
@@ -1007,14 +1024,84 @@ canvas.addEventListener('dblclick', () => {
   renderChart();
 });
 
-// Cursor hint when hovering price axis
+// Crosshair + OHLC tooltip on hover
 canvas.addEventListener('mousemove', (e) => {
   if (drag.active) return;
   const rect = canvas.getBoundingClientRect();
   const localX = e.clientX - rect.left;
+  const localY = e.clientY - rect.top;
   const chartW = cw - 60;
   canvas.style.cursor = localX >= chartW ? 'ns-resize' : 'crosshair';
+  renderCrosshair(localX, localY);
 });
+canvas.addEventListener('mouseleave', () => {
+  document.getElementById('ohlcTip').style.display = 'none';
+  renderChart(); // clear any lingering crosshair
+});
+
+function renderCrosshair(mouseX, mouseY) {
+  const candles = state.candles[state.symbol] || [];
+  if (!candles.length) return;
+  const chartW = cw - 60;
+  if (mouseX < 0 || mouseX > chartW) {
+    document.getElementById('ohlcTip').style.display = 'none';
+    return;
+  }
+  const candleW = chartW / chartState.visibleCount;
+  const idx = Math.floor(chartState.visibleStart + mouseX / candleW);
+  const candle = candles[idx];
+  const tipEl = document.getElementById('ohlcTip');
+  if (!candle) { tipEl.style.display = 'none'; return; }
+
+  // Full re-render ensures crosshair lines aren't permanent. This is fast
+  // because the chart is small; if perf becomes an issue we can cache a bitmap.
+  renderChart();
+  // Draw crosshair lines
+  ctx.strokeStyle = '#4a5468';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(mouseX, 0);
+  ctx.lineTo(mouseX, ch - 22 - (chartState.showVolume ? 50 : 0));
+  ctx.moveTo(0, mouseY);
+  ctx.lineTo(chartW, mouseY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Populate and position tooltip
+  const d = new Date(candle.t);
+  const dateStr = d.toLocaleString('en-US', {
+    month: 'short', day: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  const chg = candle.c - candle.o;
+  const chgPct = (chg / candle.o) * 100;
+  const up = chg >= 0;
+  const color = up ? '#0ecb81' : '#f6465d';
+  tipEl.innerHTML = `
+    <div style="color:#f0b429;font-weight:700;margin-bottom:2px">${state.symbol} · ${dateStr}</div>
+    <div>O <span style="color:#e4e9f2">${candle.o.toFixed(2)}</span>
+         H <span style="color:#e4e9f2">${candle.h.toFixed(2)}</span>
+         L <span style="color:#e4e9f2">${candle.l.toFixed(2)}</span>
+         C <span style="color:${color}">${candle.c.toFixed(2)}</span></div>
+    <div>Chg <span style="color:${color}">${up ? '+' : ''}${chg.toFixed(2)} (${up ? '+' : ''}${chgPct.toFixed(2)}%)</span>
+         Vol <span style="color:#7a8699">${candle.v.toLocaleString()}</span></div>
+  `;
+  tipEl.style.display = 'block';
+  // Position: right of cursor if space, else left
+  const tipW = 340, tipH = 58;
+  let left = mouseX + 12;
+  let top = mouseY + 12;
+  if (left + tipW > chartW) left = mouseX - tipW - 12;
+  if (top + tipH > ch - 22) top = mouseY - tipH - 12;
+  tipEl.style.left = left + 'px';
+  tipEl.style.top = top + 'px';
+}
+
+function showLoadingBanner(show) {
+  const el = document.getElementById('loadingBanner');
+  if (el) el.style.display = show ? 'block' : 'none';
+}
 
 document.getElementById('zoomIn').onclick = () => {
   chartState.visibleCount = Math.max(15, chartState.visibleCount / 1.25);
@@ -1093,9 +1180,17 @@ async function selectSymbol(s) {
   document.getElementById('symName').textContent = s;
   // If connected and we don't have bars for this symbol yet (or they're simulated), fetch real
   if (state.alpaca.state === 'live') {
-    const bars = await loadAlpacaBars(s, state.timeframe, state.range, state.customRange.start, state.customRange.end);
-    if (bars && bars.length) {
-      state.candles[s] = bars;
+    showLoadingBanner(true);
+    const res = await loadAlpacaBars(s, state.timeframe, state.range, state.customRange.start, state.customRange.end);
+    showLoadingBanner(false);
+    if (res.bars && res.bars.length) {
+      state.candles[s] = res.bars;
+    } else if (res.meta.error) {
+      toast('Data error for ' + s + ': ' + res.meta.error, 'bear');
+      state.candles[s] = [];
+    } else {
+      toast('No bars for ' + s + ' in this range', 'bear');
+      state.candles[s] = [];
     }
     // subscribe WS to this symbol too
     if (state.alpaca.ws && state.alpaca.ws.readyState === 1) {
@@ -1617,39 +1712,59 @@ async function runHealthChecks() {
    ============================================================ */
 
 // Load historical bars from Alpaca through the proxy.
-// `range` is one of: '1D','5D','1M','3M','6M','YTD','1Y','5Y','ALL','custom'
-// `customStart`/`customEnd` are ISO dates when range === 'custom'.
+// Handles pagination via next_page_token so long ranges don't silently truncate.
+// Returns { bars, meta } where meta describes truncation/errors for UI feedback.
 async function loadAlpacaBars(symbol, tf, range = '1Y', customStart = null, customEnd = null) {
   const alpacaTf = tfToAlpaca(tf);
   const { start, end } = computeRangeDates(range, customStart, customEnd);
-  // Alpaca bar limit per request is 10000. Fine for most combinations.
-  const params = {
+  const basePath = `/v2/stocks/${symbol}/bars`;
+  const baseParams = {
     timeframe: alpacaTf,
     limit: 10000,
     feed: state.alpaca.feed,
-    adjustment: 'raw',
+    adjustment: 'split', // split-adjusted prices for correct historical continuity
     sort: 'asc',
   };
-  if (start) params.start = start.toISOString();
-  if (end) params.end = end.toISOString();
+  if (start) baseParams.start = start.toISOString();
+  if (end) baseParams.end = end.toISOString();
+
+  const allBars = [];
+  let pageToken = null;
+  let pages = 0;
+  const MAX_PAGES = 10; // safety: 100k bars max
 
   try {
-    const r = await fetch('/.netlify/functions/alpaca-proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: `/v2/stocks/${symbol}/bars`, params }),
-    });
-    if (!r.ok) return null;
-    const data = await r.json();
-    if (!data.bars || !data.bars.length) return null;
-    let bars = data.bars.map(b => ({
-      t: new Date(b.t).getTime(),
-      o: b.o, h: b.h, l: b.l, c: b.c, v: b.v,
-    }));
+    do {
+      const params = { ...baseParams };
+      if (pageToken) params.page_token = pageToken;
+      const r = await fetch('/.netlify/functions/alpaca-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: basePath, params }),
+      });
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        return { bars: [], meta: { error: `HTTP ${r.status}: ${errText.slice(0, 200)}` } };
+      }
+      const data = await r.json();
+      if (data.bars && data.bars.length) {
+        for (const b of data.bars) {
+          allBars.push({
+            t: new Date(b.t).getTime(),
+            o: b.o, h: b.h, l: b.l, c: b.c, v: b.v,
+          });
+        }
+      }
+      pageToken = data.next_page_token || null;
+      pages++;
+    } while (pageToken && pages < MAX_PAGES);
+
+    const truncated = !!pageToken; // more pages existed but we stopped
+    let bars = allBars;
     if (tfNeedsAggregation(tf)) bars = aggregateBars(bars, tf);
-    return bars;
-  } catch {
-    return null;
+    return { bars, meta: { truncated, pages, count: bars.length } };
+  } catch (e) {
+    return { bars: [], meta: { error: String(e) } };
   }
 }
 
@@ -1774,10 +1889,10 @@ async function connectAlpaca() {
         updateConnPill();
         if (!wasLive) toast('Alpaca WebSocket live (' + state.alpaca.feed.toUpperCase() + ')', 'bull');
         // Also load historical bars for current symbol
-        const bars = await loadAlpacaBars(state.symbol, state.timeframe, state.range, state.customRange.start, state.customRange.end);
-        if (bars && bars.length) {
-          state.candles[state.symbol] = bars;
-          const total = bars.length;
+        const res = await loadAlpacaBars(state.symbol, state.timeframe, state.range, state.customRange.start, state.customRange.end);
+        if (res.bars && res.bars.length) {
+          state.candles[state.symbol] = res.bars;
+          const total = res.bars.length;
           chartState.visibleStart = Math.max(0, total - chartState.visibleCount);
           renderChart();
         }
@@ -2022,12 +2137,39 @@ document.getElementById('symSearch').addEventListener('keydown', (e) => {
 document.getElementById('tfGroup').addEventListener('click', async (e) => {
   const b = e.target.closest('.tf-btn');
   if (!b) return;
-  // Only deactivate siblings within tfGroup, not the range group
   document.querySelectorAll('#tfGroup .tf-btn').forEach(x => x.classList.remove('active'));
   b.classList.add('active');
   state.timeframe = b.dataset.tf;
+  // If range becomes incompatible (e.g. 1W tf on 1D range), auto-extend
+  const prevRange = state.range;
+  autoSuggestRange();
+  if (prevRange !== state.range) {
+    document.querySelectorAll('#rangeGroup .tf-btn').forEach(x => {
+      x.classList.toggle('active', x.dataset.range === state.range);
+    });
+  }
   await reloadChart();
 });
+
+// When TF changes to coarse (1W/1M), range may be too short; suggest a longer range
+function autoSuggestRange() {
+  const tMins = tfMinutes(state.timeframe);
+  const rangeMinutes = {
+    '1D': 1440, '5D': 7200, '1M': 43200, '3M': 129600, '6M': 259200,
+    'YTD': 365 * 1440 / 2, '1Y': 525600, '5Y': 2628000, 'ALL': 5256000,
+  };
+  const rMins = rangeMinutes[state.range] || 525600;
+  // Want at least 10 bars for a useful chart
+  if (rMins / tMins < 10) {
+    const longer = ['1D', '5D', '1M', '3M', '6M', '1Y', '5Y', 'ALL'];
+    for (const r of longer) {
+      if ((rangeMinutes[r] / tMins) >= 20) {
+        state.range = r;
+        break;
+      }
+    }
+  }
+}
 
 // range buttons (time window)
 document.getElementById('rangeGroup').addEventListener('click', async (e) => {
@@ -2047,17 +2189,39 @@ document.getElementById('rangeGroup').addEventListener('click', async (e) => {
   await reloadChart();
 });
 
-// When range is long (1Y+) and TF is fine-grained (1m/3m/5m), auto-upgrade to avoid 10k-bar truncation
+// When range is short but TF is too coarse (e.g. 1W tf + 1D range), or range is long
+// but TF is too fine (e.g. 1m tf + 5Y range), upgrade toward a usable combination.
 function autoSuggestTimeframe() {
-  const longRanges = ['1Y', '5Y', 'ALL'];
-  const mediumRanges = ['3M', '6M', 'YTD'];
-  const fineTf = ['1m', '3m', '5m'];
-  const mediumTf = ['15m', '30m'];
-  let newTf = null;
-  if (longRanges.includes(state.range) && fineTf.includes(state.timeframe)) newTf = '1d';
-  else if (longRanges.includes(state.range) && mediumTf.includes(state.timeframe)) newTf = '1h';
-  else if (mediumRanges.includes(state.range) && fineTf.includes(state.timeframe)) newTf = '1h';
-  if (newTf) {
+  const rangeMinutes = {
+    '1D': 1440, '5D': 7200, '1M': 43200, '3M': 129600, '6M': 259200,
+    'YTD': 365 * 1440 / 2, // rough
+    '1Y': 525600, '5Y': 2628000, 'ALL': 5256000,
+  };
+  const rMins = rangeMinutes[state.range] || 525600;
+  const tMins = tfMinutes(state.timeframe);
+  // Aim for 30-500 bars at native (non-aggregated) resolution
+  let newTf = state.timeframe;
+  if (rMins / tMins < 10) {
+    // Range too short for timeframe: step down
+    const smaller = ['1mo', '1w', '1d', '4h', '1h', '30m', '15m', '5m', '3m', '1m'];
+    const idx = smaller.indexOf(state.timeframe);
+    if (idx >= 0 && idx < smaller.length - 1) {
+      // Pick a TF that gives at least 20 bars
+      for (let i = idx + 1; i < smaller.length; i++) {
+        if (rMins / tfMinutes(smaller[i]) >= 20) { newTf = smaller[i]; break; }
+      }
+    }
+  } else if (rMins / tMins > 5000) {
+    // Range too long for timeframe: step up to avoid 10k-bar cap
+    const larger = ['1m', '3m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1mo'];
+    const idx = larger.indexOf(state.timeframe);
+    if (idx >= 0) {
+      for (let i = idx + 1; i < larger.length; i++) {
+        if (rMins / tfMinutes(larger[i]) <= 3000) { newTf = larger[i]; break; }
+      }
+    }
+  }
+  if (newTf !== state.timeframe) {
     state.timeframe = newTf;
     document.querySelectorAll('#tfGroup .tf-btn').forEach(x => {
       x.classList.toggle('active', x.dataset.tf === newTf);
@@ -2066,16 +2230,31 @@ function autoSuggestTimeframe() {
 }
 
 async function reloadChart() {
+  const sym = state.symbol;
   if (state.alpaca.state === 'live') {
-    const bars = await loadAlpacaBars(state.symbol, state.timeframe, state.range, state.customRange.start, state.customRange.end);
-    if (bars && bars.length) state.candles[state.symbol] = bars;
-    else toast('No bars returned for this range', 'bear');
+    showLoadingBanner(true);
+    const res = await loadAlpacaBars(sym, state.timeframe, state.range, state.customRange.start, state.customRange.end);
+    showLoadingBanner(false);
+    if (res.meta.error) {
+      toast('Data error: ' + res.meta.error, 'bear');
+      // keep previous data so user isn't left with a blank chart
+    } else if (!res.bars.length) {
+      toast(`No bars for ${sym} at ${state.timeframe} × ${state.range}. Try a coarser timeframe or longer range.`, 'bear');
+      // Replace with an explicit empty state so stale data from another context can't linger
+      state.candles[sym] = [];
+      renderChart();
+      return;
+    } else {
+      state.candles[sym] = res.bars;
+      if (res.meta.truncated) {
+        toast(`Loaded ${res.bars.length} bars (truncated — range too large for timeframe)`, 'bear');
+      }
+    }
   } else {
-    state.candles[state.symbol] = genCandles(state.symbol, 300, state.timeframe);
+    state.candles[sym] = genCandles(sym, 300, state.timeframe);
   }
-  const total = state.candles[state.symbol].length;
-  // When switching TF/range, show the most recent portion
-  const defaultView = Math.min(total, 120);
+  const total = (state.candles[sym] || []).length;
+  const defaultView = Math.min(Math.max(total, 1), 120);
   chartState.visibleCount = defaultView;
   chartState.visibleStart = Math.max(0, total - defaultView);
   chartState.priceOffsetRatio = 0;
