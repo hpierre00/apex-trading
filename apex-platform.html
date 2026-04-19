@@ -418,11 +418,27 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         <div class="spacer"></div>
         <div class="tf-group" id="tfGroup">
           <button class="tf-btn" data-tf="1m">1m</button>
+          <button class="tf-btn" data-tf="3m">3m</button>
           <button class="tf-btn" data-tf="5m">5m</button>
           <button class="tf-btn active" data-tf="15m">15m</button>
+          <button class="tf-btn" data-tf="30m">30m</button>
           <button class="tf-btn" data-tf="1h">1h</button>
           <button class="tf-btn" data-tf="4h">4h</button>
-          <button class="tf-btn" data-tf="1d">1d</button>
+          <button class="tf-btn" data-tf="1d">1D</button>
+          <button class="tf-btn" data-tf="1w">1W</button>
+          <button class="tf-btn" data-tf="1mo">1M</button>
+        </div>
+        <div class="tf-group" id="rangeGroup" style="margin-left:4px">
+          <button class="tf-btn" data-range="1D">1D</button>
+          <button class="tf-btn" data-range="5D">5D</button>
+          <button class="tf-btn" data-range="1M">1M</button>
+          <button class="tf-btn" data-range="3M">3M</button>
+          <button class="tf-btn" data-range="6M">6M</button>
+          <button class="tf-btn" data-range="YTD">YTD</button>
+          <button class="tf-btn active" data-range="1Y">1Y</button>
+          <button class="tf-btn" data-range="5Y">5Y</button>
+          <button class="tf-btn" data-range="ALL">ALL</button>
+          <button class="tf-btn" data-range="custom" id="customRangeBtn">⋯</button>
         </div>
         <button class="icon-btn" id="alertBtn">🔔 ALERT</button>
         <button class="icon-btn" id="indBtn">INDICATORS</button>
@@ -482,6 +498,46 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div class="sb">APEX v5.0.0</div>
   </footer>
 
+</div>
+
+<!-- ===== ADD WATCHLIST MODAL ===== -->
+<div class="modal-backdrop" id="addWatchModal">
+  <div class="modal">
+    <h3>ADD TO WATCHLIST</h3>
+    <div class="field">
+      <label>TICKER SYMBOL</label>
+      <input id="addWatchSym" placeholder="e.g. AAPL, TSLA, SPY" maxlength="10" style="text-transform:uppercase">
+    </div>
+    <div style="font-size:10px;color:var(--text-dim);line-height:1.5">
+      US equities and ETFs supported. Symbol must exist on Alpaca's feed.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addWatchModal')">CANCEL</button>
+      <button class="btn btn-primary" id="addWatchSaveBtn">ADD</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CUSTOM RANGE MODAL ===== -->
+<div class="modal-backdrop" id="customRangeModal">
+  <div class="modal">
+    <h3>CUSTOM DATE RANGE</h3>
+    <div class="field">
+      <label>START DATE</label>
+      <input id="customStart" type="date">
+    </div>
+    <div class="field">
+      <label>END DATE (defaults to today)</label>
+      <input id="customEnd" type="date">
+    </div>
+    <div style="font-size:10px;color:var(--text-dim);line-height:1.5">
+      Historical data available back to Jan 2016.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('customRangeModal')">CANCEL</button>
+      <button class="btn btn-primary" id="customRangeSaveBtn">APPLY</button>
+    </div>
+  </div>
 </div>
 
 <!-- ===== ALERT MODAL ===== -->
@@ -581,13 +637,15 @@ const TICKERS = ['AAPL','TSLA','NVDA','MSFT','GOOGL','AMZN','META','AMD','SPY','
 const state = {
   symbol: 'AAPL',
   timeframe: '15m',
+  range: '1Y',
+  customRange: { start: null, end: null },
   candles: {},         // { symbol: [{t,o,h,l,c,v},...] }
   prices: {},          // { symbol: {px, chg, chgPct} }
   positions: [
     { sym: 'NVDA', qty: 50, avg: 142.30, curr: 155.80 },
     { sym: 'AAPL', qty: 100, avg: 178.20, curr: 185.42 },
   ],
-  watchlist: ['AAPL','TSLA','NVDA','MSFT','SPY','QQQ','PLTR'],
+  watchlist: JSON.parse(localStorage.getItem('apex.watchlist') || 'null') || ['AAPL','TSLA','NVDA','MSFT','SPY','QQQ','PLTR'],
   alerts: JSON.parse(localStorage.getItem('apex.alerts') || '[]'),
   alpaca: {
     ws: null,
@@ -612,13 +670,13 @@ function genCandles(symbol, count = 300, timeframe = '15m') {
   const base = { AAPL:185, TSLA:248, NVDA:155, MSFT:412, GOOGL:168, AMZN:182,
                  META:488, AMD:168, SPY:555, QQQ:478, NFLX:675, PLTR:26,
                  COIN:198, SOFI:9.2, RIVN:14, DIS:108, BA:178, JPM:218, XOM:116, BAC:42 }[symbol] || 100;
-  const tfMinutes = { '1m': 1, '5m': 5, '15m': 15, '1h': 60, '4h': 240, '1d': 1440 }[timeframe] || 15;
+  const mins = tfMinutes(timeframe);
   // Scale volatility to timeframe (longer TF = larger per-bar moves)
-  const volScale = Math.sqrt(tfMinutes / 15);
+  const volScale = Math.sqrt(mins / 15);
   const now = Date.now();
   const candles = [];
   // Deterministic seed per symbol+tf so switching back returns same data
-  let seed = (symbol.charCodeAt(0) * 31 + tfMinutes) % 997;
+  let seed = (symbol.charCodeAt(0) * 31 + mins) % 997;
   const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
   let price = base * (0.95 + rand() * 0.1);
   for (let i = count; i > 0; i--) {
@@ -629,7 +687,7 @@ function genCandles(symbol, count = 300, timeframe = '15m') {
     const high = Math.max(open, close) + rand() * vol * 0.5;
     const low = Math.min(open, close) - rand() * vol * 0.5;
     candles.push({
-      t: now - i * tfMinutes * 60 * 1000,
+      t: now - i * mins * 60 * 1000,
       o: open, h: high, l: low, c: close,
       v: Math.floor((100000 + rand() * 500000) * volScale),
     });
@@ -639,10 +697,13 @@ function genCandles(symbol, count = 300, timeframe = '15m') {
 }
 
 function initData() {
-  TICKERS.forEach(s => {
-    state.candles[s] = genCandles(s);
+  // Seed data for all static tickers (for the ticker strip) plus any
+  // symbols in the saved watchlist that aren't already covered.
+  const allSymbols = new Set([...TICKERS, ...state.watchlist]);
+  allSymbols.forEach(s => {
+    state.candles[s] = genCandles(s, 300, state.timeframe);
     const last = state.candles[s].at(-1);
-    const prev = state.candles[s].at(-100).c;
+    const prev = state.candles[s].at(-100)?.c ?? last.c;
     state.prices[s] = { px: last.c, chg: last.c - prev, chgPct: ((last.c - prev) / prev) * 100 };
   });
   // update positions' current prices
@@ -982,7 +1043,7 @@ function renderWatchlist() {
     const p = state.prices[s] || { px: 0, chg: 0, chgPct: 0 };
     const up = p.chg >= 0;
     const active = s === state.symbol ? 'active' : '';
-    return `<div class="watch-row ${active}" onclick="selectSymbol('${s}')">
+    return `<div class="watch-row ${active}" onclick="selectSymbol('${s}')" oncontextmenu="event.preventDefault();removeFromWatchlist('${s}');return false;" title="Click to select, right-click to remove">
       <div class="watch-sym">${s}</div>
       <div class="watch-px">${p.px.toFixed(2)}</div>
       <div class="watch-chg ${up ? 'up' : 'down'}">${up ? '+' : ''}${p.chgPct.toFixed(2)}%</div>
@@ -1032,7 +1093,7 @@ async function selectSymbol(s) {
   document.getElementById('symName').textContent = s;
   // If connected and we don't have bars for this symbol yet (or they're simulated), fetch real
   if (state.alpaca.state === 'live') {
-    const bars = await loadAlpacaBars(s, tfToAlpaca(state.timeframe), 300);
+    const bars = await loadAlpacaBars(s, state.timeframe, state.range, state.customRange.start, state.customRange.end);
     if (bars && bars.length) {
       state.candles[s] = bars;
     }
@@ -1382,6 +1443,81 @@ document.getElementById('alertSaveBtn').addEventListener('click', () => {
 
 function saveAlerts() { localStorage.setItem('apex.alerts', JSON.stringify(state.alerts)); }
 
+/* ============================================================
+   WATCHLIST MANAGEMENT
+   ============================================================ */
+
+function saveWatchlist() {
+  localStorage.setItem('apex.watchlist', JSON.stringify(state.watchlist));
+}
+
+// + ADD watchlist button
+document.getElementById('addWatchBtn').addEventListener('click', () => {
+  document.getElementById('addWatchSym').value = '';
+  openModal('addWatchModal');
+  setTimeout(() => document.getElementById('addWatchSym').focus(), 50);
+});
+
+document.getElementById('addWatchSaveBtn').addEventListener('click', addWatchlistFromModal);
+document.getElementById('addWatchSym').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addWatchlistFromModal();
+});
+
+async function addWatchlistFromModal() {
+  const sym = document.getElementById('addWatchSym').value.trim().toUpperCase();
+  if (!sym || !/^[A-Z.\-]{1,10}$/.test(sym)) {
+    toast('Invalid ticker format', 'bear');
+    return;
+  }
+  if (state.watchlist.includes(sym)) {
+    toast(sym + ' already in watchlist', 'bear');
+    return;
+  }
+  state.watchlist.unshift(sym);
+  saveWatchlist();
+  // If connected, subscribe WS to ticks/bars for this sym
+  if (state.alpaca.ws && state.alpaca.ws.readyState === 1) {
+    state.alpaca.ws.send(JSON.stringify({ action: 'subscribe', trades: [sym], bars: [sym] }));
+  }
+  // Seed simulated data so the watchlist row has a price to show immediately
+  if (!state.candles[sym]) state.candles[sym] = genCandles(sym, 300, state.timeframe);
+  const last = state.candles[sym].at(-1);
+  const prev = state.candles[sym].slice(-20)[0]?.c || last.c;
+  state.prices[sym] = { px: last.c, chg: last.c - prev, chgPct: ((last.c - prev) / prev) * 100 };
+  renderWatchlist();
+  closeModal('addWatchModal');
+  toast(sym + ' added to watchlist', 'bull');
+  // Auto-select the newly added symbol
+  selectSymbol(sym);
+}
+
+// Right-click on watchlist row to remove
+function removeFromWatchlist(sym) {
+  if (!confirm('Remove ' + sym + ' from watchlist?')) return;
+  state.watchlist = state.watchlist.filter(x => x !== sym);
+  saveWatchlist();
+  renderWatchlist();
+  if (state.symbol === sym && state.watchlist.length) selectSymbol(state.watchlist[0]);
+}
+window.removeFromWatchlist = removeFromWatchlist;
+
+/* ============================================================
+   CUSTOM DATE RANGE
+   ============================================================ */
+
+document.getElementById('customRangeSaveBtn').addEventListener('click', async () => {
+  const s = document.getElementById('customStart').value;
+  const e = document.getElementById('customEnd').value || new Date().toISOString().slice(0, 10);
+  if (!s) { toast('Start date required', 'bear'); return; }
+  state.range = 'custom';
+  state.customRange = { start: s, end: e };
+  document.querySelectorAll('#rangeGroup .tf-btn').forEach(x => x.classList.remove('active'));
+  document.querySelector('#rangeGroup [data-range="custom"]').classList.add('active');
+  closeModal('customRangeModal');
+  autoSuggestTimeframe();
+  await reloadChart();
+});
+
 function checkAlerts() {
   let changed = false;
   for (const a of state.alerts) {
@@ -1480,27 +1616,97 @@ async function runHealthChecks() {
    ALPACA — server-side proxy + direct WS with reconnect
    ============================================================ */
 
-// Fetch historical bars for the active symbol through the proxy
-async function loadAlpacaBars(symbol, timeframe = '15Min', limit = 300) {
+// Load historical bars from Alpaca through the proxy.
+// `range` is one of: '1D','5D','1M','3M','6M','YTD','1Y','5Y','ALL','custom'
+// `customStart`/`customEnd` are ISO dates when range === 'custom'.
+async function loadAlpacaBars(symbol, tf, range = '1Y', customStart = null, customEnd = null) {
+  const alpacaTf = tfToAlpaca(tf);
+  const { start, end } = computeRangeDates(range, customStart, customEnd);
+  // Alpaca bar limit per request is 10000. Fine for most combinations.
+  const params = {
+    timeframe: alpacaTf,
+    limit: 10000,
+    feed: state.alpaca.feed,
+    adjustment: 'raw',
+    sort: 'asc',
+  };
+  if (start) params.start = start.toISOString();
+  if (end) params.end = end.toISOString();
+
   try {
     const r = await fetch('/.netlify/functions/alpaca-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        path: `/v2/stocks/${symbol}/bars`,
-        params: { timeframe, limit, feed: state.alpaca.feed, adjustment: 'raw' },
-      }),
+      body: JSON.stringify({ path: `/v2/stocks/${symbol}/bars`, params }),
     });
     if (!r.ok) return null;
     const data = await r.json();
     if (!data.bars || !data.bars.length) return null;
-    return data.bars.map(b => ({
+    let bars = data.bars.map(b => ({
       t: new Date(b.t).getTime(),
       o: b.o, h: b.h, l: b.l, c: b.c, v: b.v,
     }));
+    if (tfNeedsAggregation(tf)) bars = aggregateBars(bars, tf);
+    return bars;
   } catch {
     return null;
   }
+}
+
+// Compute start/end timestamps for a range selector
+function computeRangeDates(range, customStart, customEnd) {
+  const end = new Date();
+  let start = null;
+  switch (range) {
+    case '1D':  start = new Date(end); start.setDate(end.getDate() - 1); break;
+    case '5D':  start = new Date(end); start.setDate(end.getDate() - 7); break; // pad for weekends
+    case '1M':  start = new Date(end); start.setMonth(end.getMonth() - 1); break;
+    case '3M':  start = new Date(end); start.setMonth(end.getMonth() - 3); break;
+    case '6M':  start = new Date(end); start.setMonth(end.getMonth() - 6); break;
+    case 'YTD': start = new Date(end.getFullYear(), 0, 1); break;
+    case '1Y':  start = new Date(end); start.setFullYear(end.getFullYear() - 1); break;
+    case '5Y':  start = new Date(end); start.setFullYear(end.getFullYear() - 5); break;
+    case 'ALL': start = new Date('2016-01-01'); break; // Alpaca historical depth
+    case 'custom':
+      if (customStart) start = new Date(customStart);
+      if (customEnd) return { start, end: new Date(customEnd) };
+      break;
+  }
+  return { start, end };
+}
+
+// Aggregate daily bars into weekly or monthly bars client-side.
+function aggregateBars(bars, tf) {
+  if (!bars.length) return bars;
+  const out = [];
+  let bucket = null;
+  const bucketKey = (d) => {
+    if (tf === '1w') {
+      // ISO week: Monday start
+      const t = new Date(d);
+      const day = (t.getUTCDay() + 6) % 7; // 0=Mon
+      t.setUTCDate(t.getUTCDate() - day);
+      t.setUTCHours(0, 0, 0, 0);
+      return t.getTime();
+    }
+    // Monthly
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  };
+  for (const b of bars) {
+    const d = new Date(b.t);
+    const key = bucketKey(d);
+    if (!bucket || bucket.t !== key) {
+      if (bucket) out.push(bucket);
+      bucket = { t: key, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v };
+    } else {
+      bucket.h = Math.max(bucket.h, b.h);
+      bucket.l = Math.min(bucket.l, b.l);
+      bucket.c = b.c;
+      bucket.v += b.v;
+    }
+  }
+  if (bucket) out.push(bucket);
+  return out;
 }
 
 async function loadAlpacaSnapshots(symbols) {
@@ -1568,7 +1774,7 @@ async function connectAlpaca() {
         updateConnPill();
         if (!wasLive) toast('Alpaca WebSocket live (' + state.alpaca.feed.toUpperCase() + ')', 'bull');
         // Also load historical bars for current symbol
-        const bars = await loadAlpacaBars(state.symbol, tfToAlpaca(state.timeframe), 300);
+        const bars = await loadAlpacaBars(state.symbol, state.timeframe, state.range, state.customRange.start, state.customRange.end);
         if (bars && bars.length) {
           state.candles[state.symbol] = bars;
           const total = bars.length;
@@ -1658,8 +1864,19 @@ function isUSMarketOpen() {
   return utcTotal >= 13 * 60 + 30 && utcTotal < 21 * 60;
 }
 
+// Map UI TF to Alpaca API timeframe. Alpaca supports 1Min, 5Min, 15Min, 30Min,
+// 1Hour, 2Hour, 4Hour, 1Day. Larger TFs (1w, 1mo) are aggregated client-side from 1Day bars.
 function tfToAlpaca(tf) {
-  return { '1m': '1Min', '5m': '5Min', '15m': '15Min', '1h': '1Hour', '4h': '4Hour', '1d': '1Day' }[tf] || '15Min';
+  return { '1m': '1Min', '3m': '3Min', '5m': '5Min', '15m': '15Min', '30m': '30Min',
+           '1h': '1Hour', '4h': '4Hour', '1d': '1Day',
+           '1w': '1Day', '1mo': '1Day' }[tf] || '15Min';
+}
+function tfMinutes(tf) {
+  return { '1m': 1, '3m': 3, '5m': 5, '15m': 15, '30m': 30,
+           '1h': 60, '4h': 240, '1d': 1440, '1w': 10080, '1mo': 43200 }[tf] || 15;
+}
+function tfNeedsAggregation(tf) {
+  return tf === '1w' || tf === '1mo';
 }
 
 function updateConnPill() {
@@ -1801,28 +2018,70 @@ document.getElementById('symSearch').addEventListener('keydown', (e) => {
   e.target.value = '';
 });
 
-// timeframe buttons
+// timeframe buttons (bars within range)
 document.getElementById('tfGroup').addEventListener('click', async (e) => {
   const b = e.target.closest('.tf-btn');
   if (!b) return;
-  document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active'));
+  // Only deactivate siblings within tfGroup, not the range group
+  document.querySelectorAll('#tfGroup .tf-btn').forEach(x => x.classList.remove('active'));
   b.classList.add('active');
   state.timeframe = b.dataset.tf;
+  await reloadChart();
+});
+
+// range buttons (time window)
+document.getElementById('rangeGroup').addEventListener('click', async (e) => {
+  const b = e.target.closest('.tf-btn');
+  if (!b) return;
+  const range = b.dataset.range;
+  if (range === 'custom') {
+    openModal('customRangeModal');
+    return;
+  }
+  document.querySelectorAll('#rangeGroup .tf-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  state.range = range;
+  state.customRange = { start: null, end: null };
+  // Auto-suggest a reasonable TF if the current TF would return too much data or too little
+  autoSuggestTimeframe();
+  await reloadChart();
+});
+
+// When range is long (1Y+) and TF is fine-grained (1m/3m/5m), auto-upgrade to avoid 10k-bar truncation
+function autoSuggestTimeframe() {
+  const longRanges = ['1Y', '5Y', 'ALL'];
+  const mediumRanges = ['3M', '6M', 'YTD'];
+  const fineTf = ['1m', '3m', '5m'];
+  const mediumTf = ['15m', '30m'];
+  let newTf = null;
+  if (longRanges.includes(state.range) && fineTf.includes(state.timeframe)) newTf = '1d';
+  else if (longRanges.includes(state.range) && mediumTf.includes(state.timeframe)) newTf = '1h';
+  else if (mediumRanges.includes(state.range) && fineTf.includes(state.timeframe)) newTf = '1h';
+  if (newTf) {
+    state.timeframe = newTf;
+    document.querySelectorAll('#tfGroup .tf-btn').forEach(x => {
+      x.classList.toggle('active', x.dataset.tf === newTf);
+    });
+  }
+}
+
+async function reloadChart() {
   if (state.alpaca.state === 'live') {
-    const bars = await loadAlpacaBars(state.symbol, tfToAlpaca(state.timeframe), 300);
-    if (bars && bars.length) {
-      state.candles[state.symbol] = bars;
-    }
+    const bars = await loadAlpacaBars(state.symbol, state.timeframe, state.range, state.customRange.start, state.customRange.end);
+    if (bars && bars.length) state.candles[state.symbol] = bars;
+    else toast('No bars returned for this range', 'bear');
   } else {
-    // Regenerate simulated data for this timeframe
     state.candles[state.symbol] = genCandles(state.symbol, 300, state.timeframe);
   }
   const total = state.candles[state.symbol].length;
-  chartState.visibleStart = Math.max(0, total - chartState.visibleCount);
+  // When switching TF/range, show the most recent portion
+  const defaultView = Math.min(total, 120);
+  chartState.visibleCount = defaultView;
+  chartState.visibleStart = Math.max(0, total - defaultView);
   chartState.priceOffsetRatio = 0;
   chartState.priceScale = 1;
   renderChart();
-});
+}
 
 // market status
 function updateMktStatus() {
