@@ -597,6 +597,8 @@ const state = {
     reconnectTimer: null,
     state: 'disconnected', // 'disconnected' | 'connecting' | 'live' | 'degraded'
     lastTickAt: 0,
+    liveSince: 0,
+    manualDisconnect: false,
   },
   signals: [],
   activeTab: 'signals',
@@ -1111,14 +1113,19 @@ async function runAgents() {
 
 function computeAgent(id, candles) {
   const last = candles.at(-1);
-  const prev20 = candles.slice(-20);
-  const avg20 = prev20.reduce((s, c) => s + c.c, 0) / 20;
-  const change20 = ((last.c - prev20[0].c) / prev20[0].c) * 100;
+  // Adaptive lookback: ~20 bars on intraday, ~50 on daily for more stable signals
+  const lookback = state.timeframe === '1d' ? 50 : state.timeframe === '4h' ? 30 : 20;
+  const slice = candles.slice(-lookback);
+  const avg = slice.reduce((s, c) => s + c.c, 0) / slice.length;
+  const pctChange = ((last.c - slice[0].c) / slice[0].c) * 100;
   switch (id) {
     case 'chart': {
-      const score = Math.max(-1, Math.min(1, change20 / 3));
+      // Scale the score normalisation to the timeframe so an 0.5% move on 1m
+      // isn't treated the same as a 0.5% move on 1d.
+      const tfNorm = state.timeframe === '1d' ? 8 : state.timeframe === '4h' ? 5 : state.timeframe === '1h' ? 3 : 1.5;
+      const score = Math.max(-1, Math.min(1, pctChange / tfNorm));
       const label = score > 0.3 ? 'bullish' : score < -0.3 ? 'bearish' : 'neutral';
-      return { score, label, reason: `${change20.toFixed(2)}% over 20 bars; ${last.c > avg20 ? 'above' : 'below'} SMA20` };
+      return { score, label, reason: `${pctChange.toFixed(2)}% over ${lookback} ${state.timeframe} bars; ${last.c > avg ? 'above' : 'below'} SMA${lookback}` };
     }
     case 'sentiment': {
       const score = (Math.random() - 0.4) * 1.5;
@@ -1132,7 +1139,7 @@ function computeAgent(id, candles) {
                reason: score > 0 ? 'solid earnings, margin expansion' : 'revenue miss, guidance cut' };
     }
     case 'risk': {
-      const vol = Math.sqrt(prev20.reduce((s, c) => s + Math.pow((c.h - c.l) / c.c, 2), 0) / 20);
+      const vol = Math.sqrt(slice.reduce((s, c) => s + Math.pow((c.h - c.l) / c.c, 2), 0) / slice.length);
       const score = -vol * 10;
       const clamped = Math.max(-1, Math.min(1, score));
       return { score: clamped, label: vol > 0.03 ? 'elevated' : 'normal',
@@ -1413,9 +1420,15 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
 });
 document.getElementById('runHealthBtn').addEventListener('click', runHealthChecks);
 document.getElementById('reconnectWsBtn').addEventListener('click', () => {
-  if (state.alpaca.ws) { try { state.alpaca.ws.close(); } catch {} }
+  state.alpaca.manualDisconnect = false;
   state.alpaca.reconnectAttempts = 0;
+  if (state.alpaca.reconnectTimer) {
+    clearTimeout(state.alpaca.reconnectTimer);
+    state.alpaca.reconnectTimer = null;
+  }
+  if (state.alpaca.ws) { try { state.alpaca.ws.close(); } catch {} }
   connectAlpaca();
+  runHealthChecks();
 });
 
 async function runHealthChecks() {
@@ -1425,11 +1438,17 @@ async function runHealthChecks() {
     el.textContent = txt;
     el.style.color = color || 'var(--text)';
   };
-  set('stWs', state.alpaca.state.toUpperCase(),
+  const marketOpen = isUSMarketOpen();
+  const wsLabel = state.alpaca.state === 'live'
+    ? (marketOpen ? 'LIVE' : 'LIVE · MARKET CLOSED (no ticks expected)')
+    : state.alpaca.state.toUpperCase();
+  set('stWs', wsLabel,
     state.alpaca.state === 'live' ? 'var(--bull)' :
     state.alpaca.state === 'connecting' ? 'var(--gold)' : 'var(--bear)');
   set('stFeed', state.alpaca.feed.toUpperCase());
-  set('stTick', state.alpaca.lastTickAt ? new Date(state.alpaca.lastTickAt).toLocaleTimeString() : 'none');
+  set('stTick', state.alpaca.lastTickAt
+    ? new Date(state.alpaca.lastTickAt).toLocaleTimeString()
+    : (marketOpen ? 'none' : 'none (market closed)'));
   set('stReconn', state.alpaca.reconnectAttempts);
 
   // REST proxy health
@@ -1541,11 +1560,13 @@ async function connectAlpaca() {
           trades: state.watchlist,
           bars: state.watchlist,
         }));
+        const wasLive = state.alpaca.state === 'live';
         state.alpaca.state = 'live';
         state.alpaca.connected = true;
         state.alpaca.reconnectAttempts = 0;
+        state.alpaca.liveSince = Date.now();
         updateConnPill();
-        toast('Alpaca WebSocket live (' + state.alpaca.feed.toUpperCase() + ')', 'bull');
+        if (!wasLive) toast('Alpaca WebSocket live (' + state.alpaca.feed.toUpperCase() + ')', 'bull');
         // Also load historical bars for current symbol
         const bars = await loadAlpacaBars(state.symbol, tfToAlpaca(state.timeframe), 300);
         if (bars && bars.length) {
@@ -1587,23 +1608,55 @@ async function connectAlpaca() {
 
 function scheduleReconnect() {
   if (state.alpaca.reconnectTimer) return;
+  if (state.alpaca.manualDisconnect) return;
   const attempt = ++state.alpaca.reconnectAttempts;
-  const backoff = Math.min(30000, 1000 * Math.pow(2, Math.min(attempt, 5))); // 2s, 4s, 8s, 16s, 30s cap
-  toast(`WS down. Reconnecting in ${Math.round(backoff / 1000)}s (attempt ${attempt})`, 'bear');
+  // Give up after 20 attempts, user can hit RECONNECT WS to restart
+  if (attempt > 20) {
+    toast('Reconnect failed after 20 attempts. Click RECONNECT WS in Settings to retry.', 'bear');
+    state.alpaca.state = 'disconnected';
+    updateConnPill();
+    return;
+  }
+  const backoff = Math.min(60000, 2000 * Math.pow(1.5, Math.min(attempt, 8))); // 2s → 60s cap
+  // Only show toast every 3rd attempt to reduce noise
+  if (attempt === 1 || attempt % 3 === 0) {
+    toast(`WS reconnecting in ${Math.round(backoff / 1000)}s (attempt ${attempt})`, 'bear');
+  }
   state.alpaca.reconnectTimer = setTimeout(() => {
     state.alpaca.reconnectTimer = null;
     connectAlpaca();
   }, backoff);
 }
 
-// Stale-tick watchdog: mark degraded if no ticks for 30s during market hours
+// Stale-tick watchdog: only triggers during US market hours (9:30-16:00 ET)
+// with a 2-minute warmup after authentication. Avoids false degrade during weekends/off-hours.
 setInterval(() => {
-  if (state.alpaca.state === 'live' && state.alpaca.lastTickAt &&
-      Date.now() - state.alpaca.lastTickAt > 30000) {
+  if (state.alpaca.state !== 'live') return;
+  if (!isUSMarketOpen()) return;
+  // Grace period: don't fire for 2 min after auth
+  if (!state.alpaca.liveSince || Date.now() - state.alpaca.liveSince < 120000) return;
+  // If live and market open but no ticks for 90s, it's likely a dead socket
+  if (state.alpaca.lastTickAt && Date.now() - state.alpaca.lastTickAt > 90000) {
     state.alpaca.state = 'degraded';
     updateConnPill();
+    try { state.alpaca.ws && state.alpaca.ws.close(); } catch {}
   }
-}, 10000);
+}, 30000);
+
+function isUSMarketOpen() {
+  // Approximates US equities RTH (9:30-16:00 ET, Mon-Fri).
+  // Uses the user's browser clock and adjusts for UTC offset of ET.
+  const now = new Date();
+  const day = now.getUTCDay();
+  if (day === 0 || day === 6) return false; // weekend
+  // ET is UTC-4 (EDT) or UTC-5 (EST). For accuracy we'd need a TZ library,
+  // but this simple check is good enough for the watchdog to skip the weekend.
+  const utcHour = now.getUTCHours();
+  const utcMin = now.getUTCMinutes();
+  const utcTotal = utcHour * 60 + utcMin;
+  // Market window in UTC (conservative: 13:30-21:00 UTC covers both EST and EDT)
+  return utcTotal >= 13 * 60 + 30 && utcTotal < 21 * 60;
+}
 
 function tfToAlpaca(tf) {
   return { '1m': '1Min', '5m': '5Min', '15m': '15Min', '1h': '1Hour', '4h': '4Hour', '1d': '1Day' }[tf] || '15Min';
@@ -1615,7 +1668,11 @@ function updateConnPill() {
   const s = state.alpaca.state;
   if (s === 'live') {
     pill.className = 'conn-pill live';
-    label.textContent = 'LIVE (' + state.alpaca.feed.toUpperCase() + ')';
+    if (isUSMarketOpen()) {
+      label.textContent = 'LIVE (' + state.alpaca.feed.toUpperCase() + ')';
+    } else {
+      label.textContent = 'LIVE · MARKET CLOSED';
+    }
   } else if (s === 'connecting') {
     pill.className = 'conn-pill sim';
     label.textContent = 'CONNECTING...';
@@ -1769,12 +1826,7 @@ document.getElementById('tfGroup').addEventListener('click', async (e) => {
 
 // market status
 function updateMktStatus() {
-  const d = new Date();
-  const day = d.getUTCDay();
-  const hr = d.getUTCHours();
-  const min = d.getUTCMinutes();
-  const nyMin = (hr - 4) * 60 + min; // rough EST
-  const open = day >= 1 && day <= 5 && nyMin >= 9 * 60 + 30 && nyMin < 16 * 60;
+  const open = isUSMarketOpen();
   const el = document.getElementById('mktStatus');
   el.textContent = open ? '● MARKET OPEN' : '● MARKET CLOSED';
   el.style.color = open ? 'var(--bull)' : 'var(--text-dim)';
