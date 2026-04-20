@@ -485,6 +485,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         <div class="chat-messages" id="chatMessages">
           <div class="msg ai">APEX AI online. Ask me about the chart, signals, risk, or anything market-related.</div>
         </div>
+        <button id="assessBtn" style="width:calc(100% - 16px);margin:0 8px 6px;background:var(--gold);color:var(--bg);font-weight:700;letter-spacing:1px;padding:6px;border:none;cursor:pointer;font-family:monospace;font-size:11px">⚡ INSTANT ASSESSMENT</button>
         <div class="chat-input-wrap">
           <input class="chat-input" id="chatInput" placeholder="Ask APEX..." autocomplete="off">
           <button class="chat-send" id="chatSend">▶</button>
@@ -678,7 +679,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
 <!-- ===== STATUS MODAL ===== -->
 <div class="modal-backdrop" id="settingsModal">
-  <div class="modal">
+  <div class="modal" style="width:520px">
     <h3>SYSTEM STATUS</h3>
     <div style="font-size:11px;line-height:1.9">
       <div>Alpaca WebSocket: <b id="stWs">checking...</b></div>
@@ -817,6 +818,7 @@ const INDICATOR_DEFS = [
   { id: 'donchian', name: 'Donchian Channels', cat: 'Volatility', type: 'overlay', desc: 'Highest high / lowest low over 20 periods' },
   // Volume (overlay)
   { id: 'vwap', name: 'VWAP', cat: 'Volume', type: 'overlay', desc: 'Session volume-weighted average price' },
+  { id: 'vwapBands', name: 'VWAP Bands', cat: 'Volume', type: 'overlay', desc: 'VWAP with upper/lower ±3.5% bands anchored to session volume.' },
   // Momentum (subpanel)
   { id: 'rsi', name: 'RSI', cat: 'Momentum', type: 'subpanel', desc: 'Relative Strength Index (14). Overbought >70, oversold <30.' },
   { id: 'macd', name: 'MACD', cat: 'Momentum', type: 'subpanel', desc: 'MACD line (12,26) with 9-period signal and histogram' },
@@ -844,6 +846,7 @@ const chartState = {
   visibleCount: 100,
   priceOffsetRatio: 0,
   priceScale: 1,
+  userHasPanned: false,
   indicators: savedInd || {
     sma50: true, sma200: true, vwap: true,
     volume: true, grid: true, lastPx: true,
@@ -887,6 +890,15 @@ function clampView() {
 // one draw per animation frame (~60fps cap). Prevents layout thrash when
 // many ticks/bars arrive at once.
 let _renderScheduled = false;
+function isMarketHours() {
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = et.getDay();
+  if (day === 0 || day === 6) return false;
+  const mins = et.getHours() * 60 + et.getMinutes();
+  return mins >= 570 && mins <= 960;
+}
+
 function scheduleRender() {
   if (_renderScheduled) return;
   _renderScheduled = true;
@@ -1000,6 +1012,7 @@ function renderChart() {
   if (indOn('kc')) drawKeltner(candles, start, end, 20, 2, y, xAt);
   if (indOn('donchian')) drawDonchian(candles, start, end, 20, y, xAt);
   if (indOn('vwap')) drawVWAP(visible, y, candleW);
+  if (indOn('vwapBands')) drawVWAPBands(visible, y, candleW);
 
   // --- candles
   for (let i = 0; i < visible.length; i++) {
@@ -1611,6 +1624,31 @@ function drawMFISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
   ctx.fillText('MFI 14', 4, top + 10);
 }
 
+function drawVWAPBands(visible, y, candleW, bandPct = 0.035) {
+  if (!visible.length) return;
+  let cumTPV = 0, cumV = 0;
+  const pts = [];
+  for (const c of visible) {
+    const tp = (c.h + c.l + c.c) / 3;
+    cumTPV += tp * c.v; cumV += c.v;
+    const vwap = cumV > 0 ? cumTPV / cumV : tp;
+    pts.push({ vwap, upper: vwap * (1 + bandPct), lower: vwap * (1 - bandPct) });
+  }
+  const drawLine = (key, color, dash) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 1;
+    ctx.setLineDash(dash || []);
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      const x = i * candleW + candleW / 2;
+      i === 0 ? ctx.moveTo(x, y(p[key])) : ctx.lineTo(x, y(p[key]));
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+  };
+  drawLine('upper', '#26a69a60');
+  drawLine('vwap', '#26a69a', [3, 3]);
+  drawLine('lower', '#26a69a60');
+}
+
 function drawVWAP(visible, y, candleW) {
   let cumPV = 0, cumV = 0;
   ctx.strokeStyle = '#f0b429'; ctx.lineWidth = 1.5;
@@ -1664,6 +1702,7 @@ canvas.addEventListener('pointermove', (e) => {
     chartState.priceOffsetRatio = drag.startPO - dy / 300;
   } else {
     chartState.visibleStart = drag.startVS - dx / candleW;
+    chartState.userHasPanned = true;
   }
   renderChart();
 });
@@ -1690,6 +1729,7 @@ canvas.addEventListener('wheel', (e) => {
   const mouseIdx = chartState.visibleStart + chartState.visibleCount * mouseRatio;
   chartState.visibleCount = newCount;
   chartState.visibleStart = mouseIdx - newCount * mouseRatio;
+  chartState.userHasPanned = true;
   renderChart();
 }, { passive: false });
 
@@ -1699,6 +1739,7 @@ canvas.addEventListener('dblclick', () => {
   chartState.visibleStart = Math.max(0, total - 100);
   chartState.priceOffsetRatio = 0;
   chartState.priceScale = 1;
+  chartState.userHasPanned = false;
   renderChart();
 });
 
@@ -1935,6 +1976,7 @@ function renderTicker() {
 }
 
 async function selectSymbol(s) {
+  chartState.userHasPanned = false;
   state.symbol = s;
   document.getElementById('symName').textContent = s;
   // If connected and we don't have bars for this symbol yet (or they're simulated), fetch real
@@ -1963,6 +2005,7 @@ async function selectSymbol(s) {
   renderWatchlist();
   renderChart();
   runAgents();
+  setTimeout(runAgents, 500);
 }
 window.selectSymbol = selectSymbol;
 
@@ -2002,7 +2045,8 @@ function renderAgents() {
 }
 
 async function runAgents() {
-  const candles = state.candles[state.symbol] || [];
+  const sym = state.symbol;
+  const candles = state.candles[sym] || [];
   if (!candles.length) return;
 
   const verdicts = {};
@@ -2023,6 +2067,7 @@ async function runAgents() {
     const verdictEl = el.querySelector('.agent-verdict');
     verdictEl.innerHTML = `${v.reason}${v.source ? `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">source: ${v.source}</div>` : ''}`;
   }
+  if (state.symbol !== sym) return;
   generateSignal(verdicts);
 }
 
@@ -2225,7 +2270,7 @@ function scaleSign(value, neutral, strong) {
 function generateSignal(verdicts) {
   const total = AGENTS.reduce((s, a) => s + (verdicts[a.id]?.score || 0) * a.weight, 0);
   const confidence = Math.abs(total) * 100;
-  if (confidence < 25) return; // too weak
+  if (confidence < 18) return; // too weak
   const candles = state.candles[state.symbol];
   if (!candles || candles.length < 20) return;
 
@@ -2246,7 +2291,7 @@ function generateSignal(verdicts) {
   if (prev) {
     const barsSince = candles.length - prev.candleIdx;
     const priceDrift = Math.abs(entry - prev.entry);
-    if (barsSince < 10 || priceDrift < atr * 0.5) return;
+    if (barsSince < 5 || priceDrift < atr * 0.3) return;
   }
 
   const signal = {
@@ -2599,6 +2644,64 @@ function relativeTime(d) {
   if (sec < 3600) return Math.floor(sec / 60) + 'm ago';
   if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
   return Math.floor(sec / 86400) + 'd ago';
+}
+
+async function runInstantAssessment() {
+  const candles = state.candles[state.symbol];
+  if (!candles || candles.length < 20) { toast('No chart data yet', 'bear'); return; }
+  const last = candles.at(-1);
+  const prev20 = candles.slice(-20);
+  const atr = computeATR(candles, 14);
+  const high20 = Math.max(...prev20.map(c => c.h));
+  const low20 = Math.min(...prev20.map(c => c.l));
+  const sma20 = prev20.reduce((s, c) => s + c.c, 0) / 20;
+  const trend = last.c > sma20 ? 'above SMA20 (bullish lean)' : 'below SMA20 (bearish lean)';
+  const recentHighs = candles.slice(-10).map(c => c.h);
+  const recentLows = candles.slice(-10).map(c => c.l);
+  const higherHighs = recentHighs[recentHighs.length-1] > recentHighs[0];
+  const higherLows = recentLows[recentLows.length-1] > recentLows[0];
+  let structure = 'consolidating';
+  if (higherHighs && higherLows) structure = 'higher highs, higher lows (uptrend)';
+  else if (!higherHighs && !higherLows) structure = 'lower highs, lower lows (downtrend)';
+  const systemPrompt = `You are a professional intraday trading analyst for APEX terminal. Direct, structured, actionable. No disclaimers.
+Format EXACTLY:
+
+🧠 CURRENT READ
+[2-3 bullets: trend, structure, context]
+
+🔴 BEST SHORT SETUP
+[trigger, entry zone, stop, targets — or "No valid setup — wait"]
+
+🔵 BEST LONG SETUP
+[trigger, entry zone, stop, targets — or "No valid setup — wait"]
+
+⚠️ WHAT NOT TO DO
+[2-3 specific mistakes to avoid right now]
+
+🗺️ KEY LEVEL MAP
+[4-5 price levels with labels]
+
+ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
+  const userMsg = `${state.symbol} | Price: ${last.c.toFixed(2)} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)} | SMA20: ${sma20.toFixed(2)} (${trend}) | Structure: ${structure} | ATR: ${atr.toFixed(2)} | TF: ${state.timeframe}\nGive full structured assessment now.`;
+  const chatMessages = document.getElementById('chatMessages');
+  const loadingId = 'assess_' + Date.now();
+  chatMessages.innerHTML += `<div id="${loadingId}" class="msg ai" style="border-left:2px solid var(--gold);padding-left:8px;margin-bottom:10px"><div style="color:var(--gold);font-size:10px;letter-spacing:1px;margin-bottom:4px">⚡ INSTANT ASSESSMENT — ${state.symbol} ${state.timeframe}</div><div class="assess-body" style="white-space:pre-wrap;line-height:1.6;font-size:11px">Analyzing...</div></div>`;
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  try {
+    const r = await fetch('/.netlify/functions/claude-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 800 }),
+    });
+    const data = await r.json();
+    const text = data.content?.[0]?.text || 'Assessment failed.';
+    const el = document.getElementById(loadingId);
+    if (el) el.querySelector('.assess-body').textContent = text;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  } catch(e) {
+    const el = document.getElementById(loadingId);
+    if (el) el.querySelector('.assess-body').textContent = 'Error: ' + String(e);
+  }
 }
 
 function renderOverviewTab() {
@@ -3304,7 +3407,15 @@ async function connectAlpaca() {
             arr.push({ t: ts, o: m.o, h: m.h, l: m.l, c: m.c, v: m.v });
             if (arr.length > 5000) arr.shift();
           }
-          if (m.S === state.symbol) scheduleRender();
+          if (m.S === state.symbol) {
+            if (!chartState.userHasPanned && isMarketHours()) {
+              const total = (state.candles[state.symbol] || []).length;
+              if (total > 0) {
+                chartState.visibleStart = Math.max(0, total - Math.floor(chartState.visibleCount * 0.9));
+              }
+            }
+            scheduleRender();
+          }
         }
         state.alpaca.lastTickAt = Date.now();
       } else if (m.T === 'error') {
@@ -3422,11 +3533,18 @@ function updateConnPill() {
 
 document.getElementById('chatSend').addEventListener('click', sendChat);
 document.getElementById('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
+document.getElementById('assessBtn').addEventListener('click', runInstantAssessment);
 
 async function sendChat() {
   const input = document.getElementById('chatInput');
   const q = input.value.trim();
   if (!q) return;
+  const assessTriggers = ['assess', 'read the tape', 'setup', 'what do you see', 'give me a read', 'levels', 'read'];
+  if (assessTriggers.some(t => q.toLowerCase().includes(t))) {
+    runInstantAssessment();
+    input.value = '';
+    return;
+  }
   input.value = '';
   const msgs = document.getElementById('chatMessages');
   msgs.insertAdjacentHTML('beforeend', `<div class="msg user">${escapeHtml(q)}</div>`);
@@ -3598,6 +3716,7 @@ function autoSuggestTimeframe() { /* no-op: retained for backward compat */ }
 function autoSuggestRange() { /* no-op: retained for backward compat */ }
 
 async function reloadChart() {
+  chartState.userHasPanned = false;
   const sym = state.symbol;
   if (state.alpaca.state === 'live') {
     showLoadingBanner(true);
@@ -3660,7 +3779,7 @@ function init() {
   // ticks
   setInterval(simTick, 1200);
   // re-run agents every 30s on current symbol
-  setInterval(runAgents, 30000);
+  setInterval(runAgents, 20000);
   setInterval(updateMktStatus, 30000);
   // Signal outcome checker: every 5 seconds, walk OPEN signals and check hits
   setInterval(checkSignalOutcomes, 5000);
