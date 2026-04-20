@@ -25,9 +25,11 @@ exports.handler = async (event) => {
 
   const payload = {
     model: body.model || 'claude-sonnet-4-5',
-    max_tokens: body.max_tokens || 512,
+    max_tokens: body.max_tokens || 1000,
     messages: body.messages || [],
   };
+  // Forward system prompt if caller provides one (AI chat uses this for live chart context)
+  if (body.system) payload.system = body.system;
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {

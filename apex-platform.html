@@ -775,6 +775,9 @@ const state = {
   },
   signals: [], // legacy pointer, kept in sync with signalHistory for existing render paths
   activeTab: 'signals',
+  // Session-only multi-turn chat memory for AI Chat. Not persisted to localStorage.
+  // Cleared on symbol switch so Claude doesn't mix context from different tickers.
+  chatHistory: [],
 };
 
 /* ============================================================
@@ -966,6 +969,7 @@ function scheduleWatchlistUpdate() {
 }
 
 function renderChart() {
+  try {
   const candles = state.candles[state.symbol] || [];
   const emptyEl = document.getElementById('emptyMsg');
   if (!candles.length) {
@@ -1033,17 +1037,21 @@ function renderChart() {
   }
 
   // --- Overlay indicators (drawn under candles)
-  if (indOn('sma20')) drawSMA(candles, start, end, 20, y, xAt, '#ff9800');
-  if (indOn('sma50')) drawSMA(candles, start, end, 50, y, xAt, '#2e7fff');
-  if (indOn('sma200')) drawSMA(candles, start, end, 200, y, xAt, '#9d4edd');
-  if (indOn('ema9')) drawEMA(candles, start, end, 9, y, xAt, '#26a69a');
-  if (indOn('ema21')) drawEMA(candles, start, end, 21, y, xAt, '#ef5350');
-  if (indOn('ema50')) drawEMA(candles, start, end, 50, y, xAt, '#ffb300');
-  if (indOn('bb')) drawBollinger(candles, start, end, 20, 2, y, xAt);
-  if (indOn('kc')) drawKeltner(candles, start, end, 20, 2, y, xAt);
-  if (indOn('donchian')) drawDonchian(candles, start, end, 20, y, xAt);
-  if (indOn('vwap')) drawVWAP(visible, y, candleW);
-  if (indOn('vwapBands')) drawVWAPBands(visible, y, candleW);
+  const safeDrawOverlay = (fn, label) => {
+    try { fn(); }
+    catch (e) { console.warn(`APEX indicator error [${label}]:`, e.message); }
+  };
+  if (indOn('sma20')) safeDrawOverlay(() => drawSMA(candles, start, end, 20, y, xAt, '#ff9800'), 'SMA20');
+  if (indOn('sma50')) safeDrawOverlay(() => drawSMA(candles, start, end, 50, y, xAt, '#2e7fff'), 'SMA50');
+  if (indOn('sma200')) safeDrawOverlay(() => drawSMA(candles, start, end, 200, y, xAt, '#9d4edd'), 'SMA200');
+  if (indOn('ema9')) safeDrawOverlay(() => drawEMA(candles, start, end, 9, y, xAt, '#26a69a'), 'EMA9');
+  if (indOn('ema21')) safeDrawOverlay(() => drawEMA(candles, start, end, 21, y, xAt, '#ef5350'), 'EMA21');
+  if (indOn('ema50')) safeDrawOverlay(() => drawEMA(candles, start, end, 50, y, xAt, '#ffb300'), 'EMA50');
+  if (indOn('bb')) safeDrawOverlay(() => drawBollinger(candles, start, end, 20, 2, y, xAt), 'Bollinger');
+  if (indOn('kc')) safeDrawOverlay(() => drawKeltner(candles, start, end, 20, 2, y, xAt), 'Keltner');
+  if (indOn('donchian')) safeDrawOverlay(() => drawDonchian(candles, start, end, 20, y, xAt), 'Donchian');
+  if (indOn('vwap')) safeDrawOverlay(() => drawVWAP(visible, y, candleW), 'VWAP');
+  if (indOn('vwapBands')) safeDrawOverlay(() => drawVWAPBands(visible, y, candleW), 'VWAPBands');
 
   // --- candles
   for (let i = 0; i < visible.length; i++) {
@@ -1082,7 +1090,14 @@ function renderChart() {
   // --- Sub-panel indicator
   if (chartState.subPanel !== 'none' && SUB_H > 0) {
     const subTop = chartH + VOL_H;
-    drawSubPanel(candles, start, end, subTop, SUB_H, chartW, xAt);
+    try {
+      drawSubPanel(candles, start, end, subTop, SUB_H, chartW, xAt);
+    } catch (e) {
+      console.warn(`APEX sub-panel error [${chartState.subPanel}]:`, e.message);
+      ctx.fillStyle = '#f6465d';
+      ctx.font = '10px monospace';
+      ctx.fillText(`${chartState.subPanel} error: ${e.message}`, 8, subTop + 16);
+    }
   }
 
   // --- time axis
@@ -1129,6 +1144,19 @@ function renderChart() {
     ctx.font = '10px monospace';
     ctx.fillText('🔔 ' + a.px.toFixed(2), 6, ay - 4);
   });
+  } catch (e) {
+    console.error('APEX renderChart fatal error:', e);
+    if (ctx && cw && ch) {
+      ctx.fillStyle = '#05080d';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.fillStyle = '#f6465d';
+      ctx.font = '12px monospace';
+      ctx.fillText('Chart render error: ' + e.message, 16, ch / 2 - 10);
+      ctx.fillStyle = '#4a5468';
+      ctx.font = '10px monospace';
+      ctx.fillText('Check console. Double-click chart to reset.', 16, ch / 2 + 10);
+    }
+  }
 }
 
 /* ============================================================
@@ -2008,6 +2036,7 @@ function renderTicker() {
 
 async function selectSymbol(s) {
   chartState.userHasPanned = false;
+  state.chatHistory = [];
   state.symbol = s;
   document.getElementById('symName').textContent = s;
   // If connected and we don't have bars for this symbol yet (or they're simulated), fetch real
@@ -3335,7 +3364,8 @@ async function runHealthChecks() {
   set('stTick', state.alpaca.lastTickAt
     ? new Date(state.alpaca.lastTickAt).toLocaleTimeString()
     : (marketOpen ? 'none' : 'none (market closed)'));
-  set('stReconn', state.alpaca.reconnectAttempts);
+  set('stReconn', state.alpaca.reconnectAttempts +
+    (state.alpaca.reconnectAttempts >= 10 ? ' (60s backoff, retrying indefinitely)' : ''));
 
   // REST proxy health
   try {
@@ -3658,14 +3688,8 @@ function scheduleReconnect() {
   if (state.alpaca.reconnectTimer) return;
   if (state.alpaca.manualDisconnect) return;
   const attempt = ++state.alpaca.reconnectAttempts;
-  // Give up after 20 attempts, user can hit RECONNECT WS to restart
-  if (attempt > 20) {
-    toast('Reconnect failed after 20 attempts. Click RECONNECT WS in Settings to retry.', 'bear');
-    state.alpaca.state = 'disconnected';
-    updateConnPill();
-    return;
-  }
-  const backoff = Math.min(60000, 2000 * Math.pow(1.5, Math.min(attempt, 8))); // 2s → 60s cap
+  // Unlimited reconnection. Backoff stabilizes at ~60s after 10 attempts.
+  const backoff = Math.min(60000, 1000 * Math.pow(2, Math.min(attempt, 10)));
   // Only show toast every 3rd attempt to reduce noise
   if (attempt === 1 || attempt % 3 === 0) {
     toast(`WS reconnecting in ${Math.round(backoff / 1000)}s (attempt ${attempt})`, 'bear');
@@ -3688,6 +3712,24 @@ setInterval(() => {
     state.alpaca.state = 'degraded';
     updateConnPill();
     try { state.alpaca.ws && state.alpaca.ws.close(); } catch {}
+  }
+}, 30000);
+
+// Reconnect-loop watchdog: if the feed has been dead for 90s during market hours
+// AND we are not connected AND no reconnect is scheduled, force one. Belt-and-
+// suspenders failsafe for the rare case the natural reconnect chain stalls
+// (e.g. an onclose handler didn't fire cleanly).
+setInterval(() => {
+  if (!isMarketHours()) return;
+  if (state.alpaca.connected) return;
+  if (state.alpaca.manualDisconnect) return;
+  if (state.alpaca.reconnectTimer) return; // reconnect already scheduled
+  const deadMs = Date.now() - (state.alpaca.lastTickAt || 0);
+  if (deadMs > 90000) {
+    console.warn('APEX watchdog: feed dead for 90s, forcing reconnect');
+    // Clamp attempt counter so backoff doesn't start at 60s after a long dead period
+    state.alpaca.reconnectAttempts = Math.min(state.alpaca.reconnectAttempts, 5);
+    connectAlpaca();
   }
 }, 30000);
 
@@ -3769,32 +3811,122 @@ async function sendChat() {
   const thinkingId = 'm' + Date.now();
   msgs.insertAdjacentHTML('beforeend', `<div class="msg ai" id="${thinkingId}">...thinking...</div>`);
   const thinkingEl = document.getElementById(thinkingId);
+
+  // Add user message to rolling chat history (session-only, cleared on symbol switch)
+  state.chatHistory.push({ role: 'user', content: q });
+  if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
+
   try {
-    const context = buildContext();
     const res = await fetch('/.netlify/functions/claude-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: [{
-          role: 'user',
-          content: `You are APEX, an AI trading copilot. Current context:\n${context}\n\nUser question: ${q}\n\nAnswer concisely (under 120 words). Be direct about risk and uncertainty.`
-        }],
+        system: `You are APEX AI, a professional trading assistant embedded in a personal trading terminal. You have full access to the current chart state, indicators, signals, agent verdicts, and positions shown below. Answer questions about the chart, setups, risk, and trade management directly and specifically using this data. Never say you cannot see the chart — you have all relevant computed values. Be direct, specific, and actionable.
+
+${buildChartContext()}`,
+        messages: state.chatHistory,
+        max_tokens: 1000,
       }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const text = data.content?.[0]?.text || data.completion || 'No response.';
     thinkingEl.textContent = text;
+    if (text && text !== 'No response.') {
+      state.chatHistory.push({ role: 'assistant', content: text });
+      if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
+    }
   } catch (e) {
     thinkingEl.textContent = '⚠ AI unreachable. Deploy the claude-proxy function to enable chat. (' + e.message + ')';
+    // Roll back the user message from history so a failed turn doesn't corrupt context
+    state.chatHistory.pop();
   }
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-function buildContext() {
-  const p = state.prices[state.symbol] || {};
-  const last = state.candles[state.symbol]?.at(-1) || {};
-  return `Symbol: ${state.symbol} | Price: ${p.px?.toFixed(2)} | Chg: ${p.chgPct?.toFixed(2)}% | TF: ${state.timeframe} | ATR: ${state.candles[state.symbol] ? computeATR(state.candles[state.symbol], 14).toFixed(2) : 'n/a'} | Signals: ${state.signals.length} | Positions: ${state.positions.map(x => x.sym + '×' + x.qty).join(', ')}`;
+function buildChartContext() {
+  const sym = state.symbol;
+  const candles = state.candles[sym] || [];
+  const p = state.prices[sym] || {};
+  if (!candles.length) return `Symbol: ${sym} | No chart data loaded yet.`;
+
+  const last = candles.at(-1);
+  const prev20 = candles.slice(-20);
+  const prev50 = candles.slice(-50);
+  const atr = candles.length >= 15 ? computeATR(candles, 14) : null;
+
+  // Price structure
+  const sma20 = prev20.reduce((s, c) => s + c.c, 0) / prev20.length;
+  const sma50 = prev50.length >= 50 ? prev50.reduce((s, c) => s + c.c, 0) / 50 : null;
+  const high20 = Math.max(...prev20.map(c => c.h));
+  const low20 = Math.min(...prev20.map(c => c.l));
+
+  // Trend structure
+  const recentHighs = candles.slice(-10).map(c => c.h);
+  const recentLows = candles.slice(-10).map(c => c.l);
+  const higherHighs = recentHighs[recentHighs.length - 1] > recentHighs[0];
+  const higherLows = recentLows[recentLows.length - 1] > recentLows[0];
+  let structure = 'consolidating';
+  if (higherHighs && higherLows) structure = 'uptrend (HH/HL)';
+  else if (!higherHighs && !higherLows) structure = 'downtrend (LH/LL)';
+
+  // Active indicators
+  const activeOverlays = Object.entries(chartState.indicators)
+    .filter(([k, v]) => v && INDICATOR_DEFS.find(d => d.id === k && d.type === 'overlay'))
+    .map(([k]) => INDICATOR_DEFS.find(d => d.id === k)?.name || k)
+    .join(', ') || 'none';
+  const activeSubPanel = chartState.subPanel !== 'none'
+    ? (INDICATOR_DEFS.find(d => d.id === chartState.subPanel)?.name || chartState.subPanel)
+    : 'none';
+
+  // Open signals for this symbol
+  const openSignals = state.signalHistory
+    .filter(s => s.sym === sym && s.status === 'OPEN')
+    .slice(0, 3)
+    .map(s => `${s.action} @ ${s.entry.toFixed(2)} stop ${s.stop.toFixed(2)} TP1 ${s.tp1.toFixed(2)} conf ${Math.round(s.confidence)}%`)
+    .join(' | ') || 'none';
+
+  // Most recent agent verdicts from the latest signal that captured them
+  const recentSignal = state.signalHistory.find(s => s.sym === sym && s.agentSnapshot);
+  const agentContext = recentSignal
+    ? recentSignal.agentSnapshot.map(a => `${a.name}: ${a.label} (${a.score >= 0 ? '+' : ''}${a.score.toFixed(2)})`).join(', ')
+    : 'no recent agent run';
+
+  // Performance summary for this symbol
+  const resolved = state.signalHistory.filter(s => s.sym === sym && s.status !== 'OPEN');
+  const wins = resolved.filter(s => s.status === 'WIN_TP1' || s.status === 'WIN_TP2').length;
+  const perfSummary = resolved.length >= 3
+    ? `${wins}W / ${resolved.length - wins}L on ${resolved.length} resolved signals (${(wins / resolved.length * 100).toFixed(0)}% win rate)`
+    : 'insufficient signal history';
+
+  // Positions
+  const positions = state.positions.length
+    ? state.positions.map(pos => {
+        const pl = ((pos.curr - pos.avg) / pos.avg * 100).toFixed(2);
+        return `${pos.sym} ${pos.qty}sh @ ${pos.avg.toFixed(2)} now ${pos.curr.toFixed(2)} (${pl}%)`;
+      }).join(', ')
+    : 'no open positions';
+
+  // Learned weights status
+  const weightStatus = state.learnedWeights?._meta
+    ? `AUTO-BALANCED (based on ${state.learnedWeights._meta.basedOnSignals} signals)`
+    : 'using default weights (insufficient history)';
+
+  return `=== APEX LIVE CONTEXT ===
+Symbol: ${sym} | Price: ${last.c.toFixed(2)} | Chg: ${p.chgPct >= 0 ? '+' : ''}${(p.chgPct || 0).toFixed(2)}%
+Timeframe: ${state.timeframe} | Range: ${state.range}
+ATR(14): ${atr ? atr.toFixed(2) : 'n/a'} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)}
+SMA20: ${sma20.toFixed(2)} | SMA50: ${sma50 ? sma50.toFixed(2) : 'n/a'}
+Price vs SMA20: ${last.c > sma20 ? 'ABOVE (bullish lean)' : 'BELOW (bearish lean)'}
+Structure: ${structure}
+Active overlays: ${activeOverlays}
+Active sub-panel: ${activeSubPanel}
+Open signals: ${openSignals}
+Agent verdicts: ${agentContext}
+Signal performance (${sym}): ${perfSummary}
+Agent weights: ${weightStatus}
+Positions: ${positions}
+=== END CONTEXT ===`;
 }
 
 function escapeHtml(s) {
