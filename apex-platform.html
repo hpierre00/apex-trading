@@ -679,7 +679,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
 <!-- ===== STATUS MODAL ===== -->
 <div class="modal-backdrop" id="settingsModal">
-  <div class="modal" style="width:520px">
+  <div class="modal" style="width:520px;max-width:95vw">
     <h3>SYSTEM STATUS</h3>
     <div style="font-size:11px;line-height:1.9">
       <div>Alpaca WebSocket: <b id="stWs">checking...</b></div>
@@ -692,6 +692,29 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-top:12px">
       Keys live server-side only on Netlify. Browser gets a short-lived credential for the WebSocket handshake. No keys in localStorage.
     </div>
+
+    <h3 style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">NOTIFICATIONS</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:11px">
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="notifSound"> Play sound on alerts &amp; signals
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="notifPush"> Browser push notifications
+        <span id="notifPushStatus" style="font-size:10px;color:var(--text-faint);margin-left:auto"></span>
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer;padding-left:20px">
+        <input type="checkbox" id="notifOnAlert"> when price alerts trigger
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer;padding-left:20px">
+        <input type="checkbox" id="notifOnSignal"> when new signals fire
+      </label>
+      <div style="display:flex;gap:10px;align-items:center">
+        <label style="font-size:10px;color:var(--text-dim);min-width:50px">VOLUME</label>
+        <input type="range" id="notifVol" min="0" max="1" step="0.05" style="flex:1">
+        <button class="btn btn-ghost" id="notifTestBtn" style="padding:4px 10px;font-size:10px">TEST</button>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn btn-ghost" id="runHealthBtn">RE-CHECK</button>
       <button class="btn btn-ghost" id="reconnectWsBtn">RECONNECT WS</button>
@@ -731,6 +754,14 @@ const state = {
   signalHistory: JSON.parse(localStorage.getItem('apex.signals') || '[]'),
   // Dedup: remember last signal per symbol to avoid spamming near-duplicates
   lastSignalPerSym: {},
+  notif: JSON.parse(localStorage.getItem('apex.notif') || 'null') || {
+    soundEnabled: true,
+    pushEnabled: true,
+    soundVolume: 0.5,
+    notifyOnAlert: true,
+    notifyOnSignal: true,
+  },
+  learnedWeights: JSON.parse(localStorage.getItem('apex.learnedWeights') || 'null'),
   alpaca: {
     ws: null,
     connected: false,
@@ -2068,6 +2099,7 @@ async function runAgents() {
     verdictEl.innerHTML = `${v.reason}${v.source ? `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">source: ${v.source}</div>` : ''}`;
   }
   if (state.symbol !== sym) return;
+  rebalanceAgentWeights();
   generateSignal(verdicts);
 }
 
@@ -2268,7 +2300,8 @@ function scaleSign(value, neutral, strong) {
 }
 
 function generateSignal(verdicts) {
-  const total = AGENTS.reduce((s, a) => s + (verdicts[a.id]?.score || 0) * a.weight, 0);
+  const weightFor = (id) => state.learnedWeights?.[id] ?? AGENTS.find(a => a.id === id).weight;
+  const total = AGENTS.reduce((s, a) => s + (verdicts[a.id]?.score || 0) * weightFor(a.id), 0);
   const confidence = Math.abs(total) * 100;
   if (confidence < 18) return; // too weak
   const candles = state.candles[state.symbol];
@@ -2312,7 +2345,7 @@ function generateSignal(verdicts) {
       label: verdicts[a.id]?.label ?? '',
       source: verdicts[a.id]?.source ?? '',
       reason: verdicts[a.id]?.reason ?? '',
-      weight: a.weight,
+      weight: weightFor(a.id),
     })),
     // Outcome tracking
     status: 'OPEN',           // OPEN | WIN_TP1 | WIN_TP2 | LOSS | EXPIRED
@@ -2338,6 +2371,15 @@ function generateSignal(verdicts) {
   document.getElementById('sigBadge').textContent = state.signals.length;
   if (state.activeTab === 'signals') renderSignalsTab();
   if (state.activeTab === 'performance') renderPerformanceTab();
+
+  if (state.notif.notifyOnSignal) {
+    notify({
+      title: `⚡ ${signal.action} ${signal.sym}`,
+      body: `Entry ${signal.entry.toFixed(2)} · Stop ${signal.stop.toFixed(2)} · Conf ${Math.round(signal.confidence)}% · RR ${signal.rr}`,
+      kind: signal.action === 'BUY' ? 'signal-buy' : 'signal-sell',
+      toastKind: signal.action === 'BUY' ? 'bull' : 'bear',
+    });
+  }
 }
 
 function saveSignals() {
@@ -2437,6 +2479,62 @@ function checkSignalOutcomes() {
     if (state.activeTab === 'performance') renderPerformanceTab();
   }
 }
+
+function rebalanceAgentWeights() {
+  const resolved = state.signalHistory.filter(s => s.status !== 'OPEN' && s.agentSnapshot);
+  if (resolved.length < 30) { state.learnedWeights = null; return; }
+
+  const stats = {};
+  for (const a of AGENTS) stats[a.id] = { winScores: [], lossScores: [] };
+
+  for (const s of resolved) {
+    const isWin = s.status === 'WIN_TP1' || s.status === 'WIN_TP2';
+    const isLoss = s.status === 'LOSS';
+    if (!isWin && !isLoss) continue;
+    for (const av of s.agentSnapshot) {
+      if (!stats[av.id]) continue;
+      const aligned = s.action === 'BUY' ? av.score : -av.score;
+      (isWin ? stats[av.id].winScores : stats[av.id].lossScores).push(aligned);
+    }
+  }
+
+  for (const a of AGENTS) {
+    const total = stats[a.id].winScores.length + stats[a.id].lossScores.length;
+    if (total < 10) { state.learnedWeights = null; return; }
+  }
+
+  const gaps = {};
+  for (const a of AGENTS) {
+    const s = stats[a.id];
+    const avgW = s.winScores.length
+      ? s.winScores.reduce((x, y) => x + y, 0) / s.winScores.length : 0;
+    const avgL = s.lossScores.length
+      ? s.lossScores.reduce((x, y) => x + y, 0) / s.lossScores.length : 0;
+    gaps[a.id] = Math.max(0.05, Math.min(2, avgW - avgL));
+  }
+
+  const totalGap = Object.values(gaps).reduce((x, y) => x + y, 0) || 1;
+  const blended = {};
+  for (const a of AGENTS) {
+    blended[a.id] = 0.7 * (gaps[a.id] / totalGap) + 0.3 * a.weight;
+  }
+  const sum = Object.values(blended).reduce((x, y) => x + y, 0);
+  const normalized = {};
+  for (const a of AGENTS) normalized[a.id] = blended[a.id] / sum;
+
+  state.learnedWeights = {
+    ...normalized,
+    _meta: { basedOnSignals: resolved.length, computedAt: Date.now() },
+  };
+  localStorage.setItem('apex.learnedWeights', JSON.stringify(state.learnedWeights));
+}
+
+function resetLearnedWeights() {
+  state.learnedWeights = null;
+  localStorage.removeItem('apex.learnedWeights');
+  if (state.activeTab === 'performance') renderPerformanceTab();
+}
+window.resetLearnedWeights = resetLearnedWeights;
 
 function computeATR(candles, period = 14) {
   const slice = candles.slice(-period - 1);
@@ -2826,6 +2924,13 @@ function renderPerformanceTab() {
       </div>
     </div>
 
+    <div style="margin-top:14px;padding:10px;background:var(--panel-2);border-left:3px solid ${state.learnedWeights ? 'var(--bull)' : 'var(--text-faint)'};font-size:10px;color:var(--text-dim);line-height:1.6">
+      <b style="color:${state.learnedWeights ? 'var(--bull)' : 'var(--text-dim)'}">${state.learnedWeights ? 'AUTO-BALANCED' : 'USING DEFAULT WEIGHTS'}:</b>
+      ${state.learnedWeights
+        ? `Agent weights recomputed from ${state.learnedWeights._meta.basedOnSignals} resolved signals on ${new Date(state.learnedWeights._meta.computedAt).toLocaleString()}. <a href="#" onclick="resetLearnedWeights();return false;" style="color:var(--bear)">reset to defaults</a>`
+        : `Learned weights activate after 30+ resolved signals and 10+ wins/losses per agent. Until then, default weights are used.`}
+    </div>
+
     <div style="margin-top:14px;padding:10px;background:var(--panel-2);border-left:3px solid var(--gold);font-size:10px;color:var(--text-dim);line-height:1.6">
       <b style="color:var(--gold)">How this is calculated:</b><br>
       Each signal is tracked against live bars. WIN TP1 = +2R (ATR multiples). WIN TP2 = +4R. LOSS = −1.5R (stop distance). Expiry after 50 bars without resolution. Expectancy = (win% × avg win R) − (loss% × avg loss R). Signals with few samples produce noisy agent stats; the gap becomes meaningful at 30+ resolved signals per agent.
@@ -3051,6 +3156,64 @@ document.getElementById('customRangeSaveBtn').addEventListener('click', async ()
   await reloadChart();
 });
 
+/* ============================================================
+   NOTIFICATION SYSTEM — sound + push + toast, unified entry point
+   ============================================================ */
+
+let _audioCtx = null;
+function getAudioCtx() {
+  if (_audioCtx) return _audioCtx;
+  try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+  catch { _audioCtx = null; }
+  return _audioCtx;
+}
+
+function playSound(kind = 'alert') {
+  if (!state.notif.soundEnabled) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  const tones = {
+    'alert':       [{ f: 880, d: 0.12 }, { f: 660, d: 0.18 }],
+    'signal-buy':  [{ f: 523, d: 0.10 }, { f: 784, d: 0.18 }],
+    'signal-sell': [{ f: 784, d: 0.10 }, { f: 392, d: 0.18 }],
+  };
+  const seq = tones[kind] || tones.alert;
+  let t = ctx.currentTime;
+  for (const tone of seq) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = tone.f;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(state.notif.soundVolume, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + tone.d);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t); osc.stop(t + tone.d);
+    t += tone.d;
+  }
+}
+
+function pushNotify(title, body, kind = 'alert') {
+  if (!state.notif.pushEnabled) return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification(title, { body, tag: kind });
+    setTimeout(() => { try { n.close(); } catch {} }, 8000);
+  } catch {}
+}
+
+function notify({ title, body, kind = 'alert', soundKind = null, toastKind = '' }) {
+  toast(`${title} — ${body}`, toastKind);
+  playSound(soundKind || kind);
+  pushNotify(title, body, kind);
+}
+
+function saveNotif() {
+  localStorage.setItem('apex.notif', JSON.stringify(state.notif));
+}
+
 function checkAlerts() {
   let changed = false;
   for (const a of state.alerts) {
@@ -3066,9 +3229,13 @@ function checkAlerts() {
     if (hit) {
       a.triggered = true;
       changed = true;
-      toast(`🔔 ${a.sym} ${a.cond} ${a.px.toFixed(2)} hit — price ${px.toFixed(2)}`, 'bull');
-      if (Notification.permission === 'granted') {
-        new Notification('APEX Alert', { body: `${a.sym} ${a.cond} ${a.px.toFixed(2)} — now ${px.toFixed(2)}` });
+      if (state.notif.notifyOnAlert) {
+        notify({
+          title: `🔔 ${a.sym} alert`,
+          body: `${a.cond} ${a.px.toFixed(2)} — price ${px.toFixed(2)}${a.note ? ' · ' + a.note : ''}`,
+          kind: 'alert',
+          toastKind: 'bull',
+        });
       }
     }
   }
@@ -3086,7 +3253,57 @@ function checkAlerts() {
 document.getElementById('settingsBtn').addEventListener('click', () => {
   openModal('settingsModal');
   runHealthChecks();
+  // Hydrate notification toggles from current state
+  document.getElementById('notifSound').checked = state.notif.soundEnabled;
+  document.getElementById('notifPush').checked = state.notif.pushEnabled;
+  document.getElementById('notifOnAlert').checked = state.notif.notifyOnAlert;
+  document.getElementById('notifOnSignal').checked = state.notif.notifyOnSignal;
+  document.getElementById('notifVol').value = state.notif.soundVolume;
+  updateNotifPushStatus();
 });
+
+function updateNotifPushStatus() {
+  const el = document.getElementById('notifPushStatus');
+  if (!el) return;
+  if (!('Notification' in window)) { el.textContent = 'not supported'; return; }
+  const p = Notification.permission;
+  el.textContent = p === 'granted' ? 'permission granted'
+                 : p === 'denied' ? 'permission denied (enable in browser)'
+                 : 'click to request permission';
+  el.style.color = p === 'granted' ? 'var(--bull)'
+                 : p === 'denied' ? 'var(--bear)' : 'var(--text-dim)';
+}
+
+document.getElementById('notifSound').addEventListener('change', (e) => {
+  state.notif.soundEnabled = e.target.checked; saveNotif();
+});
+
+document.getElementById('notifPush').addEventListener('change', async (e) => {
+  if (e.target.checked && 'Notification' in window && Notification.permission === 'default') {
+    try { await Notification.requestPermission(); } catch {}
+  }
+  state.notif.pushEnabled = e.target.checked;
+  saveNotif();
+  updateNotifPushStatus();
+});
+
+document.getElementById('notifOnAlert').addEventListener('change', (e) => {
+  state.notif.notifyOnAlert = e.target.checked; saveNotif();
+});
+
+document.getElementById('notifOnSignal').addEventListener('change', (e) => {
+  state.notif.notifyOnSignal = e.target.checked; saveNotif();
+});
+
+document.getElementById('notifVol').addEventListener('input', (e) => {
+  state.notif.soundVolume = parseFloat(e.target.value); saveNotif();
+});
+
+document.getElementById('notifTestBtn').addEventListener('click', () => {
+  playSound('alert');
+  pushNotify('APEX test', 'Browser notifications are working.', 'alert');
+});
+
 document.getElementById('runHealthBtn').addEventListener('click', runHealthChecks);
 document.getElementById('reconnectWsBtn').addEventListener('click', () => {
   state.alpaca.manualDisconnect = false;
@@ -3771,8 +3988,7 @@ function init() {
   runAgents();
   // auto-connect to Alpaca via server-side credentials
   connectAlpaca();
-  // request notification permission (non-blocking)
-  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  // Notification permission requested only when user opts in via Settings
   // Initialize in-memory open signals from persisted history
   state.signals = state.signalHistory.filter(s => s.status === 'OPEN');
   document.getElementById('sigBadge').textContent = state.signals.length;
