@@ -466,6 +466,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <button class="tab-btn" data-tab="alerts">🔔 ALERTS <span class="tab-badge" id="alertBadge" style="display:none">0</span></button>
           <button class="tab-btn" data-tab="orders">ORDERS</button>
           <button class="tab-btn" data-tab="news">NEWS</button>
+          <button class="tab-btn" data-tab="performance">PERFORMANCE</button>
           <button class="tab-btn" data-tab="overview">OVERVIEW</button>
         </div>
         <div class="tab-content" id="tabContent"></div>
@@ -725,6 +726,10 @@ const state = {
   positions: JSON.parse(localStorage.getItem('apex.positions') || 'null') || [],
   watchlist: JSON.parse(localStorage.getItem('apex.watchlist') || 'null') || ['AAPL','TSLA','NVDA','MSFT','SPY','QQQ','PLTR'],
   alerts: JSON.parse(localStorage.getItem('apex.alerts') || '[]'),
+  // Signals are persisted with full outcome tracking. Structure documented in generateSignal().
+  signalHistory: JSON.parse(localStorage.getItem('apex.signals') || '[]'),
+  // Dedup: remember last signal per symbol to avoid spamming near-duplicates
+  lastSignalPerSym: {},
   alpaca: {
     ws: null,
     connected: false,
@@ -736,7 +741,7 @@ const state = {
     liveSince: 0,
     manualDisconnect: false,
   },
-  signals: [],
+  signals: [], // legacy pointer, kept in sync with signalHistory for existing render paths
   activeTab: 'signals',
 };
 
@@ -2220,28 +2225,172 @@ function scaleSign(value, neutral, strong) {
 function generateSignal(verdicts) {
   const total = AGENTS.reduce((s, a) => s + (verdicts[a.id]?.score || 0) * a.weight, 0);
   const confidence = Math.abs(total) * 100;
-  if (confidence < 25) return; // too weak, skip
+  if (confidence < 25) return; // too weak
   const candles = state.candles[state.symbol];
+  if (!candles || candles.length < 20) return;
+
   const last = candles.at(-1);
   const atr = computeATR(candles, 14);
+  if (!isFinite(atr) || atr <= 0) return;
+
   const action = total > 0 ? 'BUY' : 'SELL';
   const entry = last.c;
   const stop = action === 'BUY' ? entry - atr * 1.5 : entry + atr * 1.5;
   const tp1 = action === 'BUY' ? entry + atr * 2 : entry - atr * 2;
   const tp2 = action === 'BUY' ? entry + atr * 4 : entry - atr * 4;
+
+  // Dedup: suppress if we just issued a signal for this symbol in the same direction
+  // within the last 10 bars, OR with entry within 0.5 * ATR of the previous entry.
+  const prevKey = `${state.symbol}:${action}`;
+  const prev = state.lastSignalPerSym[prevKey];
+  if (prev) {
+    const barsSince = candles.length - prev.candleIdx;
+    const priceDrift = Math.abs(entry - prev.entry);
+    if (barsSince < 10 || priceDrift < atr * 0.5) return;
+  }
+
   const signal = {
-    id: Date.now(),
+    id: 'sig_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
     sym: state.symbol,
     action, entry, stop, tp1, tp2, atr,
-    confidence: confidence.toFixed(0),
-    rr: ((Math.abs(tp1 - entry)) / Math.abs(entry - stop)).toFixed(2),
-    timestamp: new Date().toLocaleTimeString(),
-    shares: Math.floor(1000 / atr), // sample risk-1k sizing
+    timeframe: state.timeframe,
+    confidence: parseFloat(confidence.toFixed(1)),
+    rr: parseFloat(((Math.abs(tp1 - entry)) / Math.abs(entry - stop)).toFixed(2)),
+    timestamp: Date.now(),
+    timestampStr: new Date().toLocaleString(),
+    shares: Math.floor(1000 / atr),
+    // Snapshot of agent verdicts for attribution + future weighting learning
+    agentSnapshot: AGENTS.map(a => ({
+      id: a.id,
+      name: a.name,
+      score: verdicts[a.id]?.score ?? 0,
+      label: verdicts[a.id]?.label ?? '',
+      source: verdicts[a.id]?.source ?? '',
+      reason: verdicts[a.id]?.reason ?? '',
+      weight: a.weight,
+    })),
+    // Outcome tracking
+    status: 'OPEN',           // OPEN | WIN_TP1 | WIN_TP2 | LOSS | EXPIRED
+    outcome: null,            // realized P/L in ATR multiples
+    resolvedAt: null,         // timestamp when hit TP/stop
+    maxFavorable: 0,          // MFE tracking, in ATR multiples
+    maxAdverse: 0,            // MAE tracking, in ATR multiples
+    // Cancellation: if price moves 3 ATRs sideways without hitting any level, expire
+    expiresAfterBars: 50,
+    barsElapsed: 0,
   };
-  state.signals.unshift(signal);
-  if (state.signals.length > 20) state.signals.pop();
+
+  state.lastSignalPerSym[prevKey] = { entry, candleIdx: candles.length };
+
+  state.signalHistory.unshift(signal);
+  // Keep last 500 signals max (localStorage ~5MB limit; 500 signals ~200KB)
+  if (state.signalHistory.length > 500) state.signalHistory.length = 500;
+  saveSignals();
+
+  // Legacy in-memory list for renderSignalsTab (shows only OPEN signals by default)
+  state.signals = state.signalHistory.filter(s => s.status === 'OPEN');
+
   document.getElementById('sigBadge').textContent = state.signals.length;
   if (state.activeTab === 'signals') renderSignalsTab();
+  if (state.activeTab === 'performance') renderPerformanceTab();
+}
+
+function saveSignals() {
+  try {
+    localStorage.setItem('apex.signals', JSON.stringify(state.signalHistory));
+  } catch (e) {
+    // Quota exceeded: drop oldest half and retry
+    state.signalHistory.length = Math.floor(state.signalHistory.length / 2);
+    try { localStorage.setItem('apex.signals', JSON.stringify(state.signalHistory)); } catch {}
+  }
+}
+
+/* ============================================================
+   SIGNAL OUTCOME TRACKER
+   Runs every 5s; for each OPEN signal, walks new bars since last check
+   to determine if stop/TP1/TP2 was hit. Records the outcome.
+   ============================================================ */
+
+function checkSignalOutcomes() {
+  let changed = false;
+  for (const s of state.signalHistory) {
+    if (s.status !== 'OPEN') continue;
+    const candles = state.candles[s.sym];
+    if (!candles || candles.length === 0) continue;
+
+    // Find the index of the first candle >= signal timestamp
+    let startIdx = candles.findIndex(c => c.t >= s.timestamp);
+    if (startIdx === -1) continue; // no candles yet after signal
+
+    s.barsElapsed = candles.length - startIdx;
+
+    // Walk each bar from signal time forward
+    for (let i = startIdx; i < candles.length; i++) {
+      const c = candles[i];
+      // Track MFE/MAE in ATR multiples
+      if (s.action === 'BUY') {
+        const fav = (c.h - s.entry) / s.atr;
+        const adv = (s.entry - c.l) / s.atr;
+        if (fav > s.maxFavorable) s.maxFavorable = fav;
+        if (adv > s.maxAdverse) s.maxAdverse = adv;
+      } else {
+        const fav = (s.entry - c.l) / s.atr;
+        const adv = (c.h - s.entry) / s.atr;
+        if (fav > s.maxFavorable) s.maxFavorable = fav;
+        if (adv > s.maxAdverse) s.maxAdverse = adv;
+      }
+
+      // Check for stop/TP hit. Assume within a single bar the price could
+      // hit either — conservative: if both stop and TP would have been hit
+      // in the same bar, count as LOSS (worst-case for the trader).
+      let stopHit = false, tp1Hit = false, tp2Hit = false;
+      if (s.action === 'BUY') {
+        if (c.l <= s.stop) stopHit = true;
+        if (c.h >= s.tp1) tp1Hit = true;
+        if (c.h >= s.tp2) tp2Hit = true;
+      } else {
+        if (c.h >= s.stop) stopHit = true;
+        if (c.l <= s.tp1) tp1Hit = true;
+        if (c.l <= s.tp2) tp2Hit = true;
+      }
+
+      if (stopHit) {
+        s.status = 'LOSS';
+        s.outcome = -1.5; // lost 1.5 ATR (stop distance)
+        s.resolvedAt = c.t;
+        changed = true;
+        break;
+      } else if (tp2Hit) {
+        s.status = 'WIN_TP2';
+        s.outcome = 4; // gained 4 ATR
+        s.resolvedAt = c.t;
+        changed = true;
+        break;
+      } else if (tp1Hit) {
+        s.status = 'WIN_TP1';
+        s.outcome = 2;
+        s.resolvedAt = c.t;
+        changed = true;
+        break;
+      }
+    }
+
+    if (s.status === 'OPEN' && s.barsElapsed >= s.expiresAfterBars) {
+      s.status = 'EXPIRED';
+      // Outcome based on whether we were in favorable territory
+      s.outcome = s.maxFavorable >= 1 ? 0.5 : s.maxFavorable >= 0.5 ? 0 : -0.5;
+      s.resolvedAt = candles.at(-1).t;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    saveSignals();
+    state.signals = state.signalHistory.filter(s => s.status === 'OPEN');
+    document.getElementById('sigBadge').textContent = state.signals.length;
+    if (state.activeTab === 'signals') renderSignalsTab();
+    if (state.activeTab === 'performance') renderPerformanceTab();
+  }
 }
 
 function computeATR(candles, period = 14) {
@@ -2267,21 +2416,48 @@ function renderTabs() {
     case 'alerts': return renderAlertsTab();
     case 'orders': content.innerHTML = `<div class="empty">No live orders. APEX is signal-only — execute manually on IBKR.</div>`; return;
     case 'news': return renderNewsTab();
+    case 'performance': return renderPerformanceTab();
     case 'overview': return renderOverviewTab();
   }
 }
 
 function renderSignalsTab() {
   const content = document.getElementById('tabContent');
-  if (!state.signals.length) {
-    content.innerHTML = `<div class="empty">No signals yet. AI agents will publish signals as they cross the confidence threshold. Current tracked: <b>${state.symbol}</b></div>`;
+  const filter = state.signalsFilter || 'open';
+  const filtered = state.signalHistory.filter(s => {
+    if (filter === 'open') return s.status === 'OPEN';
+    if (filter === 'wins') return s.status === 'WIN_TP1' || s.status === 'WIN_TP2';
+    if (filter === 'losses') return s.status === 'LOSS';
+    if (filter === 'all') return true;
+    return false;
+  });
+
+  const filterBar = `
+    <div style="display:flex;gap:6px;margin-bottom:10px;font-size:10px;letter-spacing:1px">
+      ${['open','wins','losses','all'].map(f => {
+        const count = f === 'open' ? state.signalHistory.filter(s => s.status === 'OPEN').length
+                    : f === 'wins' ? state.signalHistory.filter(s => s.status === 'WIN_TP1' || s.status === 'WIN_TP2').length
+                    : f === 'losses' ? state.signalHistory.filter(s => s.status === 'LOSS').length
+                    : state.signalHistory.length;
+        return `<button class="sig-filter" data-filter="${f}" style="padding:4px 10px;border:1px solid var(--border);background:${f === filter ? 'var(--gold)' : 'transparent'};color:${f === filter ? 'var(--bg)' : 'var(--text-dim)'};font-weight:${f === filter ? '700' : '400'}">${f.toUpperCase()} (${count})</button>`;
+      }).join('')}
+    </div>
+  `;
+
+  if (!filtered.length) {
+    content.innerHTML = filterBar + `<div class="empty">No ${filter === 'all' ? '' : filter + ' '}signals yet. AI agents publish signals when confidence crosses threshold.</div>`;
+    wireFilterBar();
     return;
   }
-  content.innerHTML = state.signals.map(s => `
-    <div class="signal-card ${s.action.toLowerCase()}">
+
+  content.innerHTML = filterBar + filtered.map(s => {
+    const statusBadge = statusBadgeHTML(s);
+    const action = s.action.toLowerCase();
+    return `
+    <div class="signal-card ${action}">
       <div class="signal-head">
-        <div class="signal-sym">${s.sym}</div>
-        <div class="signal-action ${s.action.toLowerCase()}">${s.action} · ${s.timestamp}</div>
+        <div class="signal-sym">${s.sym} ${statusBadge}</div>
+        <div class="signal-action ${action}">${s.action} · ${s.timeframe || ''} · ${formatTime(s.timestamp)}</div>
       </div>
       <div class="signal-field">
         <div class="signal-label">ENTRY</div>
@@ -2296,15 +2472,48 @@ function renderSignalsTab() {
         <div class="signal-value" style="color:var(--bull)">${s.tp1.toFixed(2)} / ${s.tp2.toFixed(2)}</div>
       </div>
       <div>
-        <button class="signal-btn" onclick="copyIBKR(${s.id})">COPY IBKR</button>
-        <div class="signal-conf" style="margin-top:4px">CONF <span class="pct">${s.confidence}%</span> · RR ${s.rr}</div>
+        <button class="signal-btn" onclick="copyIBKR('${s.id}')">COPY IBKR</button>
+        <div class="signal-conf" style="margin-top:4px">CONF <span class="pct">${Math.round(s.confidence)}%</span> · RR ${s.rr}</div>
+        ${s.status !== 'OPEN' ? `<div style="font-size:9px;color:var(--text-faint);margin-top:3px">MFE ${s.maxFavorable.toFixed(2)}R · MAE ${s.maxAdverse.toFixed(2)}R</div>` : ''}
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
+  wireFilterBar();
+}
+
+function wireFilterBar() {
+  document.querySelectorAll('.sig-filter').forEach(b => {
+    b.addEventListener('click', () => {
+      state.signalsFilter = b.dataset.filter;
+      renderSignalsTab();
+    });
+  });
+}
+
+function statusBadgeHTML(s) {
+  const colors = {
+    OPEN: { bg: 'var(--gold)', fg: 'var(--bg)', label: 'OPEN' },
+    WIN_TP1: { bg: 'var(--bull)', fg: 'var(--bg)', label: 'WIN TP1' },
+    WIN_TP2: { bg: 'var(--bull)', fg: 'var(--bg)', label: 'WIN TP2' },
+    LOSS: { bg: 'var(--bear)', fg: '#fff', label: 'LOSS' },
+    EXPIRED: { bg: 'var(--text-faint)', fg: 'var(--bg)', label: 'EXPIRED' },
+  };
+  const c = colors[s.status] || colors.OPEN;
+  return `<span style="background:${c.bg};color:${c.fg};font-size:9px;padding:1px 6px;border-radius:2px;letter-spacing:1px;font-weight:700;vertical-align:middle;margin-left:4px">${c.label}</span>`;
+}
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay
+    ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function copyIBKR(id) {
-  const s = state.signals.find(x => x.id === id);
+  const s = state.signalHistory.find(x => x.id === id);
   if (!s) return;
   const text = `IBKR ORDER TICKET
 Symbol: ${s.sym}
@@ -2315,7 +2524,9 @@ Limit Price: ${s.entry.toFixed(2)}
 Stop Loss: ${s.stop.toFixed(2)}
 Take Profit 1: ${s.tp1.toFixed(2)}
 Take Profit 2: ${s.tp2.toFixed(2)}
-ATR: ${s.atr.toFixed(2)}  |  R:R ${s.rr}  |  Conf ${s.confidence}%`;
+ATR: ${s.atr.toFixed(2)}  |  R:R ${s.rr}  |  Conf ${s.confidence}%
+Signal ID: ${s.id}
+Timeframe: ${s.timeframe}`;
   navigator.clipboard.writeText(text).then(() => toast('IBKR order ticket copied', 'bull'));
 }
 window.copyIBKR = copyIBKR;
@@ -2408,6 +2619,115 @@ function renderOverviewTab() {
     </div>
     <div style="margin-top:16px;color:var(--text-dim);font-size:11px;line-height:1.6">
       <b>${state.symbol}</b> is currently ${p.chgPct >= 0 ? 'up' : 'down'} ${p.chgPct.toFixed(2)}%. The 5-agent AI panel ${state.signals.length ? `has published ${state.signals.length} signal${state.signals.length > 1 ? 's' : ''}` : 'is scanning for setups'}. Use the SIGNALS tab to see actionable trades with IBKR-ready tickets.
+    </div>
+  `;
+}
+
+function renderPerformanceTab() {
+  const content = document.getElementById('tabContent');
+  const all = state.signalHistory;
+  const resolved = all.filter(s => s.status !== 'OPEN');
+  const wins = all.filter(s => s.status === 'WIN_TP1' || s.status === 'WIN_TP2');
+  const losses = all.filter(s => s.status === 'LOSS');
+  const expired = all.filter(s => s.status === 'EXPIRED');
+
+  if (!all.length) {
+    content.innerHTML = `<div class="empty">No signals recorded yet. Signal performance will appear here once agents start publishing signals and outcomes are tracked against live price data.</div>`;
+    return;
+  }
+
+  const winRate = resolved.length ? (wins.length / resolved.length * 100) : 0;
+  // Realized total in ATR multiples
+  const totalR = resolved.reduce((s, x) => s + (x.outcome || 0), 0);
+  const avgR = resolved.length ? totalR / resolved.length : 0;
+  const avgWin = wins.length ? wins.reduce((s, x) => s + x.outcome, 0) / wins.length : 0;
+  const avgLoss = losses.length ? Math.abs(losses.reduce((s, x) => s + x.outcome, 0) / losses.length) : 0;
+  const expectancy = resolved.length
+    ? (winRate / 100) * avgWin - ((100 - winRate) / 100) * avgLoss
+    : 0;
+
+  // Per-timeframe win rate
+  const tfBreakdown = {};
+  for (const s of resolved) {
+    const tf = s.timeframe || 'unknown';
+    if (!tfBreakdown[tf]) tfBreakdown[tf] = { wins: 0, total: 0, R: 0 };
+    tfBreakdown[tf].total++;
+    tfBreakdown[tf].R += s.outcome || 0;
+    if (s.status === 'WIN_TP1' || s.status === 'WIN_TP2') tfBreakdown[tf].wins++;
+  }
+
+  // Per-agent: which agents correlate with winning signals?
+  // For each agent, compute avg score in winning vs losing signals.
+  const agentStats = {};
+  for (const a of AGENTS) agentStats[a.id] = { name: a.name, winScores: [], lossScores: [] };
+  for (const s of resolved) {
+    if (!s.agentSnapshot) continue;
+    for (const av of s.agentSnapshot) {
+      const stat = agentStats[av.id];
+      if (!stat) continue;
+      const signedScore = s.action === 'BUY' ? av.score : -av.score; // align with trade direction
+      if (s.status === 'WIN_TP1' || s.status === 'WIN_TP2') stat.winScores.push(signedScore);
+      else if (s.status === 'LOSS') stat.lossScores.push(signedScore);
+    }
+  }
+
+  const cardStyle = 'background:var(--panel-2);padding:10px 14px;border:1px solid var(--border)';
+  const metricStyle = 'font-size:20px;font-weight:700;letter-spacing:0.5px';
+  const labelStyle = 'font-size:9px;color:var(--text-faint);letter-spacing:1.5px;margin-bottom:4px';
+
+  content.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px">
+      <div style="${cardStyle}"><div style="${labelStyle}">TOTAL SIGNALS</div><div style="${metricStyle}">${all.length}</div></div>
+      <div style="${cardStyle}"><div style="${labelStyle}">OPEN</div><div style="${metricStyle};color:var(--gold)">${all.length - resolved.length}</div></div>
+      <div style="${cardStyle}"><div style="${labelStyle}">WIN RATE</div><div style="${metricStyle};color:${winRate >= 50 ? 'var(--bull)' : 'var(--bear)'}">${winRate.toFixed(1)}%</div><div style="font-size:9px;color:var(--text-faint);margin-top:2px">${wins.length}W / ${losses.length}L / ${expired.length}E</div></div>
+      <div style="${cardStyle}"><div style="${labelStyle}">AVG R</div><div style="${metricStyle};color:${avgR >= 0 ? 'var(--bull)' : 'var(--bear)'}">${avgR >= 0 ? '+' : ''}${avgR.toFixed(2)}</div><div style="font-size:9px;color:var(--text-faint);margin-top:2px">per signal</div></div>
+      <div style="${cardStyle}"><div style="${labelStyle}">EXPECTANCY</div><div style="${metricStyle};color:${expectancy >= 0 ? 'var(--bull)' : 'var(--bear)'}">${expectancy >= 0 ? '+' : ''}${expectancy.toFixed(2)}R</div></div>
+      <div style="${cardStyle}"><div style="${labelStyle}">AVG WIN / LOSS</div><div style="font-size:13px;font-weight:700"><span style="color:var(--bull)">+${avgWin.toFixed(2)}R</span> / <span style="color:var(--bear)">-${avgLoss.toFixed(2)}R</span></div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div>
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);font-weight:600;margin-bottom:6px">PER TIMEFRAME</div>
+        ${Object.keys(tfBreakdown).length ? Object.entries(tfBreakdown).sort((a, b) => b[1].total - a[1].total).map(([tf, s]) => {
+          const wr = s.total ? (s.wins / s.total * 100) : 0;
+          const rPerSignal = s.total ? s.R / s.total : 0;
+          return `<div style="display:flex;justify-content:space-between;padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px">
+            <span><b>${tf}</b> <span style="color:var(--text-faint)">${s.total} signals</span></span>
+            <span style="color:${wr >= 50 ? 'var(--bull)' : 'var(--bear)'}">${wr.toFixed(0)}% · ${rPerSignal >= 0 ? '+' : ''}${rPerSignal.toFixed(2)}R</span>
+          </div>`;
+        }).join('') : '<div style="color:var(--text-faint);font-size:11px;padding:10px">No resolved signals yet</div>'}
+      </div>
+
+      <div>
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);font-weight:600;margin-bottom:6px">AGENT CALIBRATION</div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-bottom:6px">
+          Avg agent score in winners vs losers. Bigger gap = more predictive agent.
+        </div>
+        ${Object.values(agentStats).map(stat => {
+          const avgW = stat.winScores.length ? stat.winScores.reduce((s, v) => s + v, 0) / stat.winScores.length : null;
+          const avgL = stat.lossScores.length ? stat.lossScores.reduce((s, v) => s + v, 0) / stat.lossScores.length : null;
+          if (avgW === null && avgL === null) {
+            return `<div style="display:flex;justify-content:space-between;padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px">
+              <span>${stat.name}</span>
+              <span style="color:var(--text-faint)">no data</span>
+            </div>`;
+          }
+          const gap = (avgW ?? 0) - (avgL ?? 0);
+          const predictive = gap > 0.1 ? 'predictive' : gap < -0.1 ? 'counter' : 'noise';
+          const color = gap > 0.1 ? 'var(--bull)' : gap < -0.1 ? 'var(--bear)' : 'var(--text-dim)';
+          return `<div style="display:flex;justify-content:space-between;padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px">
+            <span>${stat.name}</span>
+            <span style="color:${color}">W ${avgW !== null ? (avgW >= 0 ? '+' : '') + avgW.toFixed(2) : '—'} / L ${avgL !== null ? (avgL >= 0 ? '+' : '') + avgL.toFixed(2) : '—'} · ${predictive}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div style="margin-top:14px;padding:10px;background:var(--panel-2);border-left:3px solid var(--gold);font-size:10px;color:var(--text-dim);line-height:1.6">
+      <b style="color:var(--gold)">How this is calculated:</b><br>
+      Each signal is tracked against live bars. WIN TP1 = +2R (ATR multiples). WIN TP2 = +4R. LOSS = −1.5R (stop distance). Expiry after 50 bars without resolution. Expectancy = (win% × avg win R) − (loss% × avg loss R). Signals with few samples produce noisy agent stats; the gap becomes meaningful at 30+ resolved signals per agent.
+      <br><br>
+      <b>Reset:</b> <a href="#" onclick="if(confirm('Delete all ${all.length} signal records permanently?')){state.signalHistory=[];state.signals=[];saveSignals();renderPerformanceTab();}return false;" style="color:var(--bear)">clear all signal history</a>
     </div>
   `;
 }
@@ -3334,11 +3654,16 @@ function init() {
   connectAlpaca();
   // request notification permission (non-blocking)
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  // Initialize in-memory open signals from persisted history
+  state.signals = state.signalHistory.filter(s => s.status === 'OPEN');
+  document.getElementById('sigBadge').textContent = state.signals.length;
   // ticks
   setInterval(simTick, 1200);
   // re-run agents every 30s on current symbol
   setInterval(runAgents, 30000);
   setInterval(updateMktStatus, 30000);
+  // Signal outcome checker: every 5 seconds, walk OPEN signals and check hits
+  setInterval(checkSignalOutcomes, 5000);
   window.addEventListener('resize', resizeCanvas);
 }
 
