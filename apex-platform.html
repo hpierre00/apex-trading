@@ -3263,6 +3263,32 @@ document.getElementById('alertSaveBtn').addEventListener('click', () => {
     lastPx: state.prices[sym]?.px || 0,
   });
   saveAlerts();
+
+  // Subscribe WS to the alerted symbol so price updates flow even if it's
+  // not in the watchlist. Safe to call repeatedly: Alpaca ignores duplicate
+  // subscribes on an already-subscribed symbol.
+  if (state.alpaca.ws && state.alpaca.ws.readyState === 1) {
+    state.alpaca.ws.send(JSON.stringify({ action: 'subscribe', trades: [sym], bars: [sym] }));
+  }
+
+  // If we have no bars for this symbol, fetch a short window so the next
+  // checkAlerts tick has something to compare against (candle fallback in
+  // checkAlerts relies on state.candles[sym] being populated).
+  if (!state.candles[sym] || !state.candles[sym].length) {
+    loadAlpacaBars(sym, '1d', '1Y').then(result => {
+      if (result.bars && result.bars.length) {
+        state.candles[sym] = result.bars;
+        const last = result.bars.at(-1);
+        const prev = result.bars.at(-2)?.c || last.c;
+        state.prices[sym] = {
+          px: last.c,
+          chg: last.c - prev,
+          chgPct: prev ? ((last.c - prev) / prev) * 100 : 0,
+        };
+      }
+    }).catch(() => { /* non-fatal; next WS tick or checkAlerts retry will handle it */ });
+  }
+
   closeModal('alertModal');
   toast(`Alert created: ${sym} ${cond} ${px}`, 'bull');
   renderChart();
@@ -3423,17 +3449,39 @@ function checkAlerts() {
   let changed = false;
   for (const a of state.alerts) {
     if (a.triggered) continue;
-    const px = state.prices[a.sym]?.px;
-    if (px == null) continue;
+
+    // Price source priority: WS-pushed price first; fall back to last candle
+    // close if the WS hasn't pushed a tick for this symbol yet (common when an
+    // alert targets a symbol that was just added or isn't in the active feed
+    // window). Seed state.prices so downstream readers (watchlist, ticker)
+    // don't see a stale/missing entry.
+    let px = state.prices[a.sym]?.px;
+    if (px == null) {
+      const candles = state.candles[a.sym];
+      if (candles?.length) {
+        px = candles.at(-1).c;
+        if (!state.prices[a.sym]) {
+          state.prices[a.sym] = { px, chg: 0, chgPct: 0 };
+        }
+      }
+    }
+    if (px == null) continue; // genuinely no data yet; try again next tick
+
     let hit = false;
-    if (a.cond === 'above' && px > a.px) hit = true;
-    if (a.cond === 'below' && px < a.px) hit = true;
-    if (a.cond === 'cross-up' && a.lastPx < a.px && px >= a.px) hit = true;
-    if (a.cond === 'cross-down' && a.lastPx > a.px && px <= a.px) hit = true;
+    // >= / <= so a price reaching the threshold exactly registers a hit.
+    // Previous strict > / < would only fire on the next tick past the level.
+    if (a.cond === 'above' && px >= a.px) hit = true;
+    if (a.cond === 'below' && px <= a.px) hit = true;
+    // Cross conditions require a prior sample; guard against first-check null.
+    if (a.cond === 'cross-up' && a.lastPx != null && a.lastPx < a.px && px >= a.px) hit = true;
+    if (a.cond === 'cross-down' && a.lastPx != null && a.lastPx > a.px && px <= a.px) hit = true;
+
     a.lastPx = px;
+
     if (hit) {
       a.triggered = true;
       a.triggeredAt = Date.now();
+      a.triggeredPx = px; // capture the price that actually tripped the alert
       changed = true;
       if (state.notif.notifyOnAlert) {
         notify({
