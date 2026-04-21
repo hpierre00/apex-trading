@@ -2036,7 +2036,13 @@ function renderTicker() {
 
 async function selectSymbol(s) {
   chartState.userHasPanned = false;
+  // Reset chat context AND the visible DOM. A divider shows the user that
+  // Claude's memory was intentionally cleared on symbol switch.
   state.chatHistory = [];
+  const chatMessages = document.getElementById('chatMessages');
+  if (chatMessages) {
+    chatMessages.innerHTML = `<div class="msg ai" style="opacity:0.6;font-size:10px;text-align:center;border:none;padding:8px 0">— chat reset for ${s.toUpperCase()} —</div>`;
+  }
   state.symbol = s;
   document.getElementById('symName').textContent = s;
   // If connected and we don't have bars for this symbol yet (or they're simulated), fetch real
@@ -3337,6 +3343,7 @@ document.getElementById('runHealthBtn').addEventListener('click', runHealthCheck
 document.getElementById('reconnectWsBtn').addEventListener('click', () => {
   state.alpaca.manualDisconnect = false;
   state.alpaca.reconnectAttempts = 0;
+  state.alpaca.authFailures = 0;
   if (state.alpaca.reconnectTimer) {
     clearTimeout(state.alpaca.reconnectTimer);
     state.alpaca.reconnectTimer = null;
@@ -3569,12 +3576,23 @@ async function connectAlpaca() {
   try {
     const r = await fetch('/.netlify/functions/ws-auth', { credentials: 'same-origin' });
     if (!r.ok) {
+      // Auth failure from our own backend (env vars missing, cred endpoint broken).
+      // Don't spin the reconnect loop if the server can't hand us valid creds —
+      // retrying every 60s for 24h = ~1440 failed auth calls/day.
       state.alpaca.state = 'disconnected';
+      state.alpaca.authFailures = (state.alpaca.authFailures || 0) + 1;
       updateConnPill();
+      if (state.alpaca.authFailures >= 3) {
+        // Stop auto-retry after 3 consecutive auth failures; user must click RECONNECT WS.
+        state.alpaca.manualDisconnect = true;
+        toast('WS auth failed 3x. Check Netlify env vars, then click RECONNECT WS.', 'bear');
+      }
       return;
     }
     creds = await r.json();
+    state.alpaca.authFailures = 0; // reset on successful cred fetch
   } catch {
+    // Network error reaching ws-auth: treat as transport, keep retrying.
     state.alpaca.state = 'disconnected';
     updateConnPill();
     return;
@@ -3666,7 +3684,17 @@ async function connectAlpaca() {
         }
         state.alpaca.lastTickAt = Date.now();
       } else if (m.T === 'error') {
-        toast('Alpaca error: ' + m.msg, 'bear');
+        // Alpaca auth error codes: 400 invalid syntax, 401 not authenticated,
+        // 402 auth failed, 404 auth timeout, 406 connection limit exceeded.
+        // These will not resolve with a reconnect; stop the retry loop.
+        const fatalAuthCodes = [400, 401, 402, 404, 406];
+        if (fatalAuthCodes.includes(m.code)) {
+          toast(`Alpaca auth error ${m.code}: ${m.msg}. Auto-reconnect stopped.`, 'bear');
+          state.alpaca.manualDisconnect = true;
+          try { ws.close(); } catch {}
+        } else {
+          toast('Alpaca error: ' + m.msg, 'bear');
+        }
       }
     }
   };
@@ -3733,19 +3761,11 @@ setInterval(() => {
   }
 }, 30000);
 
+// Retained as an alias for backward compatibility with older call sites
+// (watchdogs, health checks). Delegates to the timezone-aware isMarketHours()
+// at line ~927 so we have one source of truth for US RTH (9:30-16:00 ET, Mon-Fri).
 function isUSMarketOpen() {
-  // Approximates US equities RTH (9:30-16:00 ET, Mon-Fri).
-  // Uses the user's browser clock and adjusts for UTC offset of ET.
-  const now = new Date();
-  const day = now.getUTCDay();
-  if (day === 0 || day === 6) return false; // weekend
-  // ET is UTC-4 (EDT) or UTC-5 (EST). For accuracy we'd need a TZ library,
-  // but this simple check is good enough for the watchdog to skip the weekend.
-  const utcHour = now.getUTCHours();
-  const utcMin = now.getUTCMinutes();
-  const utcTotal = utcHour * 60 + utcMin;
-  // Market window in UTC (conservative: 13:30-21:00 UTC covers both EST and EDT)
-  return utcTotal >= 13 * 60 + 30 && utcTotal < 21 * 60;
+  return isMarketHours();
 }
 
 // Map UI TF to Alpaca API timeframe. Alpaca supports 1Min, 5Min, 15Min, 30Min,
@@ -3798,8 +3818,10 @@ async function sendChat() {
   const input = document.getElementById('chatInput');
   const q = input.value.trim();
   if (!q) return;
-  const assessTriggers = ['assess', 'read the tape', 'setup', 'what do you see', 'give me a read', 'levels', 'read'];
-  if (assessTriggers.some(t => q.toLowerCase().includes(t))) {
+  // Word-boundary regex so 'read' doesn't match 'ready/thread/spread/reading'.
+  // Multi-word triggers like 'read the tape' are matched as phrases inside \b boundaries.
+  const assessTrigger = /\b(assess|read the tape|setup|what do you see|give me a read|levels|read)\b/i;
+  if (assessTrigger.test(q)) {
     runInstantAssessment();
     input.value = '';
     return;
