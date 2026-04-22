@@ -295,7 +295,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
 /* Alerts */
 .alert-row {
-  display: grid; grid-template-columns: 80px 80px 1fr auto auto;
+  display: grid; grid-template-columns: 80px 80px 1fr auto auto auto;
   gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--border);
   font-size: 11px; align-items: center;
 }
@@ -2817,9 +2817,9 @@ function renderAlertsTab() {
     <div class="alert-row ${a.triggered ? 'triggered' : ''}">
       <div style="font-weight:700">${a.sym}</div>
       <div>${a.cond.toUpperCase()}</div>
-      <div>${a.px.toFixed(2)} ${a.note ? '· ' + a.note : ''}</div>
+      <div>${a.px.toFixed(2)} ${a.note ? '· ' + a.note : ''}<span style="color:var(--text-faint);font-size:9px;margin-left:6px">${timeStr}</span></div>
       <div class="alert-status ${a.triggered ? 'triggered' : 'active'}">${a.triggered ? 'TRIGGERED' : 'ACTIVE'}</div>
-      <div style="font-size:9px;color:var(--text-faint);grid-column:1/-1;padding-left:2px">${timeStr}</div>
+      <button class="edit-btn" onclick="editAlert(${a.id})" title="Edit" style="color:var(--text-faint);font-size:13px;padding:2px 4px;background:none;border:none;cursor:pointer">✎</button>
       <button class="del-btn" onclick="deleteAlert(${a.id})">✕</button>
     </div>
   `;
@@ -2860,9 +2860,9 @@ function showPriorAlerts() {
     return `<div class="alert-row ${a.triggered ? 'triggered' : ''}">
       <div style="font-weight:700">${a.sym}</div>
       <div>${a.cond.toUpperCase()}</div>
-      <div>${a.px.toFixed(2)} ${a.note ? '· ' + a.note : ''}</div>
+      <div>${a.px.toFixed(2)} ${a.note ? '· ' + a.note : ''}<span style="color:var(--text-faint);font-size:9px;margin-left:6px">${dateStr}</span></div>
       <div class="alert-status ${a.triggered ? 'triggered' : 'active'}">${a.triggered ? 'TRIGGERED' : 'ACTIVE'}</div>
-      <div style="font-size:9px;color:var(--text-faint);grid-column:1/-1;padding-left:2px">${dateStr}</div>
+      <span></span>
       <button class="del-btn" onclick="deleteAlert(${a.id})">✕</button>
     </div>`;
   }).join('');
@@ -3129,6 +3129,14 @@ document.getElementById('tabBar').addEventListener('click', (e) => {
    ============================================================ */
 
 document.getElementById('alertBtn').addEventListener('click', () => {
+  // Reset from any prior edit-mode state so + ALERT always opens in create mode
+  state.alertEditingId = null;
+  const modal = document.getElementById('alertModal');
+  const h3 = modal.querySelector('h3');
+  if (h3) h3.textContent = 'CREATE PRICE ALERT';
+  const saveBtn = document.getElementById('alertSaveBtn');
+  if (saveBtn) saveBtn.textContent = 'CREATE ALERT';
+
   document.getElementById('alertSym').value = state.symbol;
   document.getElementById('alertPx').value = (state.prices[state.symbol]?.px || 0).toFixed(2);
   document.getElementById('alertCond').value = 'above';
@@ -3257,12 +3265,36 @@ document.getElementById('alertSaveBtn').addEventListener('click', () => {
   const px = parseFloat(document.getElementById('alertPx').value);
   const note = document.getElementById('alertNote').value.trim();
   if (!sym || !isFinite(px) || px <= 0) { toast('Invalid alert', 'bear'); return; }
-  state.alerts.push({
-    id: Date.now(), sym, cond, px, note,
-    triggered: false, createdAt: Date.now(), triggeredAt: null,
-    lastPx: state.prices[sym]?.px || 0,
-  });
-  saveAlerts();
+
+  // state.alertEditingId is set by editAlert() when the modal opens in edit mode.
+  // If set, we update the existing alert in place instead of pushing a new one.
+  const editingId = state.alertEditingId;
+  if (editingId) {
+    const existing = state.alerts.find(a => a.id === editingId);
+    if (existing) {
+      existing.sym = sym;
+      existing.cond = cond;
+      existing.px = px;
+      existing.note = note;
+      // Re-arm if it was triggered; editing a triggered alert should reset it
+      // so the user's updated threshold gets evaluated on future ticks.
+      if (existing.triggered) {
+        existing.triggered = false;
+        existing.triggeredAt = null;
+        existing.triggeredPx = null;
+      }
+      existing.lastPx = state.prices[sym]?.px || 0;
+    }
+    state.alertEditingId = null;
+    saveAlerts();
+  } else {
+    state.alerts.push({
+      id: Date.now(), sym, cond, px, note,
+      triggered: false, createdAt: Date.now(), triggeredAt: null,
+      lastPx: state.prices[sym]?.px || 0,
+    });
+    saveAlerts();
+  }
 
   // Subscribe WS to the alerted symbol so price updates flow even if it's
   // not in the watchlist. Safe to call repeatedly: Alpaca ignores duplicate
@@ -3290,12 +3322,32 @@ document.getElementById('alertSaveBtn').addEventListener('click', () => {
   }
 
   closeModal('alertModal');
-  toast(`Alert created: ${sym} ${cond} ${px}`, 'bull');
+  toast(editingId ? `Alert updated: ${sym} ${cond} ${px}` : `Alert created: ${sym} ${cond} ${px}`, 'bull');
   renderChart();
   if (state.activeTab === 'alerts') renderAlertsTab();
   document.getElementById('alertBadge').textContent = state.alerts.filter(a => !a.triggered).length;
   document.getElementById('alertBadge').style.display = 'inline-block';
 });
+
+// Open the alert modal pre-filled for editing an existing alert.
+// State is tracked in state.alertEditingId; the save handler branches on it.
+function editAlert(id) {
+  const a = state.alerts.find(x => x.id === id);
+  if (!a) return;
+  state.alertEditingId = id;
+  document.getElementById('alertSym').value = a.sym;
+  document.getElementById('alertCond').value = a.cond;
+  document.getElementById('alertPx').value = a.px.toFixed(2);
+  document.getElementById('alertNote').value = a.note || '';
+  // Re-label modal so user knows they're editing
+  const modal = document.getElementById('alertModal');
+  const h3 = modal.querySelector('h3');
+  if (h3) h3.textContent = 'EDIT PRICE ALERT';
+  const saveBtn = document.getElementById('alertSaveBtn');
+  if (saveBtn) saveBtn.textContent = 'SAVE CHANGES';
+  openModal('alertModal');
+}
+window.editAlert = editAlert;
 
 function saveAlerts() { localStorage.setItem('apex.alerts', JSON.stringify(state.alerts)); }
 
