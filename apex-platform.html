@@ -1022,6 +1022,19 @@ function sessionReferenceClose(candles) {
   if (!candles || !candles.length) return null;
   const latest = candles.at(-1);
   const latestDate = getTradingDate(new Date(latest.t));
+  const todayDate = getTradingDate(new Date());
+
+  // If the latest candle is from a prior session (not today), the live
+  // price we're comparing against IS today's price-in-progress and the
+  // latest candle's close IS the prior session close (i.e. "yesterday's
+  // close" from a user's perspective). Return it directly.
+  // This handles the IEX-delay case where Alpaca's daily bar for today
+  // hasn't been published yet during early market hours.
+  if (latestDate !== todayDate) return latest.c;
+
+  // Latest candle is today (intraday timeframe, or daily bar already
+  // published for today). Walk backward to find the prior trading
+  // session and return its close.
   for (let i = candles.length - 2; i >= 0; i--) {
     const candleDate = getTradingDate(new Date(candles[i].t));
     if (candleDate !== latestDate) return candles[i].c;
@@ -4408,6 +4421,22 @@ async function reloadChart() {
       state.candles[sym] = res.bars;
       if (res.meta.truncated) {
         toast(`Loaded ${res.bars.length} bars (truncated — range too large for timeframe)`, 'bear');
+      }
+      // Recompute chgPct against session-anchored reference so the header
+      // updates immediately on timeframe change, instead of waiting for
+      // the next WS tick. Without this, switching from 1D to 1Y (or vice
+      // versa) leaves a stale chgPct visible until the next trade prints.
+      const last = res.bars.at(-1);
+      if (last) {
+        const refClose = sessionReferenceClose(res.bars) ?? last.c;
+        const livePx = state.prices[sym]?.px ?? last.c;
+        state.prices[sym] = {
+          px: livePx,
+          chg: livePx - refClose,
+          chgPct: refClose ? ((livePx - refClose) / refClose) * 100 : 0,
+        };
+        if (sym === state.symbol) updateSymHeader();
+        scheduleWatchlistUpdate();
       }
     }
   } else {
