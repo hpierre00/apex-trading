@@ -882,8 +882,8 @@ function initData() {
   allSymbols.forEach(s => {
     state.candles[s] = genCandles(s, 300, state.timeframe);
     const last = state.candles[s].at(-1);
-    const prev = state.candles[s].at(-100)?.c ?? last.c;
-    state.prices[s] = { px: last.c, chg: last.c - prev, chgPct: ((last.c - prev) / prev) * 100 };
+    const refClose = sessionReferenceClose(state.candles[s]) ?? last.c;
+    state.prices[s] = { px: last.c, chg: last.c - refClose, chgPct: refClose ? ((last.c - refClose) / refClose) * 100 : 0 };
   });
   // update positions' current prices
   state.positions.forEach(p => { if (state.prices[p.sym]) p.curr = state.prices[p.sym].px; });
@@ -1003,6 +1003,32 @@ function getTradingDate(date) {
   const m = String(et.getMonth() + 1).padStart(2, '0');
   const day = String(et.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+// Returns the close price from the previous trading session for a symbol's
+// candle series, regardless of timeframe. The "change today" figure in the
+// header, watchlist, ticker, and positions should all be anchored to this,
+// not to an arbitrary N-candles-back offset. Without this, the displayed
+// change varies based on the chart's zoom level — e.g. on a 1Y view,
+// "-20 candles" was 20 days ago, so the header would show the 20-day change
+// mislabeled as today's change.
+//
+// Algorithm: walk backward from the latest candle. The first candle whose
+// trading date (ET) differs from the latest candle's trading date is the
+// last bar of the previous session; its close is what Google/brokers call
+// "previous close." Falls back to first candle's close if the series is
+// entirely within one session (e.g. 1m data loaded mid-morning).
+function sessionReferenceClose(candles) {
+  if (!candles || !candles.length) return null;
+  const latest = candles.at(-1);
+  const latestDate = getTradingDate(new Date(latest.t));
+  for (let i = candles.length - 2; i >= 0; i--) {
+    const candleDate = getTradingDate(new Date(candles[i].t));
+    if (candleDate !== latestDate) return candles[i].c;
+  }
+  // Fallback: no prior-session candle found in the loaded window.
+  // Use the first candle of this session (gives intraday % from session open).
+  return candles[0].c;
 }
 
 function scheduleRender() {
@@ -2076,8 +2102,8 @@ document.getElementById('posSaveBtn').addEventListener('click', () => {
   if (!state.candles[sym]) state.candles[sym] = genCandles(sym, 300, state.timeframe);
   if (!state.prices[sym]) {
     const last = state.candles[sym].at(-1);
-    const prev = state.candles[sym].slice(-20)[0]?.c || last.c;
-    state.prices[sym] = { px: last.c, chg: last.c - prev, chgPct: ((last.c - prev) / prev) * 100 };
+    const refClose = sessionReferenceClose(state.candles[sym]) ?? last.c;
+    state.prices[sym] = { px: last.c, chg: last.c - refClose, chgPct: refClose ? ((last.c - refClose) / refClose) * 100 : 0 };
   }
   savePositions();
   renderPositions();
@@ -3311,11 +3337,11 @@ document.getElementById('alertSaveBtn').addEventListener('click', () => {
       if (result.bars && result.bars.length) {
         state.candles[sym] = result.bars;
         const last = result.bars.at(-1);
-        const prev = result.bars.at(-2)?.c || last.c;
+        const refClose = sessionReferenceClose(result.bars) ?? last.c;
         state.prices[sym] = {
           px: last.c,
-          chg: last.c - prev,
-          chgPct: prev ? ((last.c - prev) / prev) * 100 : 0,
+          chg: last.c - refClose,
+          chgPct: refClose ? ((last.c - refClose) / refClose) * 100 : 0,
         };
       }
     }).catch(() => { /* non-fatal; next WS tick or checkAlerts retry will handle it */ });
@@ -3404,8 +3430,8 @@ async function addWatchlistFromModal() {
   // Seed simulated data so the watchlist row has a price to show immediately
   if (!state.candles[sym]) state.candles[sym] = genCandles(sym, 300, state.timeframe);
   const last = state.candles[sym].at(-1);
-  const prev = state.candles[sym].slice(-20)[0]?.c || last.c;
-  state.prices[sym] = { px: last.c, chg: last.c - prev, chgPct: ((last.c - prev) / prev) * 100 };
+  const refClose = sessionReferenceClose(state.candles[sym]) ?? last.c;
+  state.prices[sym] = { px: last.c, chg: last.c - refClose, chgPct: refClose ? ((last.c - refClose) / refClose) * 100 : 0 };
   renderWatchlist();
   closeModal('addWatchModal');
   toast(sym + ' added to watchlist', 'bull');
@@ -3911,12 +3937,16 @@ async function connectAlpaca() {
         if (!state.prices[m.S]) state.prices[m.S] = { px: 0, chg: 0, chgPct: 0 };
         const prevPx = state.prices[m.S].px;
         state.prices[m.S].px = m.p;
-        // Recompute chg/chgPct against the opening candle of the visible range
+        // Change vs previous trading session close — anchored, NOT
+        // a rolling-N-candles window. This is what every broker and
+        // data provider displays as "today's change."
         const candles = state.candles[m.S];
         if (candles && candles.length) {
-          const openRef = candles.at(-20)?.c || candles[0].c;
-          state.prices[m.S].chg = m.p - openRef;
-          state.prices[m.S].chgPct = (state.prices[m.S].chg / openRef) * 100;
+          const refClose = sessionReferenceClose(candles);
+          if (refClose) {
+            state.prices[m.S].chg = m.p - refClose;
+            state.prices[m.S].chgPct = (state.prices[m.S].chg / refClose) * 100;
+          }
           // Update the last candle's close, high, low so chart shows live price movement
           const last = candles.at(-1);
           if (last) {
@@ -4265,8 +4295,9 @@ function simTick() {
     last.c = newPx;
     last.h = Math.max(last.h, newPx);
     last.l = Math.min(last.l, newPx);
-    const prev = arr.at(-20).c;
-    state.prices[s] = { px: newPx, chg: newPx - prev, chgPct: ((newPx - prev) / prev) * 100 };
+    // Anchor change to previous session close (see sessionReferenceClose).
+    const refClose = sessionReferenceClose(arr) ?? arr[0].c;
+    state.prices[s] = { px: newPx, chg: newPx - refClose, chgPct: ((newPx - refClose) / refClose) * 100 };
   });
   state.positions.forEach(p => { if (state.prices[p.sym]) p.curr = state.prices[p.sym].px; });
   renderWatchlist();
