@@ -8,28 +8,33 @@
 :root {
   /* Shared across all themes (accents, not theme-dependent) */
   --gold-dim: #b8860b;
-  --blue: #2e7fff;
+  --blue: #4c9aff;
   --purple: #9d4edd;
 }
 
-/* DARK THEME (default, current look) */
+/* DARK THEME (default) — Professional finance palette.
+   Migrated in v5.21 from the legacy black/yellow scheme to a deep-navy
+   institutional look modeled on Koyfin and modern fintech standards.
+   Pure black (#000-#08) reads as gamer/cyberpunk; deep navy reads as
+   professional. Off-white text on navy is easier on eyes than pure
+   white on black for long sessions. */
 :root,
 [data-theme="dark"] {
-  --bg: #05080d;
-  --panel: #0a0f16;
-  --panel-2: #0f1620;
-  --border: #1a2332;
-  --text: #e4e9f2;
-  --text-dim: #7a8699;
-  --text-faint: #4a5468;
-  --gold: #f0b429;
-  --bull: #0ecb81;
-  --bear: #f6465d;
-  --chart-bg: #05080d;
-  --header-bg: #060b12;
-  --input-bg: #0f1620;
-  --modal-bg: #0a0f16;
-  --scrollbar: #1a2332;
+  --bg: #0b1221;          /* deep navy, NOT pure black */
+  --panel: #0f1729;       /* slightly lifted from bg */
+  --panel-2: #15203a;     /* secondary panel surface, modal/input bg */
+  --border: #1e2a3f;      /* subtle navy borders, NOT black lines */
+  --text: #e5e9f0;        /* off-white primary text */
+  --text-dim: #8b95a7;    /* muted blue-gray secondary text */
+  --text-faint: #5a6678;  /* tertiary, captions, footnotes */
+  --gold: #f5a623;        /* warm amber accent, less neon than legacy yellow */
+  --bull: #00c076;        /* institutional green */
+  --bear: #f6465d;        /* readable red, not alarm red */
+  --chart-bg: #0b1221;
+  --header-bg: #0a1020;
+  --input-bg: #15203a;
+  --modal-bg: #0f1729;
+  --scrollbar: #1e2a3f;
 }
 
 /* LIGHT THEME — "Ivory" — warm off-white professional.
@@ -92,7 +97,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 .topbar {
   display: flex; align-items: center; gap: 16px;
   padding: 0 16px;
-  background: linear-gradient(180deg, #0a0f16 0%, #05080d 100%);
+  background: linear-gradient(180deg, #0f1729 0%, #0b1221 100%);
   border-bottom: 1px solid var(--border);
 }
 .brand { font-weight: 900; font-size: 18px; letter-spacing: 2px; color: var(--gold); }
@@ -380,7 +385,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   border: 1px solid var(--gold);
   width: 440px; max-width: 92vw;
   padding: 20px;
-  box-shadow: 0 0 40px rgba(240, 180, 41, 0.15);
+  box-shadow: 0 0 40px rgba(245, 166, 35, 0.15);
 }
 .modal h3 {
   font-size: 14px; letter-spacing: 2px; color: var(--gold);
@@ -403,7 +408,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   position: fixed; bottom: 36px; right: 16px;
   background: var(--panel); border: 1px solid var(--gold);
   padding: 10px 14px; font-size: 11px;
-  box-shadow: 0 4px 20px rgba(240, 180, 41, 0.2);
+  box-shadow: 0 4px 20px rgba(245, 166, 35, 0.2);
   z-index: 200; max-width: 320px;
   animation: slideIn 0.3s;
 }
@@ -428,14 +433,14 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   justify-content: space-between;
   gap: 10px;
   padding: 6px 14px;
-  background: rgba(255, 184, 0, 0.06);
-  border-bottom: 1px solid rgba(255, 184, 0, 0.25);
+  background: rgba(245, 166, 35, 0.07);
+  border-bottom: 1px solid rgba(245, 166, 35, 0.28);
   color: var(--text-dim);
   font-size: 10px;
   letter-spacing: 0.3px;
   line-height: 1.4;
 }
-.session-disclaimer strong { color: #ffb800; font-weight: 600; }
+.session-disclaimer strong { color: var(--gold); font-weight: 600; }
 .session-disclaimer .dismiss-btn {
   background: transparent;
   border: 1px solid var(--border);
@@ -472,13 +477,13 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 .chat-first-banner {
   font-size: 10px;
   color: var(--text-dim);
-  background: rgba(255, 184, 0, 0.05);
-  border: 1px solid rgba(255, 184, 0, 0.2);
+  background: rgba(245, 166, 35, 0.06);
+  border: 1px solid rgba(245, 166, 35, 0.22);
   padding: 8px 10px;
   margin: 8px;
   line-height: 1.5;
 }
-.chat-first-banner strong { color: #ffb800; }
+.chat-first-banner strong { color: var(--gold); }
 
 /* Instant Assessment pre-run modal content tweaks */
 .ack-modal-body {
@@ -490,7 +495,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 .ack-modal-body ul { padding-left: 18px; margin: 8px 0; }
 .ack-modal-body li { margin-bottom: 4px; color: var(--text-dim); }
 .ack-modal-body .ack-warn {
-  color: #ffb800;
+  color: var(--gold);
   font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.5px;
@@ -603,7 +608,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <button class="chart-ctrl-btn" id="zoomOut">−</button>
           <button class="chart-ctrl-btn" id="resetView">RESET</button>
         </div>
-        <div id="loadingBanner" style="display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(240,180,41,0.9);color:#05080d;font-size:10px;font-weight:700;letter-spacing:1.5px;padding:4px 12px;z-index:6">LOADING DATA...</div>
+        <div id="loadingBanner" style="display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(245, 166, 35,0.9);color:#0b1221;font-size:10px;font-weight:700;letter-spacing:1.5px;padding:4px 12px;z-index:6">LOADING DATA...</div>
         <div id="ohlcTip" style="display:none;position:absolute;pointer-events:none;background:rgba(10,15,22,0.95);border:1px solid var(--gold);padding:6px 10px;font-size:10px;line-height:1.5;z-index:7;white-space:nowrap;font-family:monospace"></div>
         <div id="emptyMsg" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-dim);font-size:12px;text-align:center;max-width:340px;line-height:1.6">No bars for this timeframe × range.<br>Try a coarser timeframe or longer range.</div>
       </div>
@@ -1203,7 +1208,7 @@ function renderChart() {
   if (!candles.length) {
     // Clear canvas and show empty message
     if (cw > 0) {
-      ctx.fillStyle = '#05080d';
+      ctx.fillStyle = '#0b1221';
       ctx.fillRect(0, 0, cw, ch);
     }
     if (emptyEl) emptyEl.style.display = 'block';
@@ -1247,12 +1252,12 @@ function renderChart() {
   const xAt = (i) => (i - chartState.visibleStart) * candleW + candleW / 2;
 
   // --- clear
-  ctx.fillStyle = '#05080d';
+  ctx.fillStyle = '#0b1221';
   ctx.fillRect(0, 0, cw, ch);
 
   // --- grid + axis labels
   ctx.font = '10px monospace';
-  ctx.fillStyle = '#4a5468';
+  ctx.fillStyle = '#5a6678';
   for (let i = 0; i <= 6; i++) {
     const yy = (chartH * i) / 6;
     if (indOn('grid')) {
@@ -1286,8 +1291,8 @@ function renderChart() {
     const c = visible[i];
     const xCenter = (i - (chartState.visibleStart - start)) * candleW + candleW / 2;
     const up = c.c >= c.o;
-    ctx.strokeStyle = up ? '#0ecb81' : '#f6465d';
-    ctx.fillStyle = up ? '#0ecb81' : '#f6465d';
+    ctx.strokeStyle = up ? '#00c076' : '#f6465d';
+    ctx.fillStyle = up ? '#00c076' : '#f6465d';
     ctx.beginPath();
     ctx.moveTo(xCenter, y(c.h));
     ctx.lineTo(xCenter, y(c.l));
@@ -1311,7 +1316,7 @@ function renderChart() {
       const bw = Math.max(1, candleW * 0.7);
       ctx.fillRect(xCenter - bw / 2, volTop + (VOL_H - 6) - vh, bw, vh);
     }
-    ctx.fillStyle = '#4a5468';
+    ctx.fillStyle = '#5a6678';
     ctx.fillText('VOL', 4, volTop + 10);
   }
 
@@ -1330,7 +1335,7 @@ function renderChart() {
 
   // --- time axis
   const timeY = ch - TIME_H + 14;
-  ctx.fillStyle = '#4a5468';
+  ctx.fillStyle = '#5a6678';
   ctx.font = '10px monospace';
   const labels = 6;
   for (let i = 0; i < labels; i++) {
@@ -1349,13 +1354,13 @@ function renderChart() {
   const lastC = candles.at(-1);
   if (lastC && indOn('lastPx')) {
     const ly = y(lastC.c);
-    ctx.strokeStyle = '#f0b42980';
+    ctx.strokeStyle = '#f5a62380';
     ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(chartW, ly); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#f0b429';
+    ctx.fillStyle = '#f5a623';
     ctx.fillRect(chartW, ly - 8, AXIS_W, 16);
-    ctx.fillStyle = '#05080d';
+    ctx.fillStyle = '#0b1221';
     ctx.font = 'bold 10px monospace';
     ctx.fillText(lastC.c.toFixed(2), chartW + 6, ly + 3);
   }
@@ -1364,23 +1369,23 @@ function renderChart() {
   state.alerts.filter(a => a.sym === state.symbol && !a.triggered).forEach(a => {
     const ay = y(a.px);
     if (ay < 0 || ay > chartH) return;
-    ctx.strokeStyle = '#f0b42990';
+    ctx.strokeStyle = '#f5a62390';
     ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.moveTo(0, ay); ctx.lineTo(chartW, ay); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#f0b429';
+    ctx.fillStyle = '#f5a623';
     ctx.font = '10px monospace';
     ctx.fillText('🔔 ' + a.px.toFixed(2), 6, ay - 4);
   });
   } catch (e) {
     console.error('APEX renderChart fatal error:', e);
     if (ctx && cw && ch) {
-      ctx.fillStyle = '#05080d';
+      ctx.fillStyle = '#0b1221';
       ctx.fillRect(0, 0, cw, ch);
       ctx.fillStyle = '#f6465d';
       ctx.font = '12px monospace';
       ctx.fillText('Chart render error: ' + e.message, 16, ch / 2 - 10);
-      ctx.fillStyle = '#4a5468';
+      ctx.fillStyle = '#5a6678';
       ctx.font = '10px monospace';
       ctx.fillText('Check console. Double-click chart to reset.', 16, ch / 2 + 10);
     }
@@ -1532,9 +1537,9 @@ function drawDonchian(candles, start, end, period, y, xAt) {
 
 function drawSubPanel(candles, start, end, top, height, chartW, xAt) {
   // background
-  ctx.fillStyle = '#0a0f1680';
+  ctx.fillStyle = '#0f172980';
   ctx.fillRect(0, top, chartW, height);
-  ctx.strokeStyle = '#1a2332';
+  ctx.strokeStyle = '#1e2a3f';
   ctx.beginPath(); ctx.moveTo(0, top); ctx.lineTo(chartW, top); ctx.stroke();
 
   const pad = 4;
@@ -1560,7 +1565,7 @@ function drawRSISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
   // 70/30 lines
   ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, ay(70, 0, 100)); ctx.lineTo(chartW, ay(70, 0, 100)); ctx.stroke();
-  ctx.strokeStyle = '#0ecb8140';
+  ctx.strokeStyle = '#00c07640';
   ctx.beginPath(); ctx.moveTo(0, ay(30, 0, 100)); ctx.lineTo(chartW, ay(30, 0, 100)); ctx.stroke();
   ctx.setLineDash([]);
   ctx.strokeStyle = '#ab47bc'; ctx.lineWidth = 1.5;
@@ -1573,7 +1578,7 @@ function drawRSISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
     }
   }
   ctx.stroke();
-  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
   ctx.fillText('RSI 14', 4, top + 10);
   ctx.fillText('70', chartW + 4, ay(70, 0, 100) + 3);
   ctx.fillText('30', chartW + 4, ay(30, 0, 100) + 3);
@@ -1618,7 +1623,7 @@ function drawMACDSubPanel(candles, start, end, top, h, chartW, xAt) {
   const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
   const zero = ay(0);
   // zero line
-  ctx.strokeStyle = '#4a546840'; ctx.setLineDash([2, 3]);
+  ctx.strokeStyle = '#5a667840'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, zero); ctx.lineTo(chartW, zero); ctx.stroke();
   ctx.setLineDash([]);
   // Histogram
@@ -1638,14 +1643,14 @@ function drawMACDSubPanel(candles, start, end, top, h, chartW, xAt) {
   }
   ctx.stroke();
   // Signal
-  ctx.strokeStyle = '#f0b429';
+  ctx.strokeStyle = '#f5a623';
   ctx.beginPath(); first = true;
   for (let i = Math.max(start, slow); i < end; i++) {
     const x = xAt(i), py = ay(signalArr[i] ?? 0);
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
   ctx.fillText('MACD 12/26/9', 4, top + 10);
 }
 
@@ -1706,7 +1711,7 @@ function drawStochSubPanel(candles, start, end, top, h, chartW, xAt, ay) {
   }
   ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, ay(80, 0, 100)); ctx.lineTo(chartW, ay(80, 0, 100)); ctx.stroke();
-  ctx.strokeStyle = '#0ecb8140';
+  ctx.strokeStyle = '#00c07640';
   ctx.beginPath(); ctx.moveTo(0, ay(20, 0, 100)); ctx.lineTo(chartW, ay(20, 0, 100)); ctx.stroke();
   ctx.setLineDash([]);
   const line = (arr, color) => {
@@ -1720,8 +1725,8 @@ function drawStochSubPanel(candles, start, end, top, h, chartW, xAt, ay) {
     ctx.stroke();
   };
   line(smoothed, '#2e7fff');
-  line(dArr, '#f0b429');
-  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  line(dArr, '#f5a623');
+  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
   ctx.fillText('Stoch 14,3,3', 4, top + 10);
 }
 
@@ -1746,7 +1751,7 @@ function drawCCISubPanel(candles, start, end, top, h, chartW, xAt) {
   const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
   ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, ay(100)); ctx.lineTo(chartW, ay(100)); ctx.stroke();
-  ctx.strokeStyle = '#0ecb8140';
+  ctx.strokeStyle = '#00c07640';
   ctx.beginPath(); ctx.moveTo(0, ay(-100)); ctx.lineTo(chartW, ay(-100)); ctx.stroke();
   ctx.setLineDash([]);
   ctx.strokeStyle = '#ab47bc'; ctx.lineWidth = 1.5;
@@ -1757,7 +1762,7 @@ function drawCCISubPanel(candles, start, end, top, h, chartW, xAt) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
   ctx.fillText('CCI 20', 4, top + 10);
 }
 
@@ -1775,7 +1780,7 @@ function drawWilliamsSubPanel(candles, start, end, top, h, chartW, xAt, ay) {
   }
   ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, ay(-20, -100, 0)); ctx.lineTo(chartW, ay(-20, -100, 0)); ctx.stroke();
-  ctx.strokeStyle = '#0ecb8140';
+  ctx.strokeStyle = '#00c07640';
   ctx.beginPath(); ctx.moveTo(0, ay(-80, -100, 0)); ctx.lineTo(chartW, ay(-80, -100, 0)); ctx.stroke();
   ctx.setLineDash([]);
   ctx.strokeStyle = '#26a69a'; ctx.lineWidth = 1.5;
@@ -1786,7 +1791,7 @@ function drawWilliamsSubPanel(candles, start, end, top, h, chartW, xAt, ay) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
   ctx.fillText('Williams %R 14', 4, top + 10);
 }
 
@@ -1804,7 +1809,7 @@ function drawROCSubPanel(candles, start, end, top, h, chartW, xAt) {
   if (!isFinite(lo)) return;
   const pad = 4;
   const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
-  ctx.strokeStyle = '#4a546840'; ctx.setLineDash([2, 3]);
+  ctx.strokeStyle = '#5a667840'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, ay(0)); ctx.lineTo(chartW, ay(0)); ctx.stroke();
   ctx.setLineDash([]);
   ctx.strokeStyle = '#29b6f6'; ctx.lineWidth = 1.5;
@@ -1815,7 +1820,7 @@ function drawROCSubPanel(candles, start, end, top, h, chartW, xAt) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
   ctx.fillText('ROC 12', 4, top + 10);
 }
 
@@ -1851,7 +1856,7 @@ function drawATRSubPanel(candles, start, end, top, h, chartW, xAt) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
   ctx.fillText('ATR 14', 4, top + 10);
 }
 
@@ -1875,7 +1880,7 @@ function drawOBVSubPanel(candles, start, end, top, h, chartW, xAt) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
   ctx.fillText('OBV', 4, top + 10);
 }
 
@@ -1896,7 +1901,7 @@ function drawMFISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
   }
   ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, ay(80, 0, 100)); ctx.lineTo(chartW, ay(80, 0, 100)); ctx.stroke();
-  ctx.strokeStyle = '#0ecb8140';
+  ctx.strokeStyle = '#00c07640';
   ctx.beginPath(); ctx.moveTo(0, ay(20, 0, 100)); ctx.lineTo(chartW, ay(20, 0, 100)); ctx.stroke();
   ctx.setLineDash([]);
   ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 1.5;
@@ -1907,7 +1912,7 @@ function drawMFISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#4a5468'; ctx.font = '9px monospace';
+  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
   ctx.fillText('MFI 14', 4, top + 10);
 }
 
@@ -1938,7 +1943,7 @@ function drawVWAPBands(visible, y, candleW, bandPct = 0.035) {
 
 function drawVWAP(visible, y, candleW) {
   let cumPV = 0, cumV = 0;
-  ctx.strokeStyle = '#f0b429'; ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#f5a623'; ctx.lineWidth = 1.5;
   ctx.setLineDash([4, 2]);
   ctx.beginPath();
   for (let i = 0; i < visible.length; i++) {
@@ -2063,7 +2068,7 @@ function renderCrosshair(mouseX, mouseY) {
   // because the chart is small; if perf becomes an issue we can cache a bitmap.
   renderChart();
   // Draw crosshair lines
-  ctx.strokeStyle = '#4a5468';
+  ctx.strokeStyle = '#5a6678';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
@@ -2083,15 +2088,15 @@ function renderCrosshair(mouseX, mouseY) {
   const chg = candle.c - candle.o;
   const chgPct = (chg / candle.o) * 100;
   const up = chg >= 0;
-  const color = up ? '#0ecb81' : '#f6465d';
+  const color = up ? '#00c076' : '#f6465d';
   tipEl.innerHTML = `
-    <div style="color:#f0b429;font-weight:700;margin-bottom:2px">${state.symbol} · ${dateStr}</div>
-    <div>O <span style="color:#e4e9f2">${candle.o.toFixed(2)}</span>
-         H <span style="color:#e4e9f2">${candle.h.toFixed(2)}</span>
-         L <span style="color:#e4e9f2">${candle.l.toFixed(2)}</span>
+    <div style="color:#f5a623;font-weight:700;margin-bottom:2px">${state.symbol} · ${dateStr}</div>
+    <div>O <span style="color:#e5e9f0">${candle.o.toFixed(2)}</span>
+         H <span style="color:#e5e9f0">${candle.h.toFixed(2)}</span>
+         L <span style="color:#e5e9f0">${candle.l.toFixed(2)}</span>
          C <span style="color:${color}">${candle.c.toFixed(2)}</span></div>
     <div>Chg <span style="color:${color}">${up ? '+' : ''}${chg.toFixed(2)} (${up ? '+' : ''}${chgPct.toFixed(2)}%)</span>
-         Vol <span style="color:#7a8699">${candle.v.toLocaleString()}</span></div>
+         Vol <span style="color:#8b95a7">${candle.v.toLocaleString()}</span></div>
   `;
   tipEl.style.display = 'block';
   // Position: right of cursor if space, else left
