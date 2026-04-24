@@ -4326,12 +4326,15 @@ function simTick() {
    ============================================================ */
 
 // symbol search
+// Searching and selecting a ticker no longer auto-adds it to the watchlist.
+// Users who want to track a symbol permanently should use the + ADD button
+// on the watchlist panel. This keeps the watchlist a deliberate curated list
+// rather than a log of every ticker the user has ever peeked at.
 document.getElementById('symSearch').addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   const v = e.target.value.trim().toUpperCase();
   if (!v) return;
   if (!state.candles[v]) state.candles[v] = genCandles(v);
-  if (!state.watchlist.includes(v)) { state.watchlist.unshift(v); renderWatchlist(); }
   selectSymbol(v);
   e.target.value = '';
 });
