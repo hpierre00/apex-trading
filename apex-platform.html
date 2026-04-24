@@ -416,6 +416,86 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+/* ============================================================
+   DISCLAIMER STYLES (Phase 1a liability protection)
+   Unobtrusive but always visible. Not meant to blend away.
+   ============================================================ */
+
+.session-disclaimer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 14px;
+  background: rgba(255, 184, 0, 0.06);
+  border-bottom: 1px solid rgba(255, 184, 0, 0.25);
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+}
+.session-disclaimer strong { color: #ffb800; font-weight: 600; }
+.session-disclaimer .dismiss-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.session-disclaimer .dismiss-btn:hover { color: var(--text); border-color: var(--text-faint); }
+
+/* Inline disclaimer on signal cards */
+.signal-disclaimer {
+  grid-column: 1 / -1;
+  font-size: 9px;
+  color: var(--text-faint);
+  padding: 4px 8px 0;
+  letter-spacing: 0.3px;
+  opacity: 0.85;
+}
+
+/* Inline disclaimer under AI chat responses */
+.ai-response-disclaimer {
+  font-size: 9px;
+  color: var(--text-faint);
+  padding-top: 4px;
+  opacity: 0.75;
+  font-style: italic;
+}
+
+/* First-chat banner inside chat panel */
+.chat-first-banner {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: rgba(255, 184, 0, 0.05);
+  border: 1px solid rgba(255, 184, 0, 0.2);
+  padding: 8px 10px;
+  margin: 8px;
+  line-height: 1.5;
+}
+.chat-first-banner strong { color: #ffb800; }
+
+/* Instant Assessment pre-run modal content tweaks */
+.ack-modal-body {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  padding: 6px 2px;
+}
+.ack-modal-body ul { padding-left: 18px; margin: 8px 0; }
+.ack-modal-body li { margin-bottom: 4px; color: var(--text-dim); }
+.ack-modal-body .ack-warn {
+  color: #ffb800;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
 </style>
 </head>
 <body>
@@ -441,6 +521,17 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   <!-- TICKER STRIP -->
   <div class="ticker-strip">
     <div class="ticker-track" id="tickerTrack"></div>
+  </div>
+
+  <!-- SESSION DISCLAIMER (Phase 1a: per-session, dismissible) -->
+  <div class="session-disclaimer" id="sessionDisclaimer">
+    <div>
+      <strong>⚠ NOT FINANCIAL ADVICE.</strong>
+      APEX provides AI-generated market analysis that may contain errors or hallucinations.
+      This is not a trading recommendation. Every trading decision is your own.
+      Verify all information independently before acting.
+    </div>
+    <button class="dismiss-btn" id="dismissDisclaimer" type="button">I UNDERSTAND</button>
   </div>
 
   <!-- MAIN GRID -->
@@ -681,6 +772,32 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('customRangeModal')">CANCEL</button>
       <button class="btn btn-primary" id="customRangeSaveBtn">APPLY</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== INSTANT ASSESSMENT ACKNOWLEDGMENT (Phase 1a) ===== -->
+<!-- Shown once per session before running AI analysis. The acknowledgment
+     is stored in sessionStorage so it reappears in each new browser session,
+     which is the legally defensible pattern (fresh consent per session). -->
+<div class="modal-backdrop" id="assessAckModal">
+  <div class="modal" style="width:460px">
+    <h3>BEFORE YOU PROCEED</h3>
+    <div class="ack-modal-body">
+      <div class="ack-warn">⚠ About AI-Generated Analysis</div>
+      <p>You are about to request AI-generated analysis. Before you proceed, please understand:</p>
+      <ul>
+        <li>This analysis is produced by a large language model and <strong>may contain errors or hallucinations</strong> (confidently stated information that is incorrect).</li>
+        <li>The output is <strong>not a trade recommendation</strong> and <strong>not financial advice</strong>.</li>
+        <li>Reference prices, stop levels, and targets are <strong>analytical outputs</strong>, not orders or instructions.</li>
+        <li>You are <strong>solely responsible</strong> for verifying this analysis against independent sources and for any trading decisions you make.</li>
+      </ul>
+      <p style="color:var(--text-faint);font-size:10px;margin-top:10px">Clicking "Run Analysis" confirms you understand and accept these limitations. This acknowledgment applies for your current session.</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="assessAckCancel">CANCEL</button>
+      <button class="btn btn-primary" id="assessAckRun">RUN ANALYSIS</button>
     </div>
   </div>
 </div>
@@ -2765,6 +2882,7 @@ function renderSignalsTab() {
         <div class="signal-conf" style="margin-top:4px">CONF <span class="pct">${Math.round(s.confidence)}%</span> · RR ${s.rr}</div>
         ${s.status !== 'OPEN' ? `<div style="font-size:9px;color:var(--text-faint);margin-top:3px">MFE ${s.maxFavorable.toFixed(2)}R · MAE ${s.maxAdverse.toFixed(2)}R</div>` : ''}
       </div>
+      <div class="signal-disclaimer">⚠ AI-generated analysis. Not a trade recommendation. Reference levels are analytical, not orders. Verify independently.</div>
     </div>
   `;
   }).join('');
@@ -3010,7 +3128,13 @@ ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
     const data = await r.json();
     const text = data.content?.[0]?.text || 'Assessment failed.';
     const el = document.getElementById(loadingId);
-    if (el) el.querySelector('.assess-body').textContent = text;
+    if (el) {
+      el.querySelector('.assess-body').textContent = text;
+      // Append per-output disclaimer. Same pattern as chat responses; always
+      // present under Instant Assessment output so the analytical framing is
+      // inseparable from the content. Not dismissible.
+      el.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer" style="margin-top:8px">⚠ AI-generated analysis. May contain errors or hallucinations. Not financial advice. Verify independently before acting.</div>`);
+    }
     chatMessages.scrollTop = chatMessages.scrollHeight;
   } catch(e) {
     const el = document.getElementById(loadingId);
@@ -4126,7 +4250,57 @@ function updateConnPill() {
 
 document.getElementById('chatSend').addEventListener('click', sendChat);
 document.getElementById('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
-document.getElementById('assessBtn').addEventListener('click', runInstantAssessment);
+document.getElementById('assessBtn').addEventListener('click', requestInstantAssessment);
+
+/* ============================================================
+   PHASE 1A — DISCLAIMER WIRING
+   Session banner (per-session, sessionStorage-backed), Instant
+   Assessment acknowledgment gate (per-session), and helpers for
+   rendering inline disclaimers on signal cards and AI responses.
+   ============================================================ */
+
+// Session banner: dismiss for current browser session only.
+// Using sessionStorage (not localStorage) is intentional — a fresh
+// browser session should see the banner again for liability reasons.
+(function initSessionDisclaimer() {
+  const el = document.getElementById('sessionDisclaimer');
+  if (!el) return;
+  if (sessionStorage.getItem('apex_disclaimer_dismissed') === '1') {
+    el.style.display = 'none';
+  }
+  const btn = document.getElementById('dismissDisclaimer');
+  if (btn) btn.addEventListener('click', () => {
+    sessionStorage.setItem('apex_disclaimer_dismissed', '1');
+    el.style.display = 'none';
+  });
+})();
+
+// Instant Assessment acknowledgment gate.
+// Wraps the real runInstantAssessment call behind a one-per-session
+// modal that forces the user to actively acknowledge AI limitations.
+// Acknowledgment is session-scoped (sessionStorage), not permanent.
+function requestInstantAssessment() {
+  const candles = state.candles[state.symbol];
+  if (!candles || candles.length < 20) {
+    toast('No chart data yet', 'bear');
+    return;
+  }
+  if (sessionStorage.getItem('apex_assess_acked') === '1') {
+    runInstantAssessment();
+    return;
+  }
+  openModal('assessAckModal');
+}
+window.requestInstantAssessment = requestInstantAssessment;
+
+document.getElementById('assessAckCancel').addEventListener('click', () => {
+  closeModal('assessAckModal');
+});
+document.getElementById('assessAckRun').addEventListener('click', () => {
+  sessionStorage.setItem('apex_assess_acked', '1');
+  closeModal('assessAckModal');
+  runInstantAssessment();
+});
 
 async function sendChat() {
   const input = document.getElementById('chatInput');
@@ -4136,12 +4310,21 @@ async function sendChat() {
   // Multi-word triggers like 'read the tape' are matched as phrases inside \b boundaries.
   const assessTrigger = /\b(assess|read the tape|setup|what do you see|give me a read|levels|read)\b/i;
   if (assessTrigger.test(q)) {
-    runInstantAssessment();
+    requestInstantAssessment();
     input.value = '';
     return;
   }
   input.value = '';
   const msgs = document.getElementById('chatMessages');
+
+  // First-message-of-session banner inside the chat panel. Unobtrusive,
+  // one-time-per-browser-session reminder that AI output can be wrong.
+  // Placed before the user message so it reads top-down as a preamble.
+  if (sessionStorage.getItem('apex_chat_banner_shown') !== '1') {
+    msgs.insertAdjacentHTML('beforeend', `<div class="chat-first-banner"><strong>⚠ Heads up:</strong> APEX AI can make mistakes. Treat responses as a starting point for research, not as final answers. Never trade based on AI output alone.</div>`);
+    sessionStorage.setItem('apex_chat_banner_shown', '1');
+  }
+
   msgs.insertAdjacentHTML('beforeend', `<div class="msg user">${escapeHtml(q)}</div>`);
   msgs.scrollTop = msgs.scrollHeight;
   const thinkingId = 'm' + Date.now();
@@ -4168,6 +4351,10 @@ ${buildChartContext()}`,
     const data = await res.json();
     const text = data.content?.[0]?.text || data.completion || 'No response.';
     thinkingEl.textContent = text;
+    // Append per-response disclaimer below the AI text. Small muted italic,
+    // always present so users cannot later claim they were unaware responses
+    // could be inaccurate. Attached to the same .msg.ai container as a sibling.
+    thinkingEl.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer">AI responses may be inaccurate. Verify before acting.</div>`);
     if (text && text !== 'No response.') {
       state.chatHistory.push({ role: 'assistant', content: text });
       if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
