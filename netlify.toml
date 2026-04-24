@@ -2,8 +2,17 @@
   functions = "netlify/functions"
   publish = "."
 
+# Route `/app` to the trading terminal. Kept as a rewrite (status 200)
+# rather than a redirect so the URL stays clean (/app, not /apex-platform.html).
 [[redirects]]
-  from = "/"
+  from = "/app"
+  to = "/apex-platform.html"
+  status = 200
+
+# Legacy URL support. Some users may have bookmarked the old URL; keep
+# it working so those bookmarks don't 404.
+[[redirects]]
+  from = "/apex-platform.html"
   to = "/apex-platform.html"
   status = 200
 
