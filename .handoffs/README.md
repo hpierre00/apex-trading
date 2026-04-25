@@ -51,3 +51,4 @@ Next versions: v5.15b (theme sweep), v5.17 (pane-aware assessment, requires mult
 Multi-pane itself is unnumbered so far; call it v5.18 when it lands, or pick
 a new major like v6.0 if you want the multi-chart feature to signal a bigger
 change to users.
+# apex-production Supabase project: soghksmuocrgtttmnete
