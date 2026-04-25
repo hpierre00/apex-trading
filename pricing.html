@@ -231,7 +231,7 @@
     msg.textContent = 'Sending...';
     msg.className = 'waitlist-msg';
     try {
-      var res = await fetch('/.netlify/functions/waitlist', {
+      var res = await fetch('https://soghksmuocrgtttmnete.supabase.co/functions/v1/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email, source: 'pricing' })
