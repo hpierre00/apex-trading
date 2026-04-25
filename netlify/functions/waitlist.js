@@ -52,11 +52,13 @@ exports.handler = async (event) => {
     return resp(200, { ok: true });
   }
 
-  // Env vars
+  // Env vars. SUPABASE_KEY uses the shorter publishable key format
+  // (sb_publishable_...) set via Netlify. Falls back to the legacy
+  // SUPABASE_ANON_KEY name if both happen to be present.
   const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+  const SUPABASE_ANON_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.error('Missing Supabase env vars');
+    console.error('Missing Supabase env vars — URL:', !!process.env.SUPABASE_URL, 'KEY:', !!process.env.SUPABASE_KEY, 'ANON:', !!process.env.SUPABASE_ANON_KEY);
     return resp(500, { error: 'Waitlist is temporarily unavailable.' });
   }
 
