@@ -1,17 +1,16 @@
 -- APEX Waitlist Table Setup
--- Run this ONCE in your Supabase SQL editor (SQL > New Query > paste > Run).
--- Required before the /.netlify/functions/waitlist endpoint can insert records.
+-- Already applied to the apex-production Supabase project:
+--   Project ID:  soghksmuocrgtttmnete
+--   Project URL: https://soghksmuocrgtttmnete.supabase.co
+--   Region:      us-east-1
 --
--- Uses the project you already have connected:
---   SUPABASE_URL=https://mxyepucitjzleaziizkr.supabase.co  (verify yours)
---   SUPABASE_ANON_KEY=...  (get from Supabase dashboard, Settings > API)
+-- Netlify env vars (already set via MCP):
+--   SUPABASE_URL     = https://soghksmuocrgtttmnete.supabase.co
+--   SUPABASE_ANON_KEY = (set as secret in Netlify dashboard)
 --
--- Both env vars must be set in Netlify:
---   Netlify dashboard > Site settings > Environment variables > Add variable
---   SUPABASE_URL and SUPABASE_ANON_KEY
---   Trigger a fresh deploy after adding them.
+-- If you ever need to re-run this (e.g. on a new project), paste into
+-- Supabase Dashboard > SQL Editor > New query > Run.
 
--- 1) Table definition
 create table if not exists public.waitlist (
   id bigserial primary key,
   email text unique not null,
@@ -21,13 +20,11 @@ create table if not exists public.waitlist (
   user_agent text
 );
 
--- 2) Index for quick sort-by-date queries
-create index if not exists waitlist_created_at_idx on public.waitlist (created_at desc);
+create index if not exists waitlist_created_at_idx
+  on public.waitlist (created_at desc);
 
--- 3) Row-Level Security: allow anonymous inserts, block reads/updates.
 alter table public.waitlist enable row level security;
 
--- 4) Insert policy: anyone can insert (that's how the form works).
 drop policy if exists "anon_insert_waitlist" on public.waitlist;
 create policy "anon_insert_waitlist"
   on public.waitlist
@@ -35,11 +32,5 @@ create policy "anon_insert_waitlist"
   to anon
   with check (true);
 
--- NOTE: no select/update/delete policies for `anon` role. This means:
---   - Visitors (via the website) can ADD emails to the waitlist
---   - Visitors CANNOT read, update, or delete anyone's email
---   - Only you (Supabase dashboard, service role, or authenticated admin)
---     can see the list
-
--- 5) To view the waitlist, go to Supabase Dashboard > Table Editor > waitlist.
---    Or run: select email, source, created_at from waitlist order by created_at desc;
+-- To view the waitlist:
+-- select email, source, created_at from waitlist order by created_at desc;
