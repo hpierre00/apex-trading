@@ -1,0 +1,12 @@
+backtester/data/
+backtester/.venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.env
+node_modules/

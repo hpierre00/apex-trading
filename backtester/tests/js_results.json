@@ -1,0 +1,742 @@
+[
+  {
+    "id": "fix_001",
+    "group": "A_below",
+    "desc": "threshold_below_zero_score",
+    "result": null
+  },
+  {
+    "id": "fix_002",
+    "group": "A_below",
+    "desc": "threshold_below_very_weak_bull",
+    "result": null
+  },
+  {
+    "id": "fix_003",
+    "group": "A_below",
+    "desc": "threshold_below_weak_bull",
+    "result": null
+  },
+  {
+    "id": "fix_004",
+    "group": "A_below",
+    "desc": "threshold_below_moderate_bull",
+    "result": null
+  },
+  {
+    "id": "fix_005",
+    "group": "A_below",
+    "desc": "threshold_below_just_below_bull",
+    "result": null
+  },
+  {
+    "id": "fix_006",
+    "group": "A_below",
+    "desc": "threshold_below_very_weak_bear",
+    "result": null
+  },
+  {
+    "id": "fix_007",
+    "group": "A_below",
+    "desc": "threshold_below_weak_bear",
+    "result": null
+  },
+  {
+    "id": "fix_008",
+    "group": "A_below",
+    "desc": "threshold_below_moderate_bear",
+    "result": null
+  },
+  {
+    "id": "fix_009",
+    "group": "A_below",
+    "desc": "threshold_below_just_below_bear",
+    "result": null
+  },
+  {
+    "id": "fix_010",
+    "group": "A_below",
+    "desc": "threshold_below_mixed_near_threshold",
+    "result": null
+  },
+  {
+    "id": "fix_011",
+    "group": "A_above",
+    "desc": "threshold_above_just_above_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 105.7796,
+      "stop": 102.66163571428572,
+      "tp1": 109.93688571428572,
+      "tp2": 114.09417142857143,
+      "atr": 2.078642857142857,
+      "confidence": 18,
+      "rr": 1.33,
+      "total": 0.1801
+    }
+  },
+  {
+    "id": "fix_012",
+    "group": "A_above",
+    "desc": "threshold_above_weak_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 105.7796,
+      "stop": 102.66163571428572,
+      "tp1": 109.93688571428572,
+      "tp2": 114.09417142857143,
+      "atr": 2.078642857142857,
+      "confidence": 20,
+      "rr": 1.33,
+      "total": 0.20000000000000004
+    }
+  },
+  {
+    "id": "fix_013",
+    "group": "A_above",
+    "desc": "threshold_above_moderate_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 105.7796,
+      "stop": 102.66163571428572,
+      "tp1": 109.93688571428572,
+      "tp2": 114.09417142857143,
+      "atr": 2.078642857142857,
+      "confidence": 30,
+      "rr": 1.33,
+      "total": 0.3
+    }
+  },
+  {
+    "id": "fix_014",
+    "group": "A_above",
+    "desc": "threshold_above_strong_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 105.7796,
+      "stop": 102.66163571428572,
+      "tp1": 109.93688571428572,
+      "tp2": 114.09417142857143,
+      "atr": 2.078642857142857,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_015",
+    "group": "A_above",
+    "desc": "threshold_above_very_strong_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 105.7796,
+      "stop": 102.66163571428572,
+      "tp1": 109.93688571428572,
+      "tp2": 114.09417142857143,
+      "atr": 2.078642857142857,
+      "confidence": 80,
+      "rr": 1.33,
+      "total": 0.8000000000000002
+    }
+  },
+  {
+    "id": "fix_016",
+    "group": "A_above",
+    "desc": "threshold_above_max_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 105.7796,
+      "stop": 102.66163571428572,
+      "tp1": 109.93688571428572,
+      "tp2": 114.09417142857143,
+      "atr": 2.078642857142857,
+      "confidence": 100,
+      "rr": 1.33,
+      "total": 1
+    }
+  },
+  {
+    "id": "fix_017",
+    "group": "A_above",
+    "desc": "threshold_above_just_above_bear",
+    "result": {
+      "action": "SELL",
+      "entry": 105.7796,
+      "stop": 108.89756428571428,
+      "tp1": 101.62231428571428,
+      "tp2": 97.46502857142858,
+      "atr": 2.078642857142857,
+      "confidence": 18,
+      "rr": 1.33,
+      "total": -0.1801
+    }
+  },
+  {
+    "id": "fix_018",
+    "group": "A_above",
+    "desc": "threshold_above_strong_bear",
+    "result": {
+      "action": "SELL",
+      "entry": 105.7796,
+      "stop": 108.89756428571428,
+      "tp1": 101.62231428571428,
+      "tp2": 97.46502857142858,
+      "atr": 2.078642857142857,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": -0.5
+    }
+  },
+  {
+    "id": "fix_019",
+    "group": "A_above",
+    "desc": "threshold_above_very_strong_bear",
+    "result": {
+      "action": "SELL",
+      "entry": 105.7796,
+      "stop": 108.89756428571428,
+      "tp1": 101.62231428571428,
+      "tp2": 97.46502857142858,
+      "atr": 2.078642857142857,
+      "confidence": 80,
+      "rr": 1.33,
+      "total": -0.8000000000000002
+    }
+  },
+  {
+    "id": "fix_020",
+    "group": "A_above",
+    "desc": "threshold_above_max_bear",
+    "result": {
+      "action": "SELL",
+      "entry": 105.7796,
+      "stop": 108.89756428571428,
+      "tp1": 101.62231428571428,
+      "tp2": 97.46502857142858,
+      "atr": 2.078642857142857,
+      "confidence": 100,
+      "rr": 1.33,
+      "total": -1
+    }
+  },
+  {
+    "id": "fix_021",
+    "group": "B_weights",
+    "desc": "default_weights_sum1",
+    "result": {
+      "action": "BUY",
+      "entry": 96.9277,
+      "stop": 94.02978571428572,
+      "tp1": 100.79158571428572,
+      "tp2": 104.65547142857143,
+      "atr": 1.9319428571428563,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_022",
+    "group": "B_weights",
+    "desc": "sentiment_zero_not_renorm",
+    "result": {
+      "action": "BUY",
+      "entry": 96.9277,
+      "stop": 94.02978571428572,
+      "tp1": 100.79158571428572,
+      "tp2": 104.65547142857143,
+      "atr": 1.9319428571428563,
+      "confidence": 42.5,
+      "rr": 1.33,
+      "total": 0.42500000000000004
+    }
+  },
+  {
+    "id": "fix_023",
+    "group": "B_weights",
+    "desc": "sentiment_zero_renorm",
+    "result": {
+      "action": "BUY",
+      "entry": 96.9277,
+      "stop": 94.02978571428572,
+      "tp1": 100.79158571428572,
+      "tp2": 104.65547142857143,
+      "atr": 1.9319428571428563,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_024",
+    "group": "B_weights",
+    "desc": "all_weight_chart",
+    "result": {
+      "action": "BUY",
+      "entry": 96.9277,
+      "stop": 94.02978571428572,
+      "tp1": 100.79158571428572,
+      "tp2": 104.65547142857143,
+      "atr": 1.9319428571428563,
+      "confidence": 100,
+      "rr": 1.33,
+      "total": 1
+    }
+  },
+  {
+    "id": "fix_025",
+    "group": "B_weights",
+    "desc": "all_weight_risk_bear",
+    "result": {
+      "action": "SELL",
+      "entry": 96.9277,
+      "stop": 99.82561428571428,
+      "tp1": 93.06381428571429,
+      "tp2": 89.19992857142857,
+      "atr": 1.9319428571428563,
+      "confidence": 80,
+      "rr": 1.33,
+      "total": -0.8
+    }
+  },
+  {
+    "id": "fix_026",
+    "group": "B_weights",
+    "desc": "equal_weights",
+    "result": null
+  },
+  {
+    "id": "fix_027",
+    "group": "B_weights",
+    "desc": "overweight_macro_headwind",
+    "result": null
+  },
+  {
+    "id": "fix_028",
+    "group": "B_weights",
+    "desc": "weights_sum_gt1",
+    "result": {
+      "action": "BUY",
+      "entry": 97.558,
+      "stop": 95.64121428571428,
+      "tp1": 100.1137142857143,
+      "tp2": 102.66942857142858,
+      "atr": 1.277857142857145,
+      "confidence": 60,
+      "rr": 1.33,
+      "total": 0.6
+    }
+  },
+  {
+    "id": "fix_029",
+    "group": "B_weights",
+    "desc": "near_zero_weights",
+    "result": {
+      "action": "BUY",
+      "entry": 91.51,
+      "stop": 88.89365714285715,
+      "tp1": 94.99845714285715,
+      "tp2": 98.48691428571429,
+      "atr": 1.7442285714285706,
+      "confidence": 94,
+      "rr": 1.33,
+      "total": 0.94
+    }
+  },
+  {
+    "id": "fix_030",
+    "group": "B_weights",
+    "desc": "null_weights_defaults",
+    "result": {
+      "action": "BUY",
+      "entry": 95.1924,
+      "stop": 92.51307857142858,
+      "tp1": 98.76482857142858,
+      "tp2": 102.33725714285715,
+      "atr": 1.786214285714286,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_031",
+    "group": "C_dissent",
+    "desc": "chart_bear_others_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 104.421,
+      "stop": 101.80646785714286,
+      "tp1": 107.90704285714287,
+      "tp2": 111.39308571428572,
+      "atr": 1.7430214285714283,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_032",
+    "group": "C_dissent",
+    "desc": "chart_bull_others_bear",
+    "result": {
+      "action": "SELL",
+      "entry": 104.421,
+      "stop": 107.03553214285715,
+      "tp1": 100.93495714285714,
+      "tp2": 97.4489142857143,
+      "atr": 1.7430214285714283,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": -0.5
+    }
+  },
+  {
+    "id": "fix_033",
+    "group": "C_dissent",
+    "desc": "macro_bear_others_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 104.4167,
+      "stop": 101.29719285714286,
+      "tp1": 108.57604285714287,
+      "tp2": 112.73538571428573,
+      "atr": 2.0796714285714293,
+      "confidence": 60,
+      "rr": 1.33,
+      "total": 0.6000000000000001
+    }
+  },
+  {
+    "id": "fix_034",
+    "group": "C_dissent",
+    "desc": "risk_bear_others_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 104.4167,
+      "stop": 101.29719285714286,
+      "tp1": 108.57604285714287,
+      "tp2": 112.73538571428573,
+      "atr": 2.0796714285714293,
+      "confidence": 60,
+      "rr": 1.33,
+      "total": 0.6000000000000001
+    }
+  },
+  {
+    "id": "fix_035",
+    "group": "C_dissent",
+    "desc": "sentiment_bull_others_bear",
+    "result": {
+      "action": "SELL",
+      "entry": 99.4332,
+      "stop": 101.86721785714286,
+      "tp1": 96.18784285714285,
+      "tp2": 92.94248571428572,
+      "atr": 1.6226785714285705,
+      "confidence": 53,
+      "rr": 1.33,
+      "total": -0.5300000000000001
+    }
+  },
+  {
+    "id": "fix_036",
+    "group": "C_dissent",
+    "desc": "chart_strong_bear_others_mild_bull",
+    "result": null
+  },
+  {
+    "id": "fix_037",
+    "group": "C_dissent",
+    "desc": "risk_extreme_bear_others_mild",
+    "result": null
+  },
+  {
+    "id": "fix_038",
+    "group": "C_dissent",
+    "desc": "fundamental_bull_others_mild_bear",
+    "result": null
+  },
+  {
+    "id": "fix_039",
+    "group": "C_dissent",
+    "desc": "all_max_bull",
+    "result": {
+      "action": "BUY",
+      "entry": 95.2958,
+      "stop": 93.34071071428572,
+      "tp1": 97.9025857142857,
+      "tp2": 100.50937142857143,
+      "atr": 1.3033928571428552,
+      "confidence": 100,
+      "rr": 1.33,
+      "total": 1
+    }
+  },
+  {
+    "id": "fix_040",
+    "group": "C_dissent",
+    "desc": "all_max_bear",
+    "result": {
+      "action": "SELL",
+      "entry": 95.2958,
+      "stop": 97.25088928571428,
+      "tp1": 92.6890142857143,
+      "tp2": 90.08222857142857,
+      "atr": 1.3033928571428552,
+      "confidence": 100,
+      "rr": 1.33,
+      "total": -1
+    }
+  },
+  {
+    "id": "fix_041",
+    "group": "D_atr",
+    "desc": "flat_candles_atr_zero",
+    "result": null
+  },
+  {
+    "id": "fix_042",
+    "group": "D_atr",
+    "desc": "low_vol_tight_bars",
+    "result": {
+      "action": "BUY",
+      "entry": 99.9173,
+      "stop": 99.63508571428571,
+      "tp1": 100.29358571428571,
+      "tp2": 100.66987142857143,
+      "atr": 0.1881428571428582,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_043",
+    "group": "D_atr",
+    "desc": "high_vol_wide_bars",
+    "result": {
+      "action": "BUY",
+      "entry": 90.1278,
+      "stop": 74.58656785714285,
+      "tp1": 110.84944285714286,
+      "tp2": 131.57108571428572,
+      "atr": 10.36082142857143,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_044",
+    "group": "D_atr",
+    "desc": "gapped_candles",
+    "result": {
+      "action": "BUY",
+      "entry": 95.2968,
+      "stop": 90.98632500000001,
+      "tp1": 101.0441,
+      "tp2": 106.7914,
+      "atr": 2.873649999999997,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_045",
+    "group": "D_atr",
+    "desc": "exactly_20_candles",
+    "result": {
+      "action": "BUY",
+      "entry": 92.6874,
+      "stop": 90.48557142857142,
+      "tp1": 95.62317142857142,
+      "tp2": 98.55894285714287,
+      "atr": 1.467885714285716,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_046",
+    "group": "D_atr",
+    "desc": "only_19_candles_null",
+    "result": null
+  },
+  {
+    "id": "fix_047",
+    "group": "D_atr",
+    "desc": "only_15_candles_null",
+    "result": null
+  },
+  {
+    "id": "fix_048",
+    "group": "D_atr",
+    "desc": "high_base_price",
+    "result": {
+      "action": "BUY",
+      "entry": 861.1144,
+      "stop": 831.8448142857143,
+      "tp1": 900.1405142857143,
+      "tp2": 939.1666285714286,
+      "atr": 19.513057142857146,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_049",
+    "group": "D_atr",
+    "desc": "penny_stock_price",
+    "result": {
+      "action": "BUY",
+      "entry": 2.0603,
+      "stop": 1.9098392857142854,
+      "tp1": 2.2609142857142857,
+      "tp2": 2.461528571428571,
+      "atr": 0.10030714285714286,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_050",
+    "group": "D_atr",
+    "desc": "mixed_long_then_flat",
+    "result": {
+      "action": "BUY",
+      "entry": 100.4347,
+      "stop": 98.65841071428572,
+      "tp1": 102.80308571428571,
+      "tp2": 105.17147142857144,
+      "atr": 1.184192857142857,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_051",
+    "group": "E_dedup",
+    "desc": "dedup_3_bars_ago_suppressed",
+    "result": null
+  },
+  {
+    "id": "fix_052",
+    "group": "E_dedup",
+    "desc": "dedup_5_bars_ago_not_suppressed",
+    "result": {
+      "action": "BUY",
+      "entry": 103.4539,
+      "stop": 100.24653571428573,
+      "tp1": 107.73038571428572,
+      "tp2": 112.00687142857143,
+      "atr": 2.1382428571428553,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_053",
+    "group": "E_dedup",
+    "desc": "dedup_price_too_close",
+    "result": null
+  },
+  {
+    "id": "fix_054",
+    "group": "E_dedup",
+    "desc": "dedup_price_far_enough",
+    "result": {
+      "action": "BUY",
+      "entry": 103.4539,
+      "stop": 100.24653571428573,
+      "tp1": 107.73038571428572,
+      "tp2": 112.00687142857143,
+      "atr": 2.1382428571428553,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_055",
+    "group": "E_dedup",
+    "desc": "no_dedup_state",
+    "result": {
+      "action": "BUY",
+      "entry": 103.4539,
+      "stop": 100.24653571428573,
+      "tp1": 107.73038571428572,
+      "tp2": 112.00687142857143,
+      "atr": 2.1382428571428553,
+      "confidence": 50,
+      "rr": 1.33,
+      "total": 0.5
+    }
+  },
+  {
+    "id": "fix_056",
+    "group": "F_misc",
+    "desc": "all_agents_zero",
+    "result": null
+  },
+  {
+    "id": "fix_057",
+    "group": "F_misc",
+    "desc": "confidence_exactly_18",
+    "result": {
+      "action": "BUY",
+      "entry": 98.467,
+      "stop": 96.07099642857142,
+      "tp1": 101.66167142857142,
+      "tp2": 104.85634285714286,
+      "atr": 1.5973357142857156,
+      "confidence": 18,
+      "rr": 1.33,
+      "total": 0.18
+    }
+  },
+  {
+    "id": "fix_058",
+    "group": "F_misc",
+    "desc": "confidence_just_under_18",
+    "result": null
+  },
+  {
+    "id": "fix_059",
+    "group": "F_misc",
+    "desc": "max_signal_all_systems_go",
+    "result": {
+      "action": "BUY",
+      "entry": 128.7065,
+      "stop": 121.2746642857143,
+      "tp1": 138.6156142857143,
+      "tp2": 148.52472857142857,
+      "atr": 4.954557142857142,
+      "confidence": 100,
+      "rr": 1.33,
+      "total": 1
+    }
+  },
+  {
+    "id": "fix_060",
+    "group": "F_misc",
+    "desc": "mixed_candle_types",
+    "result": {
+      "action": "BUY",
+      "entry": 99.9212,
+      "stop": 97.0037,
+      "tp1": 103.8112,
+      "tp2": 107.7012,
+      "atr": 1.9450000000000014,
+      "confidence": 40,
+      "rr": 1.33,
+      "total": 0.4000000000000001
+    }
+  }
+]

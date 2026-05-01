@@ -1,0 +1,138 @@
+======================================================================
+APEX BACKTESTER -- PHASE 1E CONFIDENCE CALIBRATION REPORT
+======================================================================
+Training signals : 2,489
+Validation signals: 636
+Break-even win rate: 44.7%
+
+----------------------------------------------------------------------
+ANALYSIS 1 -- Confidence Decile Bucketing (training set)
+----------------------------------------------------------------------
+
+Confidence range: 18.0% -- 52.9%  (bin width 3.49%)
+
+               Bin      N    Win%    MeanR    Exp R  Flag
+------------------------------------------------------------
+   (17.999, 21.49]    558   41.8%  -0.0150  -0.0288  
+    (21.49, 24.98]    581   40.6%  -0.0142  -0.0226  
+    (24.98, 28.47]    512   41.2%  -0.0270  -0.0295  
+    (28.47, 31.96]     77   39.0%  -0.1137  -0.0955  
+    (31.96, 35.45]    233   30.5%  -0.2967  -0.3085  
+    (35.45, 38.94]    177   36.2%  -0.1477  -0.1533  
+    (38.94, 42.43]    114   28.9%  -0.3478  -0.3511  
+    (42.43, 45.92]    151   38.4%  -0.1017  -0.1060  
+    (45.92, 49.41]     57   40.4%  -0.1047  -0.1047  
+     (49.41, 52.9]     29   24.1%  -0.3026  -0.3905  
+
+No decile bin achieves break-even win rate of 44.7%.
+
+----------------------------------------------------------------------
+ANALYSIS 2 -- Direction Bias (training set)
+----------------------------------------------------------------------
+
+ Direction      N    Win%    MeanR    Exp R
+--------------------------------------------
+       BUY   1263   42.6%  +0.0151  +0.0045 <<< PROFITABLE
+      SELL   1226   34.9%  -0.1822  -0.1874
+
+FLAG: BUY signals have edge; SELL signals do not.
+
+----------------------------------------------------------------------
+ANALYSIS 3 -- Ticker Regime Check (UP vs DOWN, 50-day SMA slope, training set)
+  UP   = 50-day SMA today > 50-day SMA 20 bars ago
+  DOWN = otherwise
+----------------------------------------------------------------------
+
+Ticker  Regime      N    Win%    MeanR    Exp R
+----------------------------------------------------
+  AAPL      UP     85   44.7%  +0.0200  +0.0200
+  AAPL    DOWN     62   37.1%  -0.0700  -0.0784
+  MSFT      UP     83   43.4%  -0.0221  -0.0254
+  MSFT    DOWN     56   35.7%  -0.1931  -0.1761
+  NVDA      UP    101   52.5%  +0.1923  +0.1996
+  NVDA    DOWN     56   32.1%  -0.2007  -0.1984
+ GOOGL      UP     90   37.8%  +0.0018  -0.0231
+ GOOGL    DOWN     55   38.2%  -0.1858  -0.1835
+  META      UP     93   47.3%  +0.1850  +0.1762
+  META    DOWN     64   37.5%  +0.0097  +0.0155
+   JPM      UP     92   43.5%  -0.0183  -0.0320
+   JPM    DOWN     52   44.2%  -0.1167  -0.1167
+   XOM      UP     85   38.8%  -0.0524  -0.0767
+   XOM    DOWN     40   35.0%  -0.1251  -0.1428
+   JNJ      UP     52   23.1%  -0.3423  -0.3650
+   JNJ    DOWN     53   41.5%  +0.0315  +0.0157
+   WMT      UP     89   43.8%  -0.0192  -0.0139
+   WMT    DOWN     29   27.6%  -0.2758  -0.2783
+     V      UP     75   44.0%  +0.0048  -0.0178
+     V    DOWN     45   22.2%  -0.4488  -0.4343
+   SPY      UP     66   45.5%  -0.0363  -0.0363
+   SPY    DOWN     37   32.4%  -0.3654  -0.3654
+   QQQ      UP     81   38.3%  -0.0643  -0.0854
+   QQQ    DOWN     43   41.9%  +0.0260  +0.0139
+   IWM      UP     56   26.8%  -0.3812  -0.3909
+   IWM    DOWN     61   44.3%  +0.0517  +0.0672
+   DIA      UP     43   44.2%  +0.0362  -0.0030
+   DIA    DOWN     30   23.3%  -0.4213  -0.3545
+  TSLA      UP     65   49.2%  +0.1292  +0.1003
+  TSLA    DOWN     73   34.2%  -0.2860  -0.2872
+  COIN      UP     28   46.4%  +0.0419  +0.0419
+  COIN    DOWN     77   39.0%  -0.0819  -0.1075
+  SOFI      UP     28   39.3%  -0.0205  -0.0302
+  SOFI    DOWN     92   32.6%  -0.2709  -0.2642
+  PLTR      UP     44   38.6%  -0.0319  -0.0554
+  PLTR    DOWN     65   44.6%  +0.0660  +0.0422
+    KO      UP     66   39.4%  -0.0467  -0.0548
+    KO    DOWN     39   17.9%  -0.4108  -0.4652
+    PG      UP     52   25.0%  -0.3156  -0.3177
+    PG    DOWN     34   23.5%  -0.5189  -0.5178
+
+Overall UP regime    : N=1,374  Win=41.4%  Exp=-0.0320 R
+Overall DOWN regime  : N=1,063  Win=35.4%  Exp=-0.1689 R
+FLAG: System performs better in UP regime.
+
+----------------------------------------------------------------------
+ANALYSIS 4 -- Isotonic Calibration Fit
+----------------------------------------------------------------------
+
+Saved calibrator -> isotonic_calibrator.pkl
+
+Fitted isotonic breakpoints (confidence -> calibrated win probability):
+   Conf%    CalWinProb   NaiveProb     Lift
+  ----------------------------------------
+    18.0        0.3000      0.1800  +0.1200
+    18.1        0.3200      0.1810  +0.1390
+    18.2        0.3333      0.1820  +0.1513
+    18.3        0.3750      0.1830  +0.1920
+    19.3        0.3908      0.1930  +0.1978
+    44.9        0.3937      0.4490  -0.0553
+
+Validation Expected Calibration Error (ECE, 10 equal-width bins):
+  Before isotonic (naive confidence/100) : 0.1697
+  After  isotonic                        : 0.0212
+  ECE reduction                          : +87.5%
+
+Validation set -- calibrated probability vs actual win rate (decile bins):
+            CalProbBin      N   ActualWin%   CalProb%     Err
+  ----------------------------------------------------------
+          (0.3, 0.309]      3        33.3%      30.0%    -3.3%
+        (0.319, 0.328]      7        14.3%      32.0%   +17.7%
+        (0.328, 0.337]      6        33.3%      33.3%    +0.0%
+        (0.375, 0.384]     57        49.1%      37.5%   -11.6%
+        (0.384, 0.394]    563        40.5%      39.1%    -1.4%
+
+----------------------------------------------------------------------
+CALIBRATION RECOMMENDATION
+----------------------------------------------------------------------
+
+Observed training win rate : 38.8%
+Mean training confidence   : 28.1%
+Confidence-as-probability  : MISCALIBRATED (confidence < actual win rate)
+
+Pearson corr (confidence, win) on training set: -0.0580
+FINDING: Isotonic calibration reduces ECE by >20%.
+RECOMMENDATION: Apply isotonic recalibration to the displayed confidence.
+                Use isotonic_calibrator.pkl to map raw confidence -> win prob.
+
+======================================================================
+END OF REPORT
+======================================================================
