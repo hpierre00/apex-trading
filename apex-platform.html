@@ -888,6 +888,9 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
       <label style="display:flex;gap:10px;align-items:center;cursor:pointer;padding-left:20px">
         <input type="checkbox" id="notifOnSignal"> when new signals fire
       </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer;padding-left:20px">
+        <input type="checkbox" id="notifOnSmartSignal"> smart signals (power inflow, ORB, divergence, etc.)
+      </label>
       <div style="display:flex;gap:10px;align-items:center">
         <label style="font-size:10px;color:var(--text-dim);min-width:50px">VOLUME</label>
         <input type="range" id="notifVol" min="0" max="1" step="0.05" style="flex:1">
@@ -934,6 +937,8 @@ const state = {
   signalHistory: JSON.parse(localStorage.getItem('apex.signals') || '[]'),
   // Dedup: remember last signal per symbol to avoid spamming near-duplicates
   lastSignalPerSym: {},
+  smartSignals: {},
+  smartSignalHistory: [],
   notif: JSON.parse(localStorage.getItem('apex.notif') || 'null') || {
     soundEnabled: true,
     pushEnabled: true,
@@ -2580,6 +2585,217 @@ function scaleSign(value, neutral, strong) {
   return Math.max(-1, Math.min(1, (value - neutral) / range));
 }
 
+function detectPowerInflow(candles) {
+  if (candles.length < 22) return null;
+  const bar = candles.at(-1);
+  const prev20 = candles.slice(-21, -1);
+  const avgVol = prev20.reduce((s, c) => s + c.v, 0) / 20;
+  if (!avgVol) return null;
+  const volRatio = bar.v / avgVol;
+  const range = bar.h - bar.l;
+  const closePos = range > 0 ? (bar.c - bar.l) / range : 0.5;
+  const priceChg = (bar.c - candles.at(-2).c) / candles.at(-2).c;
+  if (volRatio >= 2.0 && closePos >= 0.70 && priceChg > 0) {
+    return {
+      triggered: true,
+      strength: Math.min(1, (volRatio - 2) / 3 + closePos * 0.3),
+      label: '💪 POWER INFLOW',
+      desc: `Volume ${volRatio.toFixed(1)}x avg, close in top ${((1-closePos)*100).toFixed(0)}% of range, +${(priceChg*100).toFixed(2)}%`,
+      kind: 'bull',
+    };
+  }
+  return null;
+}
+
+function detectDistribution(candles) {
+  if (candles.length < 22) return null;
+  const bar = candles.at(-1);
+  const prev20 = candles.slice(-21, -1);
+  const avgVol = prev20.reduce((s, c) => s + c.v, 0) / 20;
+  if (!avgVol) return null;
+  const volRatio = bar.v / avgVol;
+  const range = bar.h - bar.l;
+  const closePos = range > 0 ? (bar.c - bar.l) / range : 0.5;
+  const priceChg = (bar.c - candles.at(-2).c) / candles.at(-2).c;
+  if (volRatio >= 2.0 && closePos <= 0.30 && priceChg < 0) {
+    return {
+      triggered: true,
+      strength: Math.min(1, (volRatio - 2) / 3 + (1 - closePos) * 0.3),
+      label: '🏦 DISTRIBUTION',
+      desc: `Volume ${volRatio.toFixed(1)}x avg, close in bottom ${(closePos*100).toFixed(0)}% of range, ${(priceChg*100).toFixed(2)}%`,
+      kind: 'bear',
+    };
+  }
+  return null;
+}
+
+function detectVolumeClimax(candles) {
+  if (candles.length < 22) return null;
+  const bar = candles.at(-1);
+  const prev20 = candles.slice(-21, -1);
+  const avgVol = prev20.reduce((s, c) => s + c.v, 0) / 20;
+  if (!avgVol) return null;
+  const volRatio = bar.v / avgVol;
+  const range = bar.h - bar.l;
+  const avgRange = prev20.reduce((s, c) => s + (c.h - c.l), 0) / 20;
+  const relRange = avgRange > 0 ? range / avgRange : 1;
+  if (volRatio >= 3.0 && relRange < 0.6) {
+    return {
+      triggered: true,
+      strength: Math.min(1, volRatio / 6),
+      label: '📊 VOLUME CLIMAX',
+      desc: `Volume ${volRatio.toFixed(1)}x avg, range only ${(relRange*100).toFixed(0)}% of normal — absorption`,
+      kind: 'neutral',
+    };
+  }
+  return null;
+}
+
+function detectVWAPSignal(candles) {
+  if (candles.length < 3) return null;
+  let cumTPV = 0, cumV = 0;
+  for (const c of candles) { const tp = (c.h+c.l+c.c)/3; cumTPV += tp*c.v; cumV += c.v; }
+  const vwap = cumV > 0 ? cumTPV / cumV : candles.at(-1).c;
+  const curr = candles.at(-1).c;
+  const prev = candles.at(-2).c;
+  if (prev < vwap && curr > vwap) return { triggered: true, strength: 0.7, label: '✅ VWAP RECLAIM', desc: `Price reclaimed VWAP at ${vwap.toFixed(2)} — bullish shift`, kind: 'bull' };
+  if (prev > vwap && curr < vwap) return { triggered: true, strength: 0.7, label: '❌ VWAP LOST', desc: `Price lost VWAP at ${vwap.toFixed(2)} — bearish shift`, kind: 'bear' };
+  return null;
+}
+
+function detectBollingerSqueeze(candles) {
+  if (candles.length < 40) return null;
+  const period = 20, mult = 2;
+  function bbWidth(slice) {
+    const mean = slice.reduce((s,c) => s+c.c, 0) / period;
+    const std = Math.sqrt(slice.reduce((s,c) => s+Math.pow(c.c-mean,2), 0) / period);
+    return mean > 0 ? (mult * std * 2) / mean : 0;
+  }
+  const currWidth = bbWidth(candles.slice(-20));
+  const prevWidths = [];
+  for (let i = 20; i < 40; i++) prevWidths.push(bbWidth(candles.slice(-i-20,-i)));
+  const avgWidth = prevWidths.reduce((s,v) => s+v, 0) / prevWidths.length;
+  if (currWidth < avgWidth * 0.5) {
+    return { triggered: true, strength: Math.min(1, (avgWidth-currWidth)/avgWidth), label: '🗜 BB SQUEEZE', desc: `Bands at ${(currWidth*100).toFixed(1)}% vs ${(avgWidth*100).toFixed(1)}% avg — compression, breakout imminent`, kind: 'neutral' };
+  }
+  return null;
+}
+
+function detectORB(candles, tf) {
+  const tfMins = tfMinutes(tf);
+  if (tfMins > 60) return null;
+  const orbBars = tf === '1m' ? 15 : tf === '3m' ? 5 : tf === '5m' ? 3 : 2;
+  if (candles.length < orbBars + 1) return null;
+  const sessionStart = Math.max(0, candles.length - 78);
+  const orbCandles = candles.slice(sessionStart, sessionStart + orbBars);
+  if (orbCandles.length < orbBars) return null;
+  const orbHigh = Math.max(...orbCandles.map(c => c.h));
+  const orbLow = Math.min(...orbCandles.map(c => c.l));
+  const curr = candles.at(-1).c;
+  const prev = candles.at(-2).c;
+  if (prev <= orbHigh && curr > orbHigh) return { triggered: true, strength: 0.8, label: '🚀 ORB BREAKOUT', desc: `Broke opening range high ${orbHigh.toFixed(2)} — long bias`, kind: 'bull' };
+  if (prev >= orbLow && curr < orbLow) return { triggered: true, strength: 0.8, label: '📉 ORB BREAKDOWN', desc: `Broke opening range low ${orbLow.toFixed(2)} — short bias`, kind: 'bear' };
+  return null;
+}
+
+function detectFailedBreakdown(candles) {
+  if (candles.length < 22) return null;
+  const support = Math.min(...candles.slice(-20).map(c => c.l));
+  const prev = candles.at(-2);
+  const curr = candles.at(-1);
+  if (prev.l < support && curr.c > support && curr.c > prev.c) {
+    return { triggered: true, strength: 0.85, label: '🪤 FAILED BREAKDOWN', desc: `Bears trapped below ${support.toFixed(2)}, price reclaimed — strong long`, kind: 'bull' };
+  }
+  return null;
+}
+
+function detectRSIDivergence(candles) {
+  if (candles.length < 30) return null;
+  const rsis = computeRSI(candles, 14);
+  const last = rsis.length - 1;
+  if (!rsis[last]) return null;
+  const priceHighs = [], priceLows = [];
+  for (let i = last - 10; i < last - 2; i++) {
+    if (!rsis[i]) continue;
+    if (candles[i].c > candles[i-1]?.c && candles[i].c > candles[i+1]?.c) priceHighs.push({ v: candles[i].c, rsi: rsis[i] });
+    if (candles[i].c < candles[i-1]?.c && candles[i].c < candles[i+1]?.c) priceLows.push({ v: candles[i].c, rsi: rsis[i] });
+  }
+  const curr = candles.at(-1).c, currRSI = rsis[last];
+  if (priceHighs.length && curr > priceHighs.at(-1).v && currRSI < priceHighs.at(-1).rsi && currRSI > 60)
+    return { triggered: true, strength: 0.75, label: '⚠️ RSI BEARISH DIV', desc: `Price higher high, RSI lower (${currRSI.toFixed(0)} vs ${priceHighs.at(-1).rsi.toFixed(0)}) — momentum fading`, kind: 'bear' };
+  if (priceLows.length && curr < priceLows.at(-1).v && currRSI > priceLows.at(-1).rsi && currRSI < 40)
+    return { triggered: true, strength: 0.75, label: '📈 RSI BULLISH DIV', desc: `Price lower low, RSI higher (${currRSI.toFixed(0)} vs ${priceLows.at(-1).rsi.toFixed(0)}) — downside weakening`, kind: 'bull' };
+  return null;
+}
+
+function detectPriorDayLevels(candles, tf) {
+  const tfMins = tfMinutes(tf);
+  if (tfMins > 240 || candles.length < 80) return null;
+  const barsPerDay = Math.floor(390 / (tfMins || 5));
+  const priorDay = candles.slice(-barsPerDay*2, -barsPerDay);
+  if (!priorDay.length) return null;
+  const pdHigh = Math.max(...priorDay.map(c => c.h));
+  const pdLow = Math.min(...priorDay.map(c => c.l));
+  const curr = candles.at(-1).c;
+  const atr = computeATR(candles, 14);
+  const prox = atr * 0.15;
+  if (Math.abs(curr - pdHigh) < prox) return { triggered: true, strength: 0.7, label: `📏 PRIOR DAY HIGH ${curr > pdHigh ? 'BROKEN' : 'TEST'}`, desc: `Price ${curr > pdHigh ? 'broke above' : 'testing'} prior day high ${pdHigh.toFixed(2)}`, kind: curr > pdHigh ? 'bull' : 'neutral' };
+  if (Math.abs(curr - pdLow) < prox) return { triggered: true, strength: 0.7, label: `📏 PRIOR DAY LOW ${curr < pdLow ? 'BROKEN' : 'TEST'}`, desc: `Price ${curr < pdLow ? 'broke below' : 'testing'} prior day low ${pdLow.toFixed(2)}`, kind: curr < pdLow ? 'bear' : 'neutral' };
+  return null;
+}
+
+async function runSmartSignals() {
+  const sym = state.panes?.[state.activePane]?.symbol || state.symbol;
+  const tf = state.panes?.[state.activePane]?.timeframe || state.timeframe;
+  const candles = state.candles[sym];
+  if (!candles || candles.length < 22) return;
+
+  const detectors = [
+    () => detectPowerInflow(candles),
+    () => detectDistribution(candles),
+    () => detectVolumeClimax(candles),
+    () => detectVWAPSignal(candles),
+    () => detectBollingerSqueeze(candles),
+    () => detectORB(candles, tf),
+    () => detectFailedBreakdown(candles),
+    () => detectRSIDivergence(candles),
+    () => detectPriorDayLevels(candles, tf),
+  ];
+
+  for (const detect of detectors) {
+    try {
+      const result = detect();
+      if (!result?.triggered) continue;
+      const key = `${sym}:${result.label}`;
+      const lastFired = state.smartSignals[key] || 0;
+      if (candles.length - lastFired < 10) continue;
+      state.smartSignals[key] = candles.length;
+      state.smartSignalHistory.unshift({
+        id: 'ss_' + Date.now(),
+        sym, tf,
+        label: result.label,
+        desc: result.desc,
+        kind: result.kind,
+        strength: result.strength,
+        price: candles.at(-1).c,
+        timestamp: Date.now(),
+      });
+      if (state.smartSignalHistory.length > 200) state.smartSignalHistory.length = 200;
+      if (state.notif?.notifyOnSmartSignal !== false && state.notif?.notifyOnSignal) {
+        notify({
+          title: `${result.label} — ${sym}`,
+          body: result.desc,
+          kind: result.kind === 'bull' ? 'signal-buy' : result.kind === 'bear' ? 'signal-sell' : 'alert',
+          toastKind: result.kind === 'bull' ? 'bull' : result.kind === 'bear' ? 'bear' : '',
+        });
+      }
+    } catch (e) {
+      console.warn('Smart signal error:', e.message);
+    }
+  }
+  if (state.activeTab === 'signals') renderSignalsTab();
+}
+
 function tfTier(tf) {
   const tiers = {
     '1m':  { confThreshold: 35, dedupBars: 15, fundWeight: 0.0, macroWeight: 0.0,  label: 'scalp' },
@@ -2892,13 +3108,31 @@ function renderSignalsTab() {
     </div>
   `;
 
+  const smartSection = state.smartSignalHistory.slice(0, 20).map(s => {
+    const ago = relativeTime(new Date(s.timestamp));
+    const color = s.kind === 'bull' ? 'var(--bull)' : s.kind === 'bear' ? 'var(--bear)' : 'var(--text-dim)';
+    const pct = Math.round(s.strength * 100);
+    return `<div style="padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectSymbol('${s.sym}')">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="color:${color};font-weight:700;font-size:11px">${s.label}</span>
+        <span style="color:var(--text-faint);font-size:9px">${s.sym} · ${s.tf} · ${ago}</span>
+      </div>
+      <div style="color:var(--text-dim);font-size:10px;margin-top:3px;line-height:1.4">${s.desc}</div>
+      <div style="margin-top:4px;height:2px;background:var(--border)">
+        <div style="height:2px;width:${pct}%;background:${color}"></div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:11px">No smart signals yet.</div>';
+
+  const smartHeader = `<div style="padding:6px 12px;background:var(--panel-2);border-bottom:1px solid var(--border)"><span style="font-size:9px;letter-spacing:1.5px;color:var(--gold)">SMART SIGNALS</span></div>${smartSection}<div style="padding:6px 12px;background:var(--panel-2);border-bottom:1px solid var(--border)"><span style="font-size:9px;letter-spacing:1.5px;color:var(--gold)">AI SIGNALS</span></div>`;
+
   if (!filtered.length) {
-    content.innerHTML = filterBar + `<div class="empty">No ${filter === 'all' ? '' : filter + ' '}signals yet. AI agents publish signals when confidence crosses threshold.</div>`;
+    content.innerHTML = filterBar + smartHeader + `<div class="empty">No ${filter === 'all' ? '' : filter + ' '}signals yet. AI agents publish signals when confidence crosses threshold.</div>`;
     wireFilterBar();
     return;
   }
 
-  content.innerHTML = filterBar + filtered.map(s => {
+  content.innerHTML = filterBar + smartHeader + filtered.map(s => {
     const statusBadge = statusBadgeHTML(s);
     const action = s.action.toLowerCase();
     return `
@@ -3769,6 +4003,7 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
   document.getElementById('notifPush').checked = state.notif.pushEnabled;
   document.getElementById('notifOnAlert').checked = state.notif.notifyOnAlert;
   document.getElementById('notifOnSignal').checked = state.notif.notifyOnSignal;
+  document.getElementById('notifOnSmartSignal').checked = state.notif.notifyOnSmartSignal !== false;
   document.getElementById('notifVol').value = state.notif.soundVolume;
   updateNotifPushStatus();
 });
@@ -3804,6 +4039,10 @@ document.getElementById('notifOnAlert').addEventListener('change', (e) => {
 
 document.getElementById('notifOnSignal').addEventListener('change', (e) => {
   state.notif.notifyOnSignal = e.target.checked; saveNotif();
+});
+
+document.getElementById('notifOnSmartSignal').addEventListener('change', (e) => {
+  state.notif.notifyOnSmartSignal = e.target.checked; saveNotif();
 });
 
 document.getElementById('notifVol').addEventListener('input', (e) => {
@@ -4163,6 +4402,9 @@ async function connectAlpaca() {
           }
         }
         state.alpaca.lastTickAt = Date.now();
+        if (m.S === (state.panes?.[state.activePane]?.symbol || state.symbol)) {
+          runSmartSignals();
+        }
       } else if (m.T === 'error') {
         // Alpaca auth error codes: 400 invalid syntax, 401 not authenticated,
         // 402 auth failed, 404 auth timeout, 406 connection limit exceeded.
@@ -4713,6 +4955,7 @@ function init() {
   setInterval(simTick, 1200);
   // re-run agents every 30s on current symbol
   setInterval(runAgents, 20000);
+  setInterval(runSmartSignals, 15000);
   setInterval(updateMktStatus, 30000);
   // Signal outcome checker: every 5 seconds, walk OPEN signals and check hits
   setInterval(checkSignalOutcomes, 5000);
