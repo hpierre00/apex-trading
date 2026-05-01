@@ -2369,6 +2369,19 @@ async function runAgents() {
   if (state.symbol !== sym) return;
   rebalanceAgentWeights();
   generateSignal(verdicts);
+  const tier = tfTier(state.timeframe);
+  if (tier.fundWeight === 0) {
+    const el = document.getElementById('agent-fundamental');
+    const v = el?.querySelector('.agent-verdict');
+    if (v) v.insertAdjacentHTML('beforeend',
+      `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">⚠️ Downweighted to 0x on ${state.timeframe} — irrelevant intraday</div>`);
+  }
+  if (tier.macroWeight === 0) {
+    const el = document.getElementById('agent-macro');
+    const v = el?.querySelector('.agent-verdict');
+    if (v) v.insertAdjacentHTML('beforeend',
+      `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">⚠️ Downweighted to 0x on ${state.timeframe} — irrelevant intraday</div>`);
+  }
 }
 
 /* ============================================================
@@ -2567,11 +2580,34 @@ function scaleSign(value, neutral, strong) {
   return Math.max(-1, Math.min(1, (value - neutral) / range));
 }
 
+function tfTier(tf) {
+  const tiers = {
+    '1m':  { confThreshold: 35, dedupBars: 15, fundWeight: 0.0, macroWeight: 0.0,  label: 'scalp' },
+    '3m':  { confThreshold: 32, dedupBars: 12, fundWeight: 0.0, macroWeight: 0.0,  label: 'scalp' },
+    '5m':  { confThreshold: 28, dedupBars: 10, fundWeight: 0.0, macroWeight: 0.05, label: 'intraday' },
+    '15m': { confThreshold: 24, dedupBars: 8,  fundWeight: 0.05, macroWeight: 0.1, label: 'intraday' },
+    '30m': { confThreshold: 22, dedupBars: 6,  fundWeight: 0.1, macroWeight: 0.15, label: 'intraday' },
+    '1h':  { confThreshold: 20, dedupBars: 5,  fundWeight: 0.2, macroWeight: 0.25, label: 'swing' },
+    '4h':  { confThreshold: 18, dedupBars: 4,  fundWeight: 0.4, macroWeight: 0.4,  label: 'swing' },
+    '1d':  { confThreshold: 15, dedupBars: 3,  fundWeight: 1.0, macroWeight: 1.0,  label: 'position' },
+    '1w':  { confThreshold: 12, dedupBars: 2,  fundWeight: 1.0, macroWeight: 1.0,  label: 'position' },
+    '1mo': { confThreshold: 10, dedupBars: 1,  fundWeight: 1.0, macroWeight: 1.0,  label: 'macro' },
+  };
+  return tiers[tf] || tiers['1d'];
+}
+
 function generateSignal(verdicts) {
-  const weightFor = (id) => state.learnedWeights?.[id] ?? AGENTS.find(a => a.id === id).weight;
+  const tier = tfTier(state.timeframe);
+  const weightFor = (id) => {
+    const base = state.learnedWeights?.[id] ?? AGENTS.find(a => a.id === id).weight;
+    if (id === 'fundamental') return base * tier.fundWeight;
+    if (id === 'macro') return base * tier.macroWeight;
+    return base;
+  };
+  const weightSum = AGENTS.reduce((s, a) => s + Math.abs(weightFor(a.id)), 0) || 1;
   const total = AGENTS.reduce((s, a) => s + (verdicts[a.id]?.score || 0) * weightFor(a.id), 0);
-  const confidence = Math.abs(total) * 100;
-  if (confidence < 18) return; // too weak
+  const confidence = (Math.abs(total) / weightSum) * 100;
+  if (confidence < tier.confThreshold) return;
   const candles = state.candles[state.symbol];
   if (!candles || candles.length < 20) return;
 
@@ -2580,6 +2616,7 @@ function generateSignal(verdicts) {
   if (!isFinite(atr) || atr <= 0) return;
 
   const action = total > 0 ? 'BUY' : 'SELL';
+  if (action === 'SELL') return; // Backtester v1 finding: SELL signals negative expectancy pending regime calibration
   const entry = last.c;
   const stop = action === 'BUY' ? entry - atr * 1.5 : entry + atr * 1.5;
   const tp1 = action === 'BUY' ? entry + atr * 2 : entry - atr * 2;
@@ -2592,7 +2629,7 @@ function generateSignal(verdicts) {
   if (prev) {
     const barsSince = candles.length - prev.candleIdx;
     const priceDrift = Math.abs(entry - prev.entry);
-    if (barsSince < 5 || priceDrift < atr * 0.3) return;
+    if (barsSince < tier.dedupBars || priceDrift < atr * 0.3) return;
   }
 
   const signal = {
@@ -2868,7 +2905,7 @@ function renderSignalsTab() {
     <div class="signal-card ${action}">
       <div class="signal-head">
         <div class="signal-sym">${s.sym} ${statusBadge}</div>
-        <div class="signal-action ${action}">${s.action} · ${s.timeframe || ''} · ${formatTime(s.timestamp)}</div>
+        <div class="signal-action ${action}">${s.action} · ${s.timeframe || ''} · ${tfTier(s.tf || s.timeframe).label} · ${formatTime(s.timestamp)}</div>
       </div>
       <div class="signal-field">
         <div class="signal-label">ENTRY</div>
