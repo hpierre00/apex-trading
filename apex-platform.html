@@ -960,6 +960,9 @@ const state = {
   },
   signals: [], // legacy pointer, kept in sync with signalHistory for existing render paths
   activeTab: 'signals',
+  // Multi-pane chart model. panes[0] mirrors globals in 1x1 mode.
+  panes: [],
+  activePane: 0,
   // Session-only multi-turn chat memory for AI Chat. Not persisted to localStorage.
   // Cleared on symbol switch so Claude doesn't mix context from different tickers.
   chatHistory: [],
@@ -1082,6 +1085,31 @@ function saveIndicatorState() {
 }
 
 function indOn(id) { return !!chartState.indicators[id]; }
+
+// ── Multi-pane data model ─────────────────────────────────────────────────────
+// Commit 1: 1x1 only. panes[0] shares global chartState + canvas.
+// Later commits introduce per-pane canvas elements and independent chartStates.
+
+function createPane() {
+  return {
+    symbol:     state.symbol,
+    timeframe:  state.timeframe,
+    chartState: chartState,   // pane 0 shares the module-level chartState
+    canvas:     canvas,       // pane 0 shares the module-level canvas element
+  };
+}
+
+function syncActivePane() {
+  const p = state.panes[state.activePane];
+  if (!p) return;
+  p.symbol    = state.symbol;
+  p.timeframe = state.timeframe;
+}
+
+function initLayout() {
+  if (!state.panes.length) state.panes.push(createPane());
+  syncActivePane();
+}
 
 const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
@@ -2282,6 +2310,7 @@ async function selectSymbol(s) {
     chatMessages.innerHTML = `<div class="msg ai" style="opacity:0.6;font-size:10px;text-align:center;border:none;padding:8px 0">— chat reset for ${s.toUpperCase()} —</div>`;
   }
   state.symbol = s;
+  syncActivePane();
   document.getElementById('symName').textContent = s;
   // If connected and we don't have bars for this symbol yet (or they're simulated), fetch real
   if (state.alpaca.state === 'live') {
@@ -4943,6 +4972,7 @@ function init() {
   renderTabs();
   updateMktStatus();
   startClock();
+  initLayout();
   resizeCanvas();
   runAgents();
   // auto-connect to Alpaca via server-side credentials
