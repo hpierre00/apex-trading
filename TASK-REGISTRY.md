@@ -1,8 +1,9 @@
 # APEX Task Registry
 
-| Task ID | Title | Status | Outcome |
-|---|---|---|---|
-| APEX-20260423-001 | Backtester Phase 1 — Evidence Base | **COMPLETE** | No aggregate edge. BUY marginally positive (+0.005 R). SELL structurally negative (−0.187 R). See `backtester/ADR.md`. Phase 2 experiments defined. |
+| Task ID | Title | Status | Completed | Outcome |
+|---|---|---|---|---|
+| APEX-20260423-001 | Backtester Phase 1 — Evidence Base | **COMPLETE** | 2026-05-01 | No aggregate edge. BUY marginally positive (+0.005 R). SELL structurally negative (−0.187 R). See `backtester/ADR.md`. Phase 2 experiments defined. |
+| APEX-20260423-002 | Backtester Phase 2 — Filter experiments | **COMPLETE** | 2026-05-01 | BUY-only validated: +0.097 R val, Sharpe +1.49. SELL suppression is the production change. |
 
 ---
 

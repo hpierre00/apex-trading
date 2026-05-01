@@ -171,6 +171,24 @@ redesign before further parameter tuning.
 
 ---
 
+### Phase 2 Results (Experiments 1–3)
+
+| Filter | Train Exp | Val Exp | Val Sharpe | Verdict |
+|---|---|---|---|---|
+| Original (all signals) | −0.090 R | −0.029 R | −0.434 | Baseline |
+| BUY-only | +0.005 R | +0.097 R | +1.49 | **Ship this** |
+| BUY-only + UP-regime | −0.005 R | +0.072 R | — | Marginal, not worth signal reduction |
+| BUY-only, TP2=2×ATR | −0.007 R | +0.085 R | — | Worse than original TP2, don't change |
+
+**Phase 2 Decision:** Suppress SELL signals in production. Keep 4×ATR TP2.
+Do not add UP-regime gate. BUY-only is the deployable filter.
+
+Scripts: `phase2.py` (Experiments 1–2), `exp3.py` (Experiment 3).
+Results: `results/signals_buyonly.csv`, `results/signals_buyonly_upregime.csv`,
+`results/signals_buyonly_tp2_2r.csv`.
+
+---
+
 ### What Was NOT Tested
 
 - **1h timeframe.** 1h bars are cached (69,411 bars) but not replayed. The 1h
