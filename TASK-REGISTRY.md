@@ -4,6 +4,9 @@
 |---|---|---|---|---|
 | APEX-20260423-001 | Backtester Phase 1 — Evidence Base | **COMPLETE** | 2026-05-01 | No aggregate edge. BUY marginally positive (+0.005 R). SELL structurally negative (−0.187 R). See `backtester/ADR.md`. Phase 2 experiments defined. |
 | APEX-20260423-002 | Backtester Phase 2 — Filter experiments | **COMPLETE** | 2026-05-01 | BUY-only validated: +0.097 R val, Sharpe +1.49. SELL suppression is the production change. |
+| APEX-20260501-001 | v5.22 timeframe-aware signal calibration | **COMPLETE** | 2026-05-01 | Per-TF thresholds, dedup windows, fund/macro downweighted intraday, BUY-only filter applied |
+| APEX-20260501-002 | v5.23 smart signal engine | **COMPLETE** | 2026-05-01 | 9 detectors live: power inflow, distribution, volume climax, VWAP, BB squeeze, ORB, failed breakdown, RSI div, prior day levels |
+| APEX-20260501-003 | exp4 SELL regime gate experiment | **COMPLETE** | 2026-05-01 | Gate halves SELL loss (-0.187 to -0.094R train) but stays negative on holdout. SELL suppression confirmed. |
 
 ---
 
