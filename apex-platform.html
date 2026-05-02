@@ -1084,7 +1084,7 @@ function saveIndicatorState() {
   localStorage.setItem('apex.subPanel', chartState.subPanel);
 }
 
-function indOn(id) { return !!chartState.indicators[id]; }
+function indOn(id, cs) { return !!(cs || chartState).indicators[id]; }
 
 // ── Multi-pane data model ─────────────────────────────────────────────────────
 // Commit 1: 1x1 only. panes[0] shares global chartState + canvas.
@@ -1234,9 +1234,12 @@ function scheduleWatchlistUpdate() {
   }, delay);
 }
 
-function renderChart() {
+function renderChartForPane(pane, candles) {
   try {
-  const candles = state.candles[state.symbol] || [];
+  candles = candles || [];
+  const ctx = pane.canvas.getContext('2d');
+  const cw = pane.canvas.width / dpr;
+  const ch = pane.canvas.height / dpr;
   const emptyEl = document.getElementById('emptyMsg');
   if (!candles.length) {
     // Clear canvas and show empty message
@@ -1253,13 +1256,13 @@ function renderChart() {
 
   const AXIS_W = 60;
   const TIME_H = 22;
-  const VOL_H = indOn('volume') ? 50 : 0;
-  const SUB_H = chartState.subPanel !== 'none' ? 80 : 0;
+  const VOL_H = indOn('volume', pane.chartState) ? 50 : 0;
+  const SUB_H = pane.chartState.subPanel !== 'none' ? 80 : 0;
   const chartW = cw - AXIS_W;
   const chartH = ch - TIME_H - VOL_H - SUB_H;
 
-  const start = Math.floor(chartState.visibleStart);
-  const count = Math.ceil(chartState.visibleCount);
+  const start = Math.floor(pane.chartState.visibleStart);
+  const count = Math.ceil(pane.chartState.visibleCount);
   const end = Math.min(candles.length, start + count);
   const visible = candles.slice(start, end);
   if (!visible.length) return;
@@ -1274,15 +1277,15 @@ function renderChart() {
   const pad = (maxP - minP) * 0.08 || 1;
   minP -= pad; maxP += pad;
   const mid = (minP + maxP) / 2;
-  const halfRange = (maxP - minP) / 2 / chartState.priceScale;
+  const halfRange = (maxP - minP) / 2 / pane.chartState.priceScale;
   minP = mid - halfRange;
   maxP = mid + halfRange;
-  const vshift = (maxP - minP) * chartState.priceOffsetRatio;
+  const vshift = (maxP - minP) * pane.chartState.priceOffsetRatio;
   minP += vshift; maxP += vshift;
 
-  const candleW = chartW / chartState.visibleCount;
+  const candleW = chartW / pane.chartState.visibleCount;
   const y = (p) => chartH * (1 - (p - minP) / (maxP - minP));
-  const xAt = (i) => (i - chartState.visibleStart) * candleW + candleW / 2;
+  const xAt = (i) => (i - pane.chartState.visibleStart) * candleW + candleW / 2;
 
   // --- clear
   ctx.fillStyle = '#0b1221';
@@ -1293,7 +1296,7 @@ function renderChart() {
   ctx.fillStyle = '#5a6678';
   for (let i = 0; i <= 6; i++) {
     const yy = (chartH * i) / 6;
-    if (indOn('grid')) {
+    if (indOn('grid', pane.chartState)) {
       ctx.strokeStyle = '#12192480';
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(chartW, yy); ctx.stroke();
@@ -1307,22 +1310,22 @@ function renderChart() {
     try { fn(); }
     catch (e) { console.warn(`APEX indicator error [${label}]:`, e.message); }
   };
-  if (indOn('sma20')) safeDrawOverlay(() => drawSMA(candles, start, end, 20, y, xAt, '#ff9800'), 'SMA20');
-  if (indOn('sma50')) safeDrawOverlay(() => drawSMA(candles, start, end, 50, y, xAt, '#2e7fff'), 'SMA50');
-  if (indOn('sma200')) safeDrawOverlay(() => drawSMA(candles, start, end, 200, y, xAt, '#9d4edd'), 'SMA200');
-  if (indOn('ema9')) safeDrawOverlay(() => drawEMA(candles, start, end, 9, y, xAt, '#26a69a'), 'EMA9');
-  if (indOn('ema21')) safeDrawOverlay(() => drawEMA(candles, start, end, 21, y, xAt, '#ef5350'), 'EMA21');
-  if (indOn('ema50')) safeDrawOverlay(() => drawEMA(candles, start, end, 50, y, xAt, '#ffb300'), 'EMA50');
-  if (indOn('bb')) safeDrawOverlay(() => drawBollinger(candles, start, end, 20, 2, y, xAt), 'Bollinger');
-  if (indOn('kc')) safeDrawOverlay(() => drawKeltner(candles, start, end, 20, 2, y, xAt), 'Keltner');
-  if (indOn('donchian')) safeDrawOverlay(() => drawDonchian(candles, start, end, 20, y, xAt), 'Donchian');
-  if (indOn('vwap')) safeDrawOverlay(() => drawVWAP(visible, y, candleW), 'VWAP');
-  if (indOn('vwapBands')) safeDrawOverlay(() => drawVWAPBands(visible, y, candleW), 'VWAPBands');
+  if (indOn('sma20', pane.chartState)) safeDrawOverlay(() => drawSMA(candles, start, end, 20, y, xAt, '#ff9800'), 'SMA20');
+  if (indOn('sma50', pane.chartState)) safeDrawOverlay(() => drawSMA(candles, start, end, 50, y, xAt, '#2e7fff'), 'SMA50');
+  if (indOn('sma200', pane.chartState)) safeDrawOverlay(() => drawSMA(candles, start, end, 200, y, xAt, '#9d4edd'), 'SMA200');
+  if (indOn('ema9', pane.chartState)) safeDrawOverlay(() => drawEMA(candles, start, end, 9, y, xAt, '#26a69a'), 'EMA9');
+  if (indOn('ema21', pane.chartState)) safeDrawOverlay(() => drawEMA(candles, start, end, 21, y, xAt, '#ef5350'), 'EMA21');
+  if (indOn('ema50', pane.chartState)) safeDrawOverlay(() => drawEMA(candles, start, end, 50, y, xAt, '#ffb300'), 'EMA50');
+  if (indOn('bb', pane.chartState)) safeDrawOverlay(() => drawBollinger(candles, start, end, 20, 2, y, xAt), 'Bollinger');
+  if (indOn('kc', pane.chartState)) safeDrawOverlay(() => drawKeltner(candles, start, end, 20, 2, y, xAt), 'Keltner');
+  if (indOn('donchian', pane.chartState)) safeDrawOverlay(() => drawDonchian(candles, start, end, 20, y, xAt), 'Donchian');
+  if (indOn('vwap', pane.chartState)) safeDrawOverlay(() => drawVWAP(visible, y, candleW), 'VWAP');
+  if (indOn('vwapBands', pane.chartState)) safeDrawOverlay(() => drawVWAPBands(visible, y, candleW), 'VWAPBands');
 
   // --- candles
   for (let i = 0; i < visible.length; i++) {
     const c = visible[i];
-    const xCenter = (i - (chartState.visibleStart - start)) * candleW + candleW / 2;
+    const xCenter = (i - (pane.chartState.visibleStart - start)) * candleW + candleW / 2;
     const up = c.c >= c.o;
     ctx.strokeStyle = up ? '#00c076' : '#f6465d';
     ctx.fillStyle = up ? '#00c076' : '#f6465d';
@@ -1337,13 +1340,13 @@ function renderChart() {
   }
 
   // --- volume
-  if (indOn('volume') && maxV > 0) {
+  if (indOn('volume', pane.chartState) && maxV > 0) {
     const volTop = chartH + 2;
     ctx.fillStyle = '#12192480';
     ctx.fillRect(0, volTop, chartW, VOL_H - 4);
     for (let i = 0; i < visible.length; i++) {
       const c = visible[i];
-      const xCenter = (i - (chartState.visibleStart - start)) * candleW + candleW / 2;
+      const xCenter = (i - (pane.chartState.visibleStart - start)) * candleW + candleW / 2;
       const vh = (c.v / maxV) * (VOL_H - 6);
       ctx.fillStyle = (c.c >= c.o) ? 'rgba(14, 203, 129, 0.5)' : 'rgba(246, 70, 93, 0.5)';
       const bw = Math.max(1, candleW * 0.7);
@@ -1354,15 +1357,15 @@ function renderChart() {
   }
 
   // --- Sub-panel indicator
-  if (chartState.subPanel !== 'none' && SUB_H > 0) {
+  if (pane.chartState.subPanel !== 'none' && SUB_H > 0) {
     const subTop = chartH + VOL_H;
     try {
       drawSubPanel(candles, start, end, subTop, SUB_H, chartW, xAt);
     } catch (e) {
-      console.warn(`APEX sub-panel error [${chartState.subPanel}]:`, e.message);
+      console.warn(`APEX sub-panel error [${pane.chartState.subPanel}]:`, e.message);
       ctx.fillStyle = '#f6465d';
       ctx.font = '10px monospace';
-      ctx.fillText(`${chartState.subPanel} error: ${e.message}`, 8, subTop + 16);
+      ctx.fillText(`${pane.chartState.subPanel} error: ${e.message}`, 8, subTop + 16);
     }
   }
 
@@ -1375,7 +1378,7 @@ function renderChart() {
     const idx = Math.floor(start + (count / labels) * i);
     if (!candles[idx]) continue;
     const d = new Date(candles[idx].t);
-    const mins = tfMinutes(state.timeframe);
+    const mins = tfMinutes(pane.timeframe);
     // Show date for multi-day spans, time for intraday
     const label = mins >= 1440
       ? (d.getMonth() + 1) + '/' + d.getDate() + (mins >= 10080 ? '/' + String(d.getFullYear()).slice(2) : '')
@@ -1385,7 +1388,7 @@ function renderChart() {
 
   // --- last price line
   const lastC = candles.at(-1);
-  if (lastC && indOn('lastPx')) {
+  if (lastC && indOn('lastPx', pane.chartState)) {
     const ly = y(lastC.c);
     ctx.strokeStyle = '#f5a62380';
     ctx.setLineDash([3, 3]);
@@ -1399,7 +1402,7 @@ function renderChart() {
   }
 
   // --- active alerts for this symbol
-  state.alerts.filter(a => a.sym === state.symbol && !a.triggered).forEach(a => {
+  state.alerts.filter(a => a.sym === pane.symbol && !a.triggered).forEach(a => {
     const ay = y(a.px);
     if (ay < 0 || ay > chartH) return;
     ctx.strokeStyle = '#f5a62390';
@@ -1424,6 +1427,8 @@ function renderChart() {
     }
   }
 }
+
+function renderChart() { renderChartForPane(state.panes[state.activePane], state.candles[state.symbol]); }
 
 /* ============================================================
    INDICATOR DRAW FUNCTIONS
