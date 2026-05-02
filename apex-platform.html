@@ -504,7 +504,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<body style="visibility:hidden">
 
 <div class="app">
 
@@ -5246,6 +5246,7 @@ function showAuthModal() {
 function hideAuthModal() {
   const m = document.getElementById('authModal');
   if (m) m.style.display = 'none';
+  document.body.style.visibility = 'visible';
 }
 
 function showAuthTab(tab) {
@@ -5329,10 +5330,29 @@ async function handleSignOut() {
   showAuthModal();
 }
 
-init();
+async function bootApp() {
+  const { data: { session } } = await _supabase.auth.getSession();
+  if (session) {
+    _session = session;
+    hideAuthModal();
+    init();
+  } else {
+    showAuthModal();
+    const unsub = _supabase.auth.onAuthStateChange((event, sess) => {
+      if (sess && event !== 'SIGNED_OUT') {
+        _session = sess;
+        hideAuthModal();
+        unsub.data.subscription.unsubscribe();
+        init();
+      }
+    });
+  }
+}
+
+bootApp();
 </script>
 
-<div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;">
+<div id="authModal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;">
   <div style="background:#0f1729;border:1px solid #1e2d45;border-radius:8px;padding:32px;width:100%;max-width:400px;font-family:monospace;">
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#f5a623;">APEX</div>
