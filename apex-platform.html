@@ -502,6 +502,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   margin-bottom: 6px;
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -910,6 +911,9 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
       <button class="btn btn-ghost" id="reconnectWsBtn">RECONNECT WS</button>
       <button class="btn btn-primary" onclick="closeModal('settingsModal')">CLOSE</button>
     </div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+      <button onclick="handleSignOut()" style="background:#f6465d20;border:1px solid #f6465d;color:#f6465d;padding:6px 16px;border-radius:4px;font-family:monospace;font-size:10px;cursor:pointer;letter-spacing:1px;">SIGN OUT</button>
+    </div>
   </div>
 </div>
 
@@ -917,6 +921,18 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 /* ============================================================
    APEX v5 — AI Trading Terminal
    ============================================================ */
+
+const SUPABASE_URL = 'https://soghksmuocrgtttmnete.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_oOpoHLSO-MtKhWLO2ohSzQ_5Ud3E6az';
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _session = null;
+
+_supabase.auth.onAuthStateChange((event, session) => {
+  _session = session;
+  if (event === 'SIGNED_OUT' || !session) {
+    if (typeof showAuthModal === 'function') showAuthModal();
+  }
+});
 
 const TICKERS = ['AAPL','TSLA','NVDA','MSFT','GOOGL','AMZN','META','AMD','SPY','QQQ','NFLX','PLTR','COIN','SOFI','RIVN','DIS','BA','JPM','XOM','BAC'];
 
@@ -5222,7 +5238,122 @@ function init() {
   window.addEventListener('resize', resizeCanvas);
 }
 
+function showAuthModal() {
+  const m = document.getElementById('authModal');
+  if (m) m.style.display = 'flex';
+}
+
+function hideAuthModal() {
+  const m = document.getElementById('authModal');
+  if (m) m.style.display = 'none';
+}
+
+function showAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('tabLogin').style.borderBottomColor = isLogin ? '#f5a623' : 'transparent';
+  document.getElementById('tabLogin').style.color = isLogin ? '#f5a623' : '#5a6678';
+  document.getElementById('tabSignup').style.borderBottomColor = isLogin ? 'transparent' : '#f5a623';
+  document.getElementById('tabSignup').style.color = isLogin ? '#5a6678' : '#f5a623';
+  document.getElementById('authSubmit').textContent = isLogin ? 'SIGN IN' : 'CREATE ACCOUNT';
+  document.getElementById('authPassword').placeholder = isLogin ? 'Password' : 'Password (min 8 characters)';
+  document.getElementById('authError').style.display = 'none';
+  document.getElementById('authSuccess').style.display = 'none';
+  document.getElementById('authSubmit').dataset.mode = tab;
+}
+
+async function handleAuthSubmit() {
+  const mode = document.getElementById('authSubmit').dataset.mode || 'login';
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authError');
+  const okEl = document.getElementById('authSuccess');
+  errEl.style.display = 'none';
+  okEl.style.display = 'none';
+  if (!email || !password) {
+    errEl.textContent = 'Email and password are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  document.getElementById('authSubmit').textContent = 'PLEASE WAIT...';
+  document.getElementById('authSubmit').disabled = true;
+  try {
+    let result;
+    if (mode === 'login') {
+      result = await _supabase.auth.signInWithPassword({ email, password });
+    } else {
+      result = await _supabase.auth.signUp({ email, password });
+    }
+    if (result.error) {
+      errEl.textContent = result.error.message;
+      errEl.style.display = 'block';
+    } else if (mode === 'signup' && !result.data.session) {
+      okEl.textContent = 'Check your email to confirm your account before signing in.';
+      okEl.style.display = 'block';
+    } else {
+      _session = result.data.session;
+      hideAuthModal();
+    }
+  } catch (e) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+  } finally {
+    const isLogin = (document.getElementById('authSubmit').dataset.mode || 'login') === 'login';
+    document.getElementById('authSubmit').textContent = isLogin ? 'SIGN IN' : 'CREATE ACCOUNT';
+    document.getElementById('authSubmit').disabled = false;
+  }
+}
+
+async function handleForgotPassword() {
+  const email = document.getElementById('authEmail').value.trim();
+  const errEl = document.getElementById('authError');
+  const okEl = document.getElementById('authSuccess');
+  if (!email) {
+    errEl.textContent = 'Enter your email address first.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const { error } = await _supabase.auth.resetPasswordForEmail(email);
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+  } else {
+    okEl.textContent = 'Password reset email sent. Check your inbox.';
+    okEl.style.display = 'block';
+  }
+}
+
+async function handleSignOut() {
+  await _supabase.auth.signOut();
+  _session = null;
+  closeModal('settingsModal');
+  showAuthModal();
+}
+
 init();
 </script>
+
+<div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background:#0f1729;border:1px solid #1e2d45;border-radius:8px;padding:32px;width:100%;max-width:400px;font-family:monospace;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#f5a623;">APEX</div>
+      <div style="font-size:11px;color:#5a6678;margin-top:4px;letter-spacing:1px;">AI TRADING TERMINAL</div>
+    </div>
+    <div id="authTabs" style="display:flex;margin-bottom:20px;border-bottom:1px solid #1e2d45;">
+      <button id="tabLogin" onclick="showAuthTab('login')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid #f5a623;color:#f5a623;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>
+      <button id="tabSignup" onclick="showAuthTab('signup')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:#5a6678;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;">CREATE ACCOUNT</button>
+    </div>
+    <div id="authError" style="display:none;background:#f6465d20;border:1px solid #f6465d;color:#f6465d;padding:8px 12px;border-radius:4px;font-size:10px;margin-bottom:12px;"></div>
+    <div id="authSuccess" style="display:none;background:#00c07620;border:1px solid #00c076;color:#00c076;padding:8px 12px;border-radius:4px;font-size:10px;margin-bottom:12px;"></div>
+    <input id="authEmail" type="email" placeholder="Email address" autocomplete="email"
+      style="width:100%;box-sizing:border-box;background:#0b1221;border:1px solid #1e2d45;color:#e5e9f0;padding:10px 12px;border-radius:4px;font-family:monospace;font-size:11px;margin-bottom:10px;outline:none;">
+    <input id="authPassword" type="password" placeholder="Password (min 8 characters)" autocomplete="current-password"
+      style="width:100%;box-sizing:border-box;background:#0b1221;border:1px solid #1e2d45;color:#e5e9f0;padding:10px 12px;border-radius:4px;font-family:monospace;font-size:11px;margin-bottom:16px;outline:none;">
+    <button id="authSubmit" onclick="handleAuthSubmit()"
+      style="width:100%;background:#f5a623;color:#000;border:none;padding:10px;border-radius:4px;font-family:monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>
+    <div style="text-align:center;margin-top:12px;">
+      <button onclick="handleForgotPassword()" style="background:none;border:none;color:#5a6678;font-family:monospace;font-size:10px;cursor:pointer;text-decoration:underline;">Forgot password?</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
