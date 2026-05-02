@@ -2640,7 +2640,7 @@ async function finnhub(path, params = {}) {
   try {
     const r = await fetch('/.netlify/functions/finnhub-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({ path, params }),
     });
     if (!r.ok) return null;
@@ -2661,7 +2661,7 @@ async function fred(seriesId, limit = 30) {
   try {
     const r = await fetch('/.netlify/functions/fred-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({ series_id: seriesId, limit }),
     });
     if (!r.ok) return null;
@@ -3642,7 +3642,7 @@ ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
   try {
     const r = await fetch('/.netlify/functions/claude-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({ system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 800 }),
     });
     const data = await r.json();
@@ -4341,7 +4341,7 @@ async function runHealthChecks() {
   try {
     const r = await fetch('/.netlify/functions/alpaca-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({ path: '/v2/stocks/SPY/bars', params: { timeframe: '1Day', limit: 1, feed: 'iex' } }),
     });
     set('stRest', r.ok ? 'OK' : 'ERROR ' + r.status, r.ok ? 'var(--bull)' : 'var(--bear)');
@@ -4353,7 +4353,7 @@ async function runHealthChecks() {
   try {
     const r = await fetch('/.netlify/functions/claude-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }], max_tokens: 5 }),
     });
     set('stClaude', r.ok ? 'OK' : 'ERROR ' + r.status, r.ok ? 'var(--bull)' : 'var(--bear)');
@@ -4416,7 +4416,7 @@ async function loadAlpacaBars(symbol, tf, range = '1Y', customStart = null, cust
         if (pageToken) params.page_token = pageToken;
         const r = await fetch('/.netlify/functions/alpaca-proxy', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
           body: JSON.stringify({ path: basePath, params }),
         });
         if (!r.ok) {
@@ -4520,7 +4520,7 @@ async function loadAlpacaSnapshots(symbols) {
   try {
     const r = await fetch('/.netlify/functions/alpaca-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({
         path: '/v2/stocks/snapshots',
         params: { symbols: symbols.join(','), feed: state.alpaca.feed },
@@ -4537,7 +4537,7 @@ async function connectAlpaca() {
   // 1. Get credentials from server
   let creds;
   try {
-    const r = await fetch('/.netlify/functions/ws-auth', { credentials: 'same-origin' });
+    const r = await fetch('/.netlify/functions/ws-auth', { headers: { 'Authorization': 'Bearer ' + (_session?.access_token || '') }, credentials: 'same-origin' });
     if (!r.ok) {
       // Auth failure from our own backend (env vars missing, cred endpoint broken).
       // Don't spin the reconnect loop if the server can't hand us valid creds —
@@ -4880,7 +4880,7 @@ async function sendChat() {
   try {
     const res = await fetch('/.netlify/functions/claude-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({
         system: `You are APEX AI, a professional trading assistant embedded in a personal trading terminal. You have full access to the current chart state, indicators, signals, agent verdicts, and positions shown below. Answer questions about the chart, setups, risk, and trade management directly and specifically using this data. Never say you cannot see the chart — you have all relevant computed values. Be direct, specific, and actionable.
 
