@@ -8,6 +8,7 @@
 | APEX-20260501-002 | v5.23 smart signal engine | **COMPLETE** | 2026-05-01 | 9 detectors live: power inflow, distribution, volume climax, VWAP, BB squeeze, ORB, failed breakdown, RSI div, prior day levels |
 | APEX-20260501-003 | exp4 SELL regime gate experiment | **COMPLETE** | 2026-05-01 | Gate halves SELL loss (-0.187 to -0.094R train) but stays negative on holdout. SELL suppression confirmed. |
 | APEX-20260501-004 | Multi-pane chart layout | **COMPLETE** | 2026-05-01 | 1x1, 1x2, 2x2 grid. Per-pane symbol, TF, chartState, mouse handlers, WS routing. 7 commits. |
+| APEX-20260501-005 | HANDOFF-03 pane-aware assessment | **COMPLETE** | 2026-05-02 | Per-pane ⚡ buttons, assessment + chat route to active pane, tooltip redesigned |
 
 ---
 
