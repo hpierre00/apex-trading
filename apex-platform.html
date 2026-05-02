@@ -1144,7 +1144,7 @@ function initLayout(count) {
   area.innerHTML = '';
   area.style.display = 'grid';
   area.style.gap = '2px';
-  area.style.background = '#0b1221';
+  area.style.background = 'var(--bg)';
 
   if (count === 1) {
     area.style.gridTemplateColumns = '1fr';
@@ -1166,7 +1166,7 @@ function initLayout(count) {
     // Symbol label top-left
     const label = document.createElement('div');
     label.id = `pane-label-${i}`;
-    label.style.cssText = 'position:absolute;top:4px;left:6px;z-index:10;font-size:10px;color:#fff;opacity:0.7;pointer-events:none;';
+    label.style.cssText = 'position:absolute;top:4px;left:6px;z-index:10;font-size:10px;color:var(--text);opacity:0.7;pointer-events:none;';
     label.textContent = pane.symbol + ' · ' + pane.timeframe;
     wrapper.appendChild(label);
 
@@ -2305,7 +2305,7 @@ function renderCrosshairForPane(paneIndex, localX, localY) {
   ctx2.restore();
   const tip = document.getElementById('ohlcTip');
   if (tip && bar) {
-    tip.style.cssText = 'position:fixed;background:#f5a623;color:#000;font-size:13px;font-weight:800;padding:3px 8px;border-radius:4px;pointer-events:none;z-index:9999;white-space:nowrap;';
+    tip.style.cssText = 'position:fixed;background:var(--gold);color:#000;font-size:13px;font-weight:800;padding:3px 8px;border-radius:4px;pointer-events:none;z-index:9999;white-space:nowrap;';
     tip.innerHTML = bar.c?.toFixed(2);
     tip.style.display = 'block';
     tip.style.left = (cv.getBoundingClientRect().left + localX + 14) + 'px';
@@ -2316,12 +2316,12 @@ function renderCrosshairForPane(paneIndex, localX, localY) {
     ohlcBar.style.display = 'block';
     const chg = bar.c - bar.o;
     const chgPct = (chg / bar.o * 100).toFixed(2);
-    const color = chg >= 0 ? '#00c076' : '#f6465d';
+    const color = chg >= 0 ? 'var(--bull)' : 'var(--bear)';
     ohlcBar.innerHTML =
       `<span style="color:var(--gold,#f5a623);font-weight:700;margin-right:10px">${pane.symbol}</span>` +
       `O <b>${bar.o?.toFixed(2)}</b> &nbsp;` +
-      `H <b style="color:#00c076">${bar.h?.toFixed(2)}</b> &nbsp;` +
-      `L <b style="color:#f6465d">${bar.l?.toFixed(2)}</b> &nbsp;` +
+      `H <b style="color:var(--bull)">${bar.h?.toFixed(2)}</b> &nbsp;` +
+      `L <b style="color:var(--bear)">${bar.l?.toFixed(2)}</b> &nbsp;` +
       `C <b style="color:${color}">${bar.c?.toFixed(2)}</b> &nbsp;` +
       `<span style="color:${color}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)} (${chg >= 0 ? '+' : ''}${chgPct}%)</span> &nbsp;` +
       `Vol <span>${bar.v?.toLocaleString()}</span>`;
