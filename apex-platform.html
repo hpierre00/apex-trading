@@ -605,6 +605,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         </div>
       </div>
 
+      <div id="ohlcBar" style="display:none;padding:3px 12px;background:var(--panel-2,#0d1b2e);border-bottom:1px solid var(--border,#1e2d45);font-size:10px;color:var(--text-dim,#8b95a7);font-family:monospace;letter-spacing:0.5px;"></div>
       <div class="chart-container" id="chartContainer">
         <canvas class="chart-canvas" id="chart"></canvas>
         <div id="chartArea" style="position:absolute;inset:0;overflow:hidden;"></div>
@@ -1168,6 +1169,17 @@ function initLayout(count) {
     label.style.cssText = 'position:absolute;top:4px;left:6px;z-index:10;font-size:10px;color:#fff;opacity:0.7;pointer-events:none;';
     label.textContent = pane.symbol + ' · ' + pane.timeframe;
     wrapper.appendChild(label);
+
+    const assessPaneBtn = document.createElement('button');
+    assessPaneBtn.style.cssText = 'position:absolute;top:3px;right:6px;z-index:10;background:var(--gold,#f5a623);color:#000;border:none;border-radius:3px;font-size:9px;font-weight:700;padding:2px 5px;cursor:pointer;';
+    assessPaneBtn.textContent = '⚡';
+    assessPaneBtn.title = 'Instant Assessment for this pane';
+    assessPaneBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.activePane = i;
+      requestInstantAssessment(i);
+    });
+    wrapper.appendChild(assessPaneBtn);
 
     // Pane 0 reuses the module-level canvas so resizeCanvas() keeps working
     const cv = i === 0 ? canvas : document.createElement('canvas');
@@ -2247,6 +2259,8 @@ function attachPaneHandlers(paneIndex) {
   cv.addEventListener('mouseleave', () => {
     const tip = document.getElementById('ohlcTip');
     if (tip) tip.style.display = 'none';
+    const ohlcBar = document.getElementById('ohlcBar');
+    if (ohlcBar) ohlcBar.style.display = 'none';
     renderChartForPane(pane, state.candles[pane.symbol] || []);
   });
 }
@@ -2291,10 +2305,26 @@ function renderCrosshairForPane(paneIndex, localX, localY) {
   ctx2.restore();
   const tip = document.getElementById('ohlcTip');
   if (tip && bar) {
+    tip.style.cssText = 'position:fixed;background:#f5a623;color:#000;font-size:13px;font-weight:800;padding:3px 8px;border-radius:4px;pointer-events:none;z-index:9999;white-space:nowrap;';
+    tip.innerHTML = bar.c?.toFixed(2);
     tip.style.display = 'block';
-    tip.style.left = (cv.getBoundingClientRect().left + localX + 12) + 'px';
-    tip.style.top  = (cv.getBoundingClientRect().top  + localY - 10) + 'px';
-    tip.innerHTML = `<b>${pane.symbol}</b> O:${bar.o?.toFixed(2)} H:${bar.h?.toFixed(2)} L:${bar.l?.toFixed(2)} C:${bar.c?.toFixed(2)}`;
+    tip.style.left = (cv.getBoundingClientRect().left + localX + 14) + 'px';
+    tip.style.top  = (cv.getBoundingClientRect().top  + localY - 18) + 'px';
+  }
+  const ohlcBar = document.getElementById('ohlcBar');
+  if (ohlcBar && bar) {
+    ohlcBar.style.display = 'block';
+    const chg = bar.c - bar.o;
+    const chgPct = (chg / bar.o * 100).toFixed(2);
+    const color = chg >= 0 ? '#00c076' : '#f6465d';
+    ohlcBar.innerHTML =
+      `<span style="color:var(--gold,#f5a623);font-weight:700;margin-right:10px">${pane.symbol}</span>` +
+      `O <b>${bar.o?.toFixed(2)}</b> &nbsp;` +
+      `H <b style="color:#00c076">${bar.h?.toFixed(2)}</b> &nbsp;` +
+      `L <b style="color:#f6465d">${bar.l?.toFixed(2)}</b> &nbsp;` +
+      `C <b style="color:${color}">${bar.c?.toFixed(2)}</b> &nbsp;` +
+      `<span style="color:${color}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)} (${chg >= 0 ? '+' : ''}${chgPct}%)</span> &nbsp;` +
+      `Vol <span>${bar.v?.toLocaleString()}</span>`;
   }
 }
 
@@ -3768,8 +3798,9 @@ document.getElementById('alertBtn').addEventListener('click', () => {
   const saveBtn = document.getElementById('alertSaveBtn');
   if (saveBtn) saveBtn.textContent = 'CREATE ALERT';
 
-  document.getElementById('alertSym').value = state.symbol;
-  document.getElementById('alertPx').value = (state.prices[state.symbol]?.px || 0).toFixed(2);
+  const _alertSym = state.panes[state.activePane]?.symbol || state.symbol;
+  document.getElementById('alertSym').value = _alertSym;
+  document.getElementById('alertPx').value = (state.prices[_alertSym]?.px || 0).toFixed(2);
   document.getElementById('alertCond').value = 'above';
   document.getElementById('alertNote').value = '';
   openModal('alertModal');
