@@ -1240,6 +1240,15 @@ function resizeCanvas() {
   });
 }
 
+const _chartAreaObserver = new ResizeObserver(() => {
+  resizeCanvas();
+});
+// Attach after DOM is ready — called from init()
+function attachResizeObserver() {
+  const area = document.getElementById('chartArea');
+  if (area) _chartAreaObserver.observe(area);
+}
+
 function clampView() {
   const total = (state.candles[state.symbol] || []).length;
   if (total === 0) return;
@@ -5135,6 +5144,7 @@ function updateMktStatus() {
 
 function init() {
   initLayout();
+  attachResizeObserver();
   initData();
   renderAgents();
   renderWatchlist();
