@@ -1428,7 +1428,11 @@ function renderChartForPane(pane, candles) {
   }
 }
 
-function renderChart() { renderChartForPane(state.panes[state.activePane], state.candles[state.symbol]); }
+function renderChart() {
+    const pane = state.panes[state.activePane];
+    if (!pane) { console.warn('APEX: renderChart called before initLayout'); return; }
+    renderChartForPane(pane, state.candles[state.symbol]);
+  }
 
 /* ============================================================
    INDICATOR DRAW FUNCTIONS
@@ -4968,6 +4972,7 @@ function updateMktStatus() {
 }
 
 function init() {
+  initLayout();
   initData();
   renderAgents();
   renderWatchlist();
@@ -4977,7 +4982,6 @@ function init() {
   renderTabs();
   updateMktStatus();
   startClock();
-  initLayout();
   resizeCanvas();
   runAgents();
   // auto-connect to Alpaca via server-side credentials
