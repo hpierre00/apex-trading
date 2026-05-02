@@ -598,10 +598,16 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <button class="tf-btn" data-theme="light" title="Light (Ivory) — partial">☀️</button>
           <button class="tf-btn" data-theme="arctic" title="Arctic Blue — partial">❄️</button>
         </div>
+        <div class="tf-group" style="margin-left:8px" title="Chart layout">
+          <button class="tf-btn" id="layout1" onclick="initLayout(1)" title="Single chart">▣</button>
+          <button class="tf-btn" id="layout2" onclick="initLayout(2)" title="Side by side">⬛⬛</button>
+          <button class="tf-btn" id="layout4" onclick="initLayout(4)" title="2×2 grid">⊞</button>
+        </div>
       </div>
 
       <div class="chart-container" id="chartContainer">
         <canvas class="chart-canvas" id="chart"></canvas>
+        <div id="chartArea" style="position:absolute;inset:0;overflow:hidden;"></div>
         <div class="chart-hint">DRAG chart to pan · WHEEL to zoom · DRAG price axis to zoom price · SHIFT+DRAG vertical · DOUBLE-CLICK to reset</div>
         <div class="chart-controls">
           <button class="chart-ctrl-btn" id="zoomIn">+</button>
@@ -960,6 +966,10 @@ const state = {
   },
   signals: [], // legacy pointer, kept in sync with signalHistory for existing render paths
   activeTab: 'signals',
+  // Multi-pane chart model. panes[0] mirrors globals in 1x1 mode.
+  panes: [],
+  activePane: 0,
+  wsSubCount: {},
   // Session-only multi-turn chat memory for AI Chat. Not persisted to localStorage.
   // Cleared on symbol switch so Claude doesn't mix context from different tickers.
   chatHistory: [],
@@ -1081,7 +1091,126 @@ function saveIndicatorState() {
   localStorage.setItem('apex.subPanel', chartState.subPanel);
 }
 
-function indOn(id) { return !!chartState.indicators[id]; }
+function indOn(id, cs) { return !!(cs || chartState).indicators[id]; }
+
+// ── Multi-pane data model ─────────────────────────────────────────────────────
+// Commit 1: 1x1 only. panes[0] shares global chartState + canvas.
+// Later commits introduce per-pane canvas elements and independent chartStates.
+
+function createPane() {
+  return {
+    symbol:     state.symbol,
+    timeframe:  state.timeframe,
+    chartState: chartState,   // pane 0 shares the module-level chartState
+    canvas:     canvas,       // pane 0 shares the module-level canvas element
+  };
+}
+
+function syncActivePane() {
+  const p = state.panes[state.activePane];
+  if (!p) return;
+  p.symbol    = state.symbol;
+  p.timeframe = state.timeframe;
+}
+
+function scheduleRenderPane(index) {
+  const pane = state.panes[index];
+  if (!pane) return;
+  if (pane._rafPending) return;
+  pane._rafPending = true;
+  requestAnimationFrame(() => {
+    pane._rafPending = false;
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  });
+}
+
+function initLayout(count) {
+  count = count || 1;
+  // Grow panes array to match count, shrink if needed
+  while (state.panes.length < count) {
+    const i = state.panes.length;
+    state.panes.push({
+      symbol: state.symbol,
+      timeframe: state.timeframe,
+      chartState: i === 0 ? chartState : JSON.parse(JSON.stringify(chartState)),
+      canvas: null, // assigned below
+    });
+  }
+  state.panes.length = count;
+  if (state.activePane >= count) state.activePane = 0;
+
+  const area = document.getElementById('chartArea');
+  area.innerHTML = '';
+  area.style.display = 'grid';
+  area.style.gap = '2px';
+  area.style.background = '#0b1221';
+
+  if (count === 1) {
+    area.style.gridTemplateColumns = '1fr';
+    area.style.gridTemplateRows = '1fr';
+  } else if (count === 2) {
+    area.style.gridTemplateColumns = '1fr 1fr';
+    area.style.gridTemplateRows = '1fr';
+  } else {
+    area.style.gridTemplateColumns = '1fr 1fr';
+    area.style.gridTemplateRows = '1fr 1fr';
+  }
+
+  state.panes.forEach((pane, i) => {
+    const wrapper = document.createElement('div');
+    wrapper.id = `pane-${i}`;
+    wrapper.style.cssText = 'position:relative;overflow:hidden;min-height:0;min-width:0;';
+    if (i === state.activePane) wrapper.style.outline = '1px solid var(--gold, #f5a623)';
+
+    // Symbol label top-left
+    const label = document.createElement('div');
+    label.id = `pane-label-${i}`;
+    label.style.cssText = 'position:absolute;top:4px;left:6px;z-index:10;font-size:10px;color:#fff;opacity:0.7;pointer-events:none;';
+    label.textContent = pane.symbol + ' · ' + pane.timeframe;
+    wrapper.appendChild(label);
+
+    // Pane 0 reuses the module-level canvas so resizeCanvas() keeps working
+    const cv = i === 0 ? canvas : document.createElement('canvas');
+    if (i !== 0) {
+      cv.id = `pane-canvas-${i}`;
+      cv.style.cssText = 'width:100%;height:100%;display:block;';
+    }
+    cv.addEventListener('click', () => {
+      state.activePane = i;
+      document.querySelectorAll('[id^="pane-"]').forEach((el, idx) => {
+        if (el.id.startsWith('pane-') && !el.id.includes('canvas') && !el.id.includes('label')) {
+          el.style.outline = idx === i ? '1px solid var(--gold, #f5a623)' : 'none';
+        }
+      });
+    });
+
+    wrapper.appendChild(cv);
+    area.appendChild(wrapper);
+    pane.canvas = cv;
+    attachPaneHandlers(i);
+  });
+
+  // Subscribe WS to all pane symbols
+  const allSyms = [...new Set(state.panes.map(p => p.symbol))];
+  allSyms.forEach(sym => {
+    if (state.alpaca.ws && state.alpaca.ws.readyState === 1 && !state.wsSubCount[sym]) {
+      state.alpaca.ws.send(JSON.stringify({ action: 'subscribe', trades: [sym], bars: [sym] }));
+    }
+    state.wsSubCount[sym] = (state.wsSubCount[sym] || 0) + 1;
+  });
+
+  const activeWrapper = document.getElementById(`pane-${state.activePane}`);
+  if (activeWrapper) activeWrapper.style.outline = '1px solid var(--gold, #f5a623)';
+
+  // Pane 0 must keep the original canvas reference for all legacy code
+  // (mouse handlers, resizeCanvas, etc. reference module-level `canvas`)
+  // Override: reassign canvas element id so resizeCanvas still works
+  // Keep module-level canvas pointing at pane 0's canvas
+  Object.defineProperty(window, 'canvasPane0', { value: state.panes[0].canvas, configurable: true });
+
+  syncActivePane();
+  resizeCanvas();
+}
 
 const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
@@ -1097,6 +1226,27 @@ function resizeCanvas() {
   canvas.style.height = ch + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   renderChart();
+  // Resize all additional panes
+  state.panes.forEach((pane, i) => {
+    if (i === 0) return; // pane 0 handled by existing logic above
+    if (!pane.canvas) return;
+    const rect = pane.canvas.parentElement?.getBoundingClientRect();
+    if (!rect || !rect.width || !rect.height) return;
+    const d = window.devicePixelRatio || 1;
+    pane.canvas.width = rect.width * d;
+    pane.canvas.height = rect.height * d;
+    pane.canvas.getContext('2d').setTransform(d, 0, 0, d, 0, 0);
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  });
+}
+
+const _chartAreaObserver = new ResizeObserver(() => {
+  resizeCanvas();
+});
+// Attach after DOM is ready — called from init()
+function attachResizeObserver() {
+  const area = document.getElementById('chartArea');
+  if (area) _chartAreaObserver.observe(area);
 }
 
 function clampView() {
@@ -1206,9 +1356,12 @@ function scheduleWatchlistUpdate() {
   }, delay);
 }
 
-function renderChart() {
+function renderChartForPane(pane, candles) {
   try {
-  const candles = state.candles[state.symbol] || [];
+  candles = candles || [];
+  const ctx = pane.canvas.getContext('2d');
+  const cw = pane.canvas.width / dpr;
+  const ch = pane.canvas.height / dpr;
   const emptyEl = document.getElementById('emptyMsg');
   if (!candles.length) {
     // Clear canvas and show empty message
@@ -1225,13 +1378,13 @@ function renderChart() {
 
   const AXIS_W = 60;
   const TIME_H = 22;
-  const VOL_H = indOn('volume') ? 50 : 0;
-  const SUB_H = chartState.subPanel !== 'none' ? 80 : 0;
+  const VOL_H = indOn('volume', pane.chartState) ? 50 : 0;
+  const SUB_H = pane.chartState.subPanel !== 'none' ? 80 : 0;
   const chartW = cw - AXIS_W;
   const chartH = ch - TIME_H - VOL_H - SUB_H;
 
-  const start = Math.floor(chartState.visibleStart);
-  const count = Math.ceil(chartState.visibleCount);
+  const start = Math.floor(pane.chartState.visibleStart);
+  const count = Math.ceil(pane.chartState.visibleCount);
   const end = Math.min(candles.length, start + count);
   const visible = candles.slice(start, end);
   if (!visible.length) return;
@@ -1246,15 +1399,15 @@ function renderChart() {
   const pad = (maxP - minP) * 0.08 || 1;
   minP -= pad; maxP += pad;
   const mid = (minP + maxP) / 2;
-  const halfRange = (maxP - minP) / 2 / chartState.priceScale;
+  const halfRange = (maxP - minP) / 2 / pane.chartState.priceScale;
   minP = mid - halfRange;
   maxP = mid + halfRange;
-  const vshift = (maxP - minP) * chartState.priceOffsetRatio;
+  const vshift = (maxP - minP) * pane.chartState.priceOffsetRatio;
   minP += vshift; maxP += vshift;
 
-  const candleW = chartW / chartState.visibleCount;
+  const candleW = chartW / pane.chartState.visibleCount;
   const y = (p) => chartH * (1 - (p - minP) / (maxP - minP));
-  const xAt = (i) => (i - chartState.visibleStart) * candleW + candleW / 2;
+  const xAt = (i) => (i - pane.chartState.visibleStart) * candleW + candleW / 2;
 
   // --- clear
   ctx.fillStyle = '#0b1221';
@@ -1265,7 +1418,7 @@ function renderChart() {
   ctx.fillStyle = '#5a6678';
   for (let i = 0; i <= 6; i++) {
     const yy = (chartH * i) / 6;
-    if (indOn('grid')) {
+    if (indOn('grid', pane.chartState)) {
       ctx.strokeStyle = '#12192480';
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(chartW, yy); ctx.stroke();
@@ -1279,22 +1432,22 @@ function renderChart() {
     try { fn(); }
     catch (e) { console.warn(`APEX indicator error [${label}]:`, e.message); }
   };
-  if (indOn('sma20')) safeDrawOverlay(() => drawSMA(candles, start, end, 20, y, xAt, '#ff9800'), 'SMA20');
-  if (indOn('sma50')) safeDrawOverlay(() => drawSMA(candles, start, end, 50, y, xAt, '#2e7fff'), 'SMA50');
-  if (indOn('sma200')) safeDrawOverlay(() => drawSMA(candles, start, end, 200, y, xAt, '#9d4edd'), 'SMA200');
-  if (indOn('ema9')) safeDrawOverlay(() => drawEMA(candles, start, end, 9, y, xAt, '#26a69a'), 'EMA9');
-  if (indOn('ema21')) safeDrawOverlay(() => drawEMA(candles, start, end, 21, y, xAt, '#ef5350'), 'EMA21');
-  if (indOn('ema50')) safeDrawOverlay(() => drawEMA(candles, start, end, 50, y, xAt, '#ffb300'), 'EMA50');
-  if (indOn('bb')) safeDrawOverlay(() => drawBollinger(candles, start, end, 20, 2, y, xAt), 'Bollinger');
-  if (indOn('kc')) safeDrawOverlay(() => drawKeltner(candles, start, end, 20, 2, y, xAt), 'Keltner');
-  if (indOn('donchian')) safeDrawOverlay(() => drawDonchian(candles, start, end, 20, y, xAt), 'Donchian');
-  if (indOn('vwap')) safeDrawOverlay(() => drawVWAP(visible, y, candleW), 'VWAP');
-  if (indOn('vwapBands')) safeDrawOverlay(() => drawVWAPBands(visible, y, candleW), 'VWAPBands');
+  if (indOn('sma20', pane.chartState)) safeDrawOverlay(() => drawSMA(candles, start, end, 20, y, xAt, '#ff9800'), 'SMA20');
+  if (indOn('sma50', pane.chartState)) safeDrawOverlay(() => drawSMA(candles, start, end, 50, y, xAt, '#2e7fff'), 'SMA50');
+  if (indOn('sma200', pane.chartState)) safeDrawOverlay(() => drawSMA(candles, start, end, 200, y, xAt, '#9d4edd'), 'SMA200');
+  if (indOn('ema9', pane.chartState)) safeDrawOverlay(() => drawEMA(candles, start, end, 9, y, xAt, '#26a69a'), 'EMA9');
+  if (indOn('ema21', pane.chartState)) safeDrawOverlay(() => drawEMA(candles, start, end, 21, y, xAt, '#ef5350'), 'EMA21');
+  if (indOn('ema50', pane.chartState)) safeDrawOverlay(() => drawEMA(candles, start, end, 50, y, xAt, '#ffb300'), 'EMA50');
+  if (indOn('bb', pane.chartState)) safeDrawOverlay(() => drawBollinger(candles, start, end, 20, 2, y, xAt), 'Bollinger');
+  if (indOn('kc', pane.chartState)) safeDrawOverlay(() => drawKeltner(candles, start, end, 20, 2, y, xAt), 'Keltner');
+  if (indOn('donchian', pane.chartState)) safeDrawOverlay(() => drawDonchian(candles, start, end, 20, y, xAt), 'Donchian');
+  if (indOn('vwap', pane.chartState)) safeDrawOverlay(() => drawVWAP(visible, y, candleW), 'VWAP');
+  if (indOn('vwapBands', pane.chartState)) safeDrawOverlay(() => drawVWAPBands(visible, y, candleW), 'VWAPBands');
 
   // --- candles
   for (let i = 0; i < visible.length; i++) {
     const c = visible[i];
-    const xCenter = (i - (chartState.visibleStart - start)) * candleW + candleW / 2;
+    const xCenter = (i - (pane.chartState.visibleStart - start)) * candleW + candleW / 2;
     const up = c.c >= c.o;
     ctx.strokeStyle = up ? '#00c076' : '#f6465d';
     ctx.fillStyle = up ? '#00c076' : '#f6465d';
@@ -1309,13 +1462,13 @@ function renderChart() {
   }
 
   // --- volume
-  if (indOn('volume') && maxV > 0) {
+  if (indOn('volume', pane.chartState) && maxV > 0) {
     const volTop = chartH + 2;
     ctx.fillStyle = '#12192480';
     ctx.fillRect(0, volTop, chartW, VOL_H - 4);
     for (let i = 0; i < visible.length; i++) {
       const c = visible[i];
-      const xCenter = (i - (chartState.visibleStart - start)) * candleW + candleW / 2;
+      const xCenter = (i - (pane.chartState.visibleStart - start)) * candleW + candleW / 2;
       const vh = (c.v / maxV) * (VOL_H - 6);
       ctx.fillStyle = (c.c >= c.o) ? 'rgba(14, 203, 129, 0.5)' : 'rgba(246, 70, 93, 0.5)';
       const bw = Math.max(1, candleW * 0.7);
@@ -1326,15 +1479,15 @@ function renderChart() {
   }
 
   // --- Sub-panel indicator
-  if (chartState.subPanel !== 'none' && SUB_H > 0) {
+  if (pane.chartState.subPanel !== 'none' && SUB_H > 0) {
     const subTop = chartH + VOL_H;
     try {
       drawSubPanel(candles, start, end, subTop, SUB_H, chartW, xAt);
     } catch (e) {
-      console.warn(`APEX sub-panel error [${chartState.subPanel}]:`, e.message);
+      console.warn(`APEX sub-panel error [${pane.chartState.subPanel}]:`, e.message);
       ctx.fillStyle = '#f6465d';
       ctx.font = '10px monospace';
-      ctx.fillText(`${chartState.subPanel} error: ${e.message}`, 8, subTop + 16);
+      ctx.fillText(`${pane.chartState.subPanel} error: ${e.message}`, 8, subTop + 16);
     }
   }
 
@@ -1347,7 +1500,7 @@ function renderChart() {
     const idx = Math.floor(start + (count / labels) * i);
     if (!candles[idx]) continue;
     const d = new Date(candles[idx].t);
-    const mins = tfMinutes(state.timeframe);
+    const mins = tfMinutes(pane.timeframe);
     // Show date for multi-day spans, time for intraday
     const label = mins >= 1440
       ? (d.getMonth() + 1) + '/' + d.getDate() + (mins >= 10080 ? '/' + String(d.getFullYear()).slice(2) : '')
@@ -1357,7 +1510,7 @@ function renderChart() {
 
   // --- last price line
   const lastC = candles.at(-1);
-  if (lastC && indOn('lastPx')) {
+  if (lastC && indOn('lastPx', pane.chartState)) {
     const ly = y(lastC.c);
     ctx.strokeStyle = '#f5a62380';
     ctx.setLineDash([3, 3]);
@@ -1371,7 +1524,7 @@ function renderChart() {
   }
 
   // --- active alerts for this symbol
-  state.alerts.filter(a => a.sym === state.symbol && !a.triggered).forEach(a => {
+  state.alerts.filter(a => a.sym === pane.symbol && !a.triggered).forEach(a => {
     const ay = y(a.px);
     if (ay < 0 || ay > chartH) return;
     ctx.strokeStyle = '#f5a62390';
@@ -1396,6 +1549,12 @@ function renderChart() {
     }
   }
 }
+
+function renderChart() {
+    const pane = state.panes[state.activePane];
+    if (!pane) { console.warn('APEX: renderChart called before initLayout'); return; }
+    renderChartForPane(pane, state.candles[state.symbol]);
+  }
 
 /* ============================================================
    INDICATOR DRAW FUNCTIONS
@@ -1967,152 +2126,180 @@ function drawVWAP(visible, y, candleW) {
    CHART INTERACTION — pan, zoom, wheel
    ============================================================ */
 
-let drag = { active: false, startX: 0, startY: 0, startVS: 0, startPO: 0, startPS: 1, vertical: false, axisDrag: false };
+// ── Per-pane drag state ────────────────────────────────────────────────────
+// One drag object per pane index so concurrent touch on two panes doesn't collide.
+const paneDrags = {};
 
-canvas.addEventListener('pointerdown', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const localX = e.clientX - rect.left;
-  const chartW = cw - 60;
-  drag.active = true;
-  drag.startX = e.clientX;
-  drag.startY = e.clientY;
-  drag.startVS = chartState.visibleStart;
-  drag.startPO = chartState.priceOffsetRatio;
-  drag.startPS = chartState.priceScale;
-  // Drag on price axis (right 60px) = price scale / pan
-  drag.axisDrag = localX >= chartW;
-  drag.vertical = e.shiftKey || e.button === 2 || drag.axisDrag;
-  canvas.classList.add('dragging');
-  canvas.setPointerCapture(e.pointerId);
-});
-
-canvas.addEventListener('pointermove', (e) => {
-  if (!drag.active) return;
-  const candleW = (cw - 60) / chartState.visibleCount;
-  const dx = e.clientX - drag.startX;
-  const dy = e.clientY - drag.startY;
-  if (drag.axisDrag) {
-    // Drag up on axis = zoom in (larger priceScale), drag down = zoom out
-    const factor = Math.exp(-dy / 200);
-    chartState.priceScale = Math.max(0.1, Math.min(50, drag.startPS * factor));
-  } else if (drag.vertical) {
-    chartState.priceOffsetRatio = drag.startPO - dy / 300;
-  } else {
-    chartState.visibleStart = drag.startVS - dx / candleW;
-    chartState.userHasPanned = true;
-  }
-  renderChart();
-});
-
-function endDrag(e) {
-  drag.active = false;
-  canvas.classList.remove('dragging');
-  try { canvas.releasePointerCapture(e.pointerId); } catch {}
+function getPaneDrag(i) {
+  if (!paneDrags[i]) paneDrags[i] = {
+    active: false, startX: 0, startY: 0,
+    startVS: 0, startPO: 0, startPS: 1,
+    vertical: false, axisDrag: false,
+  };
+  return paneDrags[i];
 }
-canvas.addEventListener('pointerup', endDrag);
-canvas.addEventListener('pointercancel', endDrag);
-canvas.addEventListener('pointerleave', (e) => { if (drag.active) endDrag(e); });
-canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-canvas.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const chartW = cw - 60;
-  const mouseRatio = Math.max(0, Math.min(1, mouseX / chartW));
-  const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
-  const newCount = Math.max(15, Math.min(500, chartState.visibleCount * factor));
-  // keep mouse position anchored in time
-  const mouseIdx = chartState.visibleStart + chartState.visibleCount * mouseRatio;
-  chartState.visibleCount = newCount;
-  chartState.visibleStart = mouseIdx - newCount * mouseRatio;
-  chartState.userHasPanned = true;
-  renderChart();
-}, { passive: false });
+function attachPaneHandlers(paneIndex) {
+  const pane = state.panes[paneIndex];
+  const cv = pane.canvas;
 
-canvas.addEventListener('dblclick', () => {
-  const total = (state.candles[state.symbol] || []).length;
-  chartState.visibleCount = 100;
-  chartState.visibleStart = Math.max(0, total - 100);
-  chartState.priceOffsetRatio = 0;
-  chartState.priceScale = 1;
-  chartState.userHasPanned = false;
-  renderChart();
-});
+  function localCW() { return cv.width / (window.devicePixelRatio || 1); }
+  function localCH() { return cv.height / (window.devicePixelRatio || 1); }
+  function cs() { return pane.chartState; }
 
-// Crosshair + OHLC tooltip on hover
-canvas.addEventListener('mousemove', (e) => {
-  if (drag.active) return;
-  const rect = canvas.getBoundingClientRect();
-  const localX = e.clientX - rect.left;
-  const localY = e.clientY - rect.top;
-  const chartW = cw - 60;
-  canvas.style.cursor = localX >= chartW ? 'ns-resize' : 'crosshair';
-  renderCrosshair(localX, localY);
-});
-canvas.addEventListener('mouseleave', () => {
-  document.getElementById('ohlcTip').style.display = 'none';
-  renderChart(); // clear any lingering crosshair
-});
-
-function renderCrosshair(mouseX, mouseY) {
-  const candles = state.candles[state.symbol] || [];
-  if (!candles.length) return;
-  const chartW = cw - 60;
-  if (mouseX < 0 || mouseX > chartW) {
-    document.getElementById('ohlcTip').style.display = 'none';
-    return;
+  function endDrag() {
+    const d = getPaneDrag(paneIndex);
+    d.active = false;
+    cv.classList.remove('dragging');
+    try { cv.releasePointerCapture(d._pointerId); } catch(_) {}
   }
-  const candleW = chartW / chartState.visibleCount;
-  const idx = Math.floor(chartState.visibleStart + mouseX / candleW);
-  const candle = candles[idx];
-  const tipEl = document.getElementById('ohlcTip');
-  if (!candle) { tipEl.style.display = 'none'; return; }
 
-  // Full re-render ensures crosshair lines aren't permanent. This is fast
-  // because the chart is small; if perf becomes an issue we can cache a bitmap.
-  renderChart();
-  // Draw crosshair lines
-  ctx.strokeStyle = '#5a6678';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(mouseX, 0);
-  ctx.lineTo(mouseX, ch - 22 - (indOn('volume') ? 50 : 0) - (chartState.subPanel !== 'none' ? 80 : 0));
-  ctx.moveTo(0, mouseY);
-  ctx.lineTo(chartW, mouseY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Populate and position tooltip
-  const d = new Date(candle.t);
-  const dateStr = d.toLocaleString('en-US', {
-    month: 'short', day: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false,
+  cv.addEventListener('pointerdown', (e) => {
+    const d = getPaneDrag(paneIndex);
+    state.activePane = paneIndex;
+    // update gold border
+    document.querySelectorAll('[id^="pane-"]').forEach(el => {
+      if (el.id.match(/^pane-\d+$/) && !el.id.includes('canvas') && !el.id.includes('label'))
+        el.style.outline = el.id === `pane-${paneIndex}` ? '1px solid var(--gold,#f5a623)' : 'none';
+    });
+    // Sync toolbar TF buttons to reflect this pane's timeframe
+    document.querySelectorAll('.tf-btn[data-tf]').forEach(b => {
+      b.classList.toggle('active', b.dataset.tf === pane.timeframe);
+    });
+    const rect = cv.getBoundingClientRect();
+    const lx = e.clientX - rect.left;
+    const lw = localCW();
+    d._pointerId = e.pointerId;
+    d.active = true;
+    d.startX = e.clientX;
+    d.startY = e.clientY;
+    d.startVS = cs().visibleStart;
+    d.startPO = cs().priceOffsetRatio;
+    d.startPS = cs().priceScale;
+    d.axisDrag = lx > lw;
+    d.vertical = e.shiftKey && !d.axisDrag;
+    cv.classList.add('dragging');
+    try { cv.setPointerCapture(e.pointerId); } catch(_) {}
   });
-  const chg = candle.c - candle.o;
-  const chgPct = (chg / candle.o) * 100;
-  const up = chg >= 0;
-  const color = up ? '#00c076' : '#f6465d';
-  tipEl.innerHTML = `
-    <div style="color:#f5a623;font-weight:700;margin-bottom:2px">${state.symbol} · ${dateStr}</div>
-    <div>O <span style="color:#e5e9f0">${candle.o.toFixed(2)}</span>
-         H <span style="color:#e5e9f0">${candle.h.toFixed(2)}</span>
-         L <span style="color:#e5e9f0">${candle.l.toFixed(2)}</span>
-         C <span style="color:${color}">${candle.c.toFixed(2)}</span></div>
-    <div>Chg <span style="color:${color}">${up ? '+' : ''}${chg.toFixed(2)} (${up ? '+' : ''}${chgPct.toFixed(2)}%)</span>
-         Vol <span style="color:#8b95a7">${candle.v.toLocaleString()}</span></div>
-  `;
-  tipEl.style.display = 'block';
-  // Position: right of cursor if space, else left
-  const tipW = 340, tipH = 58;
-  let left = mouseX + 12;
-  let top = mouseY + 12;
-  if (left + tipW > chartW) left = mouseX - tipW - 12;
-  if (top + tipH > ch - 22) top = mouseY - tipH - 12;
-  tipEl.style.left = left + 'px';
-  tipEl.style.top = top + 'px';
+
+  cv.addEventListener('pointermove', (e) => {
+    const d = getPaneDrag(paneIndex);
+    if (!d.active) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    const lw = localCW();
+    if (d.axisDrag) {
+      cs().priceScale = Math.max(0.5, d.startPS * (1 - dy / 200));
+      cs().priceOffsetRatio = d.startPO - dy / (localCH() * cs().priceScale * 10);
+    } else if (d.vertical) {
+      cs().priceOffsetRatio = d.startPO - dy / (localCH() * cs().priceScale * 10);
+    } else {
+      const barsPerPx = cs().visibleCount / lw;
+      cs().visibleStart = d.startVS - dx * barsPerPx;
+      cs().userHasPanned = true;
+    }
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  });
+
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('pointerleave', (e) => {
+    if (getPaneDrag(paneIndex).active) endDrag();
+  });
+  cv.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  cv.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = cv.getBoundingClientRect();
+    const lx = e.clientX - rect.left;
+    const lw = localCW();
+    const frac = lx / lw;
+    const delta = e.deltaY > 0 ? 1.15 : 0.87;
+    const newCount = Math.max(20, Math.min(
+      (state.candles[pane.symbol] || []).length,
+      cs().visibleCount * delta
+    ));
+    cs().visibleStart += (cs().visibleCount - newCount) * frac;
+    cs().visibleCount = newCount;
+    cs().userHasPanned = true;
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  }, { passive: false });
+
+  cv.addEventListener('dblclick', () => {
+    const cdls = state.candles[pane.symbol] || [];
+    cs().visibleCount = Math.min(120, cdls.length);
+    cs().visibleStart = Math.max(0, cdls.length - cs().visibleCount);
+    cs().priceOffsetRatio = 0;
+    cs().priceScale = 1;
+    cs().userHasPanned = false;
+    renderChartForPane(pane, cdls);
+  });
+
+  cv.addEventListener('mousemove', (e) => {
+    const d = getPaneDrag(paneIndex);
+    const rect = cv.getBoundingClientRect();
+    const lx = e.clientX - rect.left;
+    const lw = localCW();
+    cv.style.cursor = lx > lw ? 'ns-resize' : d.active ? 'grabbing' : 'crosshair';
+    renderCrosshairForPane(paneIndex, lx, e.clientY - rect.top);
+  });
+
+  cv.addEventListener('mouseleave', () => {
+    const tip = document.getElementById('ohlcTip');
+    if (tip) tip.style.display = 'none';
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  });
 }
+
+// renderCrosshair now accepts paneIndex
+function renderCrosshairForPane(paneIndex, localX, localY) {
+  const pane = state.panes[paneIndex];
+  if (!pane?.canvas) return;
+  const cdls = state.candles[pane.symbol] || [];
+  if (!cdls.length) return;
+  const cv = pane.canvas;
+  const ctx2 = cv.getContext('2d');
+  const lw = cv.width / (window.devicePixelRatio || 1);
+  const lh = cv.height / (window.devicePixelRatio || 1);
+  const cs = pane.chartState;
+  const AXIS_W = 60, TIME_H = 22;
+  const VOL_H = indOn('volume', cs) ? 50 : 0;
+  const SUB_H = cs.subPanel !== 'none' ? 80 : 0;
+  const chartW = lw - AXIS_W;
+  const chartH = lh - TIME_H - VOL_H - SUB_H;
+  if (localX < 0 || localX > chartW || localY < 0 || localY > lh) return;
+  const start = Math.floor(cs.visibleStart);
+  const count = Math.ceil(cs.visibleCount);
+  const end = Math.min(cdls.length, start + count);
+  const visible = cdls.slice(start, end);
+  if (!visible.length) return;
+  const maxP = Math.max(...visible.map(c => c.h));
+  const minP = Math.min(...visible.map(c => c.l));
+  const pad = (maxP - minP) * 0.08 || 1;
+  const minPP = minP - pad, maxPP = maxP + pad;
+  const price = maxPP - (localY / chartH) * (maxPP - minPP);
+  const barIdx = Math.floor(localX / (chartW / cs.visibleCount));
+  const bar = visible[Math.min(barIdx, visible.length - 1)];
+  renderChartForPane(pane, cdls);
+  ctx2.save();
+  ctx2.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx2.lineWidth = 1;
+  ctx2.setLineDash([3, 3]);
+  ctx2.beginPath(); ctx2.moveTo(localX, 0); ctx2.lineTo(localX, chartH); ctx2.stroke();
+  ctx2.beginPath(); ctx2.moveTo(0, localY); ctx2.lineTo(chartW, localY); ctx2.stroke();
+  ctx2.setLineDash([]);
+  ctx2.restore();
+  const tip = document.getElementById('ohlcTip');
+  if (tip && bar) {
+    tip.style.display = 'block';
+    tip.style.left = (cv.getBoundingClientRect().left + localX + 12) + 'px';
+    tip.style.top  = (cv.getBoundingClientRect().top  + localY - 10) + 'px';
+    tip.innerHTML = `<b>${pane.symbol}</b> O:${bar.o?.toFixed(2)} H:${bar.h?.toFixed(2)} L:${bar.l?.toFixed(2)} C:${bar.c?.toFixed(2)}`;
+  }
+}
+
+// Keep renderCrosshair as shim for any legacy callers
+function renderCrosshair(lx, ly) { renderCrosshairForPane(state.activePane, lx, ly); }
 
 function showLoadingBanner(show) {
   const el = document.getElementById('loadingBanner');
@@ -2282,6 +2469,7 @@ async function selectSymbol(s) {
     chatMessages.innerHTML = `<div class="msg ai" style="opacity:0.6;font-size:10px;text-align:center;border:none;padding:8px 0">— chat reset for ${s.toUpperCase()} —</div>`;
   }
   state.symbol = s;
+  syncActivePane();
   document.getElementById('symName').textContent = s;
   // If connected and we don't have bars for this symbol yet (or they're simulated), fetch real
   if (state.alpaca.state === 'live') {
@@ -2349,7 +2537,7 @@ function renderAgents() {
 }
 
 async function runAgents() {
-  const sym = state.symbol;
+  const sym = state.panes[state.activePane]?.symbol || state.symbol;
   const candles = state.candles[sym] || [];
   if (!candles.length) return;
 
@@ -2371,7 +2559,7 @@ async function runAgents() {
     const verdictEl = el.querySelector('.agent-verdict');
     verdictEl.innerHTML = `${v.reason}${v.source ? `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">source: ${v.source}</div>` : ''}`;
   }
-  if (state.symbol !== sym) return;
+  if ((state.panes[state.activePane]?.symbol || state.symbol) !== sym) return;
   rebalanceAgentWeights();
   generateSignal(verdicts);
   const tier = tfTier(state.timeframe);
@@ -3648,9 +3836,10 @@ function renderIndicatorList() {
     <div style="margin-bottom:10px">
       <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:4px">${catName.toUpperCase()}</div>
       ${items.map(ind => {
+        const _acs = state.panes[state.activePane]?.chartState || chartState;
         const checked = ind.type === 'subpanel'
-          ? chartState.subPanel === ind.id
-          : !!chartState.indicators[ind.id];
+          ? _acs.subPanel === ind.id
+          : !!_acs.indicators[ind.id];
         return `
           <label style="display:flex;gap:10px;padding:6px 4px;cursor:pointer;align-items:flex-start;border-radius:3px" onmouseover="this.style.background='var(--panel-2)'" onmouseout="this.style.background=''">
             <input type="${ind.type === 'subpanel' ? 'radio' : 'checkbox'}" name="${ind.type === 'subpanel' ? 'subPanelChoice' : ''}" data-ind="${ind.id}" data-type="${ind.type}" ${checked ? 'checked' : ''} style="margin-top:3px">
@@ -3668,11 +3857,12 @@ function renderIndicatorList() {
     inp.addEventListener('change', (e) => {
       const id = e.target.dataset.ind;
       const type = e.target.dataset.type;
+      const acs = state.panes[state.activePane]?.chartState || chartState;
       if (type === 'subpanel') {
-        chartState.subPanel = e.target.checked ? id : 'none';
+        acs.subPanel = e.target.checked ? id : 'none';
         // Radio buttons: only the selected one is on, but allow unchecking via clicking active
       } else {
-        chartState.indicators[id] = e.target.checked;
+        acs.indicators[id] = e.target.checked;
       }
       saveIndicatorState();
       renderChart();
@@ -3682,14 +3872,15 @@ function renderIndicatorList() {
   if (!cat || cat === 'Momentum' || cat === 'Volatility' || cat === 'Volume') {
     // If we have at least one subpanel shown, inject a "Clear sub-panel" button
     const hasSubPanelShown = filtered.some(i => i.type === 'subpanel');
-    if (hasSubPanelShown && chartState.subPanel !== 'none') {
+    const _csp = state.panes[state.activePane]?.chartState || chartState;
+    if (hasSubPanelShown && _csp.subPanel !== 'none') {
       host.insertAdjacentHTML('afterbegin', `
         <div style="padding:6px 0;margin-bottom:8px;border-bottom:1px solid var(--border)">
-          <button class="btn btn-ghost" id="clearSubPanel" style="padding:4px 10px;font-size:10px;width:100%">CLEAR SUB-PANEL (${INDICATOR_DEFS.find(i => i.id === chartState.subPanel)?.name || ''})</button>
+          <button class="btn btn-ghost" id="clearSubPanel" style="padding:4px 10px;font-size:10px;width:100%">CLEAR SUB-PANEL (${INDICATOR_DEFS.find(i => i.id === _csp.subPanel)?.name || ''})</button>
         </div>
       `);
       document.getElementById('clearSubPanel').addEventListener('click', () => {
-        chartState.subPanel = 'none';
+        (state.panes[state.activePane]?.chartState || chartState).subPanel = 'none';
         saveIndicatorState();
         renderChart();
         renderIndicatorList();
@@ -4379,6 +4570,9 @@ async function connectAlpaca() {
           scheduleHeaderUpdate();
         }
         scheduleWatchlistUpdate();
+        state.panes.forEach((pane, i) => {
+          if (pane.symbol === m.S) scheduleRenderPane(i);
+        });
       } else if (m.T === 'b') {
         const arr = state.candles[m.S];
         if (arr) {
@@ -4402,6 +4596,9 @@ async function connectAlpaca() {
           }
         }
         state.alpaca.lastTickAt = Date.now();
+        state.panes.forEach((pane, i) => {
+          if (pane.symbol === m.S) scheduleRenderPane(i);
+        });
         if (m.S === (state.panes?.[state.activePane]?.symbol || state.symbol)) {
           runSmartSignals();
         }
@@ -4822,6 +5019,12 @@ function handlePeriodClick(e) {
   state.range = b.dataset.range;
   state.period = b.dataset.period;
   state.customRange = { start: null, end: null };
+  const _ap = state.panes[state.activePane];
+  if (_ap) {
+    _ap.timeframe = b.dataset.tf;
+    const _lbl = document.getElementById(`pane-label-${state.activePane}`);
+    if (_lbl) _lbl.textContent = _ap.symbol + ' · ' + b.dataset.tf;
+  }
   reloadChart().then(prefetchAdjacentPeriods);
 }
 document.getElementById('intradayGroup').addEventListener('click', handlePeriodClick);
@@ -4853,6 +5056,12 @@ document.getElementById('advPeriodApplyBtn').addEventListener('click', async () 
   state.timeframe = tf;
   state.range = range;
   state.period = `${range}_${tf}`;
+  const _ap2 = state.panes[state.activePane];
+  if (_ap2) {
+    _ap2.timeframe = tf;
+    const _lbl2 = document.getElementById(`pane-label-${state.activePane}`);
+    if (_lbl2) _lbl2.textContent = _ap2.symbol + ' · ' + tf;
+  }
   // Clear active state on all preset buttons (advanced = custom combo)
   document.querySelectorAll('#intradayGroup .tf-btn, #periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
   closeModal('advPeriodModal');
@@ -4934,6 +5143,8 @@ function updateMktStatus() {
 }
 
 function init() {
+  initLayout();
+  attachResizeObserver();
   initData();
   renderAgents();
   renderWatchlist();
