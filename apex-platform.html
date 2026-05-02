@@ -1199,6 +1199,9 @@ function initLayout(count) {
     state.wsSubCount[sym] = (state.wsSubCount[sym] || 0) + 1;
   });
 
+  const activeWrapper = document.getElementById(`pane-${state.activePane}`);
+  if (activeWrapper) activeWrapper.style.outline = '1px solid var(--gold, #f5a623)';
+
   // Pane 0 must keep the original canvas reference for all legacy code
   // (mouse handlers, resizeCanvas, etc. reference module-level `canvas`)
   // Override: reassign canvas element id so resizeCanvas still works
@@ -2150,6 +2153,10 @@ function attachPaneHandlers(paneIndex) {
       if (el.id.match(/^pane-\d+$/) && !el.id.includes('canvas') && !el.id.includes('label'))
         el.style.outline = el.id === `pane-${paneIndex}` ? '1px solid var(--gold,#f5a623)' : 'none';
     });
+    // Sync toolbar TF buttons to reflect this pane's timeframe
+    document.querySelectorAll('.tf-btn[data-tf]').forEach(b => {
+      b.classList.toggle('active', b.dataset.tf === pane.timeframe);
+    });
     const rect = cv.getBoundingClientRect();
     const lx = e.clientX - rect.left;
     const lw = localCW();
@@ -2521,7 +2528,7 @@ function renderAgents() {
 }
 
 async function runAgents() {
-  const sym = state.symbol;
+  const sym = state.panes[state.activePane]?.symbol || state.symbol;
   const candles = state.candles[sym] || [];
   if (!candles.length) return;
 
@@ -2543,7 +2550,7 @@ async function runAgents() {
     const verdictEl = el.querySelector('.agent-verdict');
     verdictEl.innerHTML = `${v.reason}${v.source ? `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">source: ${v.source}</div>` : ''}`;
   }
-  if (state.symbol !== sym) return;
+  if ((state.panes[state.activePane]?.symbol || state.symbol) !== sym) return;
   rebalanceAgentWeights();
   generateSignal(verdicts);
   const tier = tfTier(state.timeframe);
@@ -3820,9 +3827,10 @@ function renderIndicatorList() {
     <div style="margin-bottom:10px">
       <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:4px">${catName.toUpperCase()}</div>
       ${items.map(ind => {
+        const _acs = state.panes[state.activePane]?.chartState || chartState;
         const checked = ind.type === 'subpanel'
-          ? chartState.subPanel === ind.id
-          : !!chartState.indicators[ind.id];
+          ? _acs.subPanel === ind.id
+          : !!_acs.indicators[ind.id];
         return `
           <label style="display:flex;gap:10px;padding:6px 4px;cursor:pointer;align-items:flex-start;border-radius:3px" onmouseover="this.style.background='var(--panel-2)'" onmouseout="this.style.background=''">
             <input type="${ind.type === 'subpanel' ? 'radio' : 'checkbox'}" name="${ind.type === 'subpanel' ? 'subPanelChoice' : ''}" data-ind="${ind.id}" data-type="${ind.type}" ${checked ? 'checked' : ''} style="margin-top:3px">
@@ -3840,11 +3848,12 @@ function renderIndicatorList() {
     inp.addEventListener('change', (e) => {
       const id = e.target.dataset.ind;
       const type = e.target.dataset.type;
+      const acs = state.panes[state.activePane]?.chartState || chartState;
       if (type === 'subpanel') {
-        chartState.subPanel = e.target.checked ? id : 'none';
+        acs.subPanel = e.target.checked ? id : 'none';
         // Radio buttons: only the selected one is on, but allow unchecking via clicking active
       } else {
-        chartState.indicators[id] = e.target.checked;
+        acs.indicators[id] = e.target.checked;
       }
       saveIndicatorState();
       renderChart();
@@ -3854,14 +3863,15 @@ function renderIndicatorList() {
   if (!cat || cat === 'Momentum' || cat === 'Volatility' || cat === 'Volume') {
     // If we have at least one subpanel shown, inject a "Clear sub-panel" button
     const hasSubPanelShown = filtered.some(i => i.type === 'subpanel');
-    if (hasSubPanelShown && chartState.subPanel !== 'none') {
+    const _csp = state.panes[state.activePane]?.chartState || chartState;
+    if (hasSubPanelShown && _csp.subPanel !== 'none') {
       host.insertAdjacentHTML('afterbegin', `
         <div style="padding:6px 0;margin-bottom:8px;border-bottom:1px solid var(--border)">
-          <button class="btn btn-ghost" id="clearSubPanel" style="padding:4px 10px;font-size:10px;width:100%">CLEAR SUB-PANEL (${INDICATOR_DEFS.find(i => i.id === chartState.subPanel)?.name || ''})</button>
+          <button class="btn btn-ghost" id="clearSubPanel" style="padding:4px 10px;font-size:10px;width:100%">CLEAR SUB-PANEL (${INDICATOR_DEFS.find(i => i.id === _csp.subPanel)?.name || ''})</button>
         </div>
       `);
       document.getElementById('clearSubPanel').addEventListener('click', () => {
-        chartState.subPanel = 'none';
+        (state.panes[state.activePane]?.chartState || chartState).subPanel = 'none';
         saveIndicatorState();
         renderChart();
         renderIndicatorList();
@@ -5000,6 +5010,12 @@ function handlePeriodClick(e) {
   state.range = b.dataset.range;
   state.period = b.dataset.period;
   state.customRange = { start: null, end: null };
+  const _ap = state.panes[state.activePane];
+  if (_ap) {
+    _ap.timeframe = b.dataset.tf;
+    const _lbl = document.getElementById(`pane-label-${state.activePane}`);
+    if (_lbl) _lbl.textContent = _ap.symbol + ' · ' + b.dataset.tf;
+  }
   reloadChart().then(prefetchAdjacentPeriods);
 }
 document.getElementById('intradayGroup').addEventListener('click', handlePeriodClick);
@@ -5031,6 +5047,12 @@ document.getElementById('advPeriodApplyBtn').addEventListener('click', async () 
   state.timeframe = tf;
   state.range = range;
   state.period = `${range}_${tf}`;
+  const _ap2 = state.panes[state.activePane];
+  if (_ap2) {
+    _ap2.timeframe = tf;
+    const _lbl2 = document.getElementById(`pane-label-${state.activePane}`);
+    if (_lbl2) _lbl2.textContent = _ap2.symbol + ' · ' + tf;
+  }
   // Clear active state on all preset buttons (advanced = custom combo)
   document.querySelectorAll('#intradayGroup .tf-btn, #periodGroup .tf-btn').forEach(x => x.classList.remove('active'));
   closeModal('advPeriodModal');
