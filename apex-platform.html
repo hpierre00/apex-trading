@@ -1175,6 +1175,7 @@ function initLayout(count) {
     wrapper.appendChild(cv);
     area.appendChild(wrapper);
     pane.canvas = cv;
+    attachPaneHandlers(i);
   });
 
   // Pane 0 must keep the original canvas reference for all legacy code
@@ -2092,152 +2093,176 @@ function drawVWAP(visible, y, candleW) {
    CHART INTERACTION — pan, zoom, wheel
    ============================================================ */
 
-let drag = { active: false, startX: 0, startY: 0, startVS: 0, startPO: 0, startPS: 1, vertical: false, axisDrag: false };
+// ── Per-pane drag state ────────────────────────────────────────────────────
+// One drag object per pane index so concurrent touch on two panes doesn't collide.
+const paneDrags = {};
 
-canvas.addEventListener('pointerdown', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const localX = e.clientX - rect.left;
-  const chartW = cw - 60;
-  drag.active = true;
-  drag.startX = e.clientX;
-  drag.startY = e.clientY;
-  drag.startVS = chartState.visibleStart;
-  drag.startPO = chartState.priceOffsetRatio;
-  drag.startPS = chartState.priceScale;
-  // Drag on price axis (right 60px) = price scale / pan
-  drag.axisDrag = localX >= chartW;
-  drag.vertical = e.shiftKey || e.button === 2 || drag.axisDrag;
-  canvas.classList.add('dragging');
-  canvas.setPointerCapture(e.pointerId);
-});
-
-canvas.addEventListener('pointermove', (e) => {
-  if (!drag.active) return;
-  const candleW = (cw - 60) / chartState.visibleCount;
-  const dx = e.clientX - drag.startX;
-  const dy = e.clientY - drag.startY;
-  if (drag.axisDrag) {
-    // Drag up on axis = zoom in (larger priceScale), drag down = zoom out
-    const factor = Math.exp(-dy / 200);
-    chartState.priceScale = Math.max(0.1, Math.min(50, drag.startPS * factor));
-  } else if (drag.vertical) {
-    chartState.priceOffsetRatio = drag.startPO - dy / 300;
-  } else {
-    chartState.visibleStart = drag.startVS - dx / candleW;
-    chartState.userHasPanned = true;
-  }
-  renderChart();
-});
-
-function endDrag(e) {
-  drag.active = false;
-  canvas.classList.remove('dragging');
-  try { canvas.releasePointerCapture(e.pointerId); } catch {}
+function getPaneDrag(i) {
+  if (!paneDrags[i]) paneDrags[i] = {
+    active: false, startX: 0, startY: 0,
+    startVS: 0, startPO: 0, startPS: 1,
+    vertical: false, axisDrag: false,
+  };
+  return paneDrags[i];
 }
-canvas.addEventListener('pointerup', endDrag);
-canvas.addEventListener('pointercancel', endDrag);
-canvas.addEventListener('pointerleave', (e) => { if (drag.active) endDrag(e); });
-canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-canvas.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const chartW = cw - 60;
-  const mouseRatio = Math.max(0, Math.min(1, mouseX / chartW));
-  const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
-  const newCount = Math.max(15, Math.min(500, chartState.visibleCount * factor));
-  // keep mouse position anchored in time
-  const mouseIdx = chartState.visibleStart + chartState.visibleCount * mouseRatio;
-  chartState.visibleCount = newCount;
-  chartState.visibleStart = mouseIdx - newCount * mouseRatio;
-  chartState.userHasPanned = true;
-  renderChart();
-}, { passive: false });
+function attachPaneHandlers(paneIndex) {
+  const pane = state.panes[paneIndex];
+  const cv = pane.canvas;
 
-canvas.addEventListener('dblclick', () => {
-  const total = (state.candles[state.symbol] || []).length;
-  chartState.visibleCount = 100;
-  chartState.visibleStart = Math.max(0, total - 100);
-  chartState.priceOffsetRatio = 0;
-  chartState.priceScale = 1;
-  chartState.userHasPanned = false;
-  renderChart();
-});
+  function localCW() { return cv.width / (window.devicePixelRatio || 1); }
+  function localCH() { return cv.height / (window.devicePixelRatio || 1); }
+  function cs() { return pane.chartState; }
 
-// Crosshair + OHLC tooltip on hover
-canvas.addEventListener('mousemove', (e) => {
-  if (drag.active) return;
-  const rect = canvas.getBoundingClientRect();
-  const localX = e.clientX - rect.left;
-  const localY = e.clientY - rect.top;
-  const chartW = cw - 60;
-  canvas.style.cursor = localX >= chartW ? 'ns-resize' : 'crosshair';
-  renderCrosshair(localX, localY);
-});
-canvas.addEventListener('mouseleave', () => {
-  document.getElementById('ohlcTip').style.display = 'none';
-  renderChart(); // clear any lingering crosshair
-});
-
-function renderCrosshair(mouseX, mouseY) {
-  const candles = state.candles[state.symbol] || [];
-  if (!candles.length) return;
-  const chartW = cw - 60;
-  if (mouseX < 0 || mouseX > chartW) {
-    document.getElementById('ohlcTip').style.display = 'none';
-    return;
+  function endDrag() {
+    const d = getPaneDrag(paneIndex);
+    d.active = false;
+    cv.classList.remove('dragging');
+    try { cv.releasePointerCapture(d._pointerId); } catch(_) {}
   }
-  const candleW = chartW / chartState.visibleCount;
-  const idx = Math.floor(chartState.visibleStart + mouseX / candleW);
-  const candle = candles[idx];
-  const tipEl = document.getElementById('ohlcTip');
-  if (!candle) { tipEl.style.display = 'none'; return; }
 
-  // Full re-render ensures crosshair lines aren't permanent. This is fast
-  // because the chart is small; if perf becomes an issue we can cache a bitmap.
-  renderChart();
-  // Draw crosshair lines
-  ctx.strokeStyle = '#5a6678';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(mouseX, 0);
-  ctx.lineTo(mouseX, ch - 22 - (indOn('volume') ? 50 : 0) - (chartState.subPanel !== 'none' ? 80 : 0));
-  ctx.moveTo(0, mouseY);
-  ctx.lineTo(chartW, mouseY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Populate and position tooltip
-  const d = new Date(candle.t);
-  const dateStr = d.toLocaleString('en-US', {
-    month: 'short', day: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false,
+  cv.addEventListener('pointerdown', (e) => {
+    const d = getPaneDrag(paneIndex);
+    state.activePane = paneIndex;
+    // update gold border
+    document.querySelectorAll('[id^="pane-"]').forEach(el => {
+      if (el.id.match(/^pane-\d+$/) && !el.id.includes('canvas') && !el.id.includes('label'))
+        el.style.outline = el.id === `pane-${paneIndex}` ? '1px solid var(--gold,#f5a623)' : 'none';
+    });
+    const rect = cv.getBoundingClientRect();
+    const lx = e.clientX - rect.left;
+    const lw = localCW();
+    d._pointerId = e.pointerId;
+    d.active = true;
+    d.startX = e.clientX;
+    d.startY = e.clientY;
+    d.startVS = cs().visibleStart;
+    d.startPO = cs().priceOffsetRatio;
+    d.startPS = cs().priceScale;
+    d.axisDrag = lx > lw;
+    d.vertical = e.shiftKey && !d.axisDrag;
+    cv.classList.add('dragging');
+    try { cv.setPointerCapture(e.pointerId); } catch(_) {}
   });
-  const chg = candle.c - candle.o;
-  const chgPct = (chg / candle.o) * 100;
-  const up = chg >= 0;
-  const color = up ? '#00c076' : '#f6465d';
-  tipEl.innerHTML = `
-    <div style="color:#f5a623;font-weight:700;margin-bottom:2px">${state.symbol} · ${dateStr}</div>
-    <div>O <span style="color:#e5e9f0">${candle.o.toFixed(2)}</span>
-         H <span style="color:#e5e9f0">${candle.h.toFixed(2)}</span>
-         L <span style="color:#e5e9f0">${candle.l.toFixed(2)}</span>
-         C <span style="color:${color}">${candle.c.toFixed(2)}</span></div>
-    <div>Chg <span style="color:${color}">${up ? '+' : ''}${chg.toFixed(2)} (${up ? '+' : ''}${chgPct.toFixed(2)}%)</span>
-         Vol <span style="color:#8b95a7">${candle.v.toLocaleString()}</span></div>
-  `;
-  tipEl.style.display = 'block';
-  // Position: right of cursor if space, else left
-  const tipW = 340, tipH = 58;
-  let left = mouseX + 12;
-  let top = mouseY + 12;
-  if (left + tipW > chartW) left = mouseX - tipW - 12;
-  if (top + tipH > ch - 22) top = mouseY - tipH - 12;
-  tipEl.style.left = left + 'px';
-  tipEl.style.top = top + 'px';
+
+  cv.addEventListener('pointermove', (e) => {
+    const d = getPaneDrag(paneIndex);
+    if (!d.active) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    const lw = localCW();
+    if (d.axisDrag) {
+      cs().priceScale = Math.max(0.5, d.startPS * (1 - dy / 200));
+      cs().priceOffsetRatio = d.startPO - dy / (localCH() * cs().priceScale * 10);
+    } else if (d.vertical) {
+      cs().priceOffsetRatio = d.startPO - dy / (localCH() * cs().priceScale * 10);
+    } else {
+      const barsPerPx = cs().visibleCount / lw;
+      cs().visibleStart = d.startVS - dx * barsPerPx;
+      cs().userHasPanned = true;
+    }
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  });
+
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('pointerleave', (e) => {
+    if (getPaneDrag(paneIndex).active) endDrag();
+  });
+  cv.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  cv.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = cv.getBoundingClientRect();
+    const lx = e.clientX - rect.left;
+    const lw = localCW();
+    const frac = lx / lw;
+    const delta = e.deltaY > 0 ? 1.15 : 0.87;
+    const newCount = Math.max(20, Math.min(
+      (state.candles[pane.symbol] || []).length,
+      cs().visibleCount * delta
+    ));
+    cs().visibleStart += (cs().visibleCount - newCount) * frac;
+    cs().visibleCount = newCount;
+    cs().userHasPanned = true;
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  }, { passive: false });
+
+  cv.addEventListener('dblclick', () => {
+    const cdls = state.candles[pane.symbol] || [];
+    cs().visibleCount = Math.min(120, cdls.length);
+    cs().visibleStart = Math.max(0, cdls.length - cs().visibleCount);
+    cs().priceOffsetRatio = 0;
+    cs().priceScale = 1;
+    cs().userHasPanned = false;
+    renderChartForPane(pane, cdls);
+  });
+
+  cv.addEventListener('mousemove', (e) => {
+    const d = getPaneDrag(paneIndex);
+    const rect = cv.getBoundingClientRect();
+    const lx = e.clientX - rect.left;
+    const lw = localCW();
+    cv.style.cursor = lx > lw ? 'ns-resize' : d.active ? 'grabbing' : 'crosshair';
+    renderCrosshairForPane(paneIndex, lx, e.clientY - rect.top);
+  });
+
+  cv.addEventListener('mouseleave', () => {
+    const tip = document.getElementById('ohlcTip');
+    if (tip) tip.style.display = 'none';
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  });
 }
+
+// renderCrosshair now accepts paneIndex
+function renderCrosshairForPane(paneIndex, localX, localY) {
+  const pane = state.panes[paneIndex];
+  if (!pane?.canvas) return;
+  const cdls = state.candles[pane.symbol] || [];
+  if (!cdls.length) return;
+  const cv = pane.canvas;
+  const ctx2 = cv.getContext('2d');
+  const lw = cv.width / (window.devicePixelRatio || 1);
+  const lh = cv.height / (window.devicePixelRatio || 1);
+  const cs = pane.chartState;
+  const AXIS_W = 60, TIME_H = 22;
+  const VOL_H = indOn('volume', cs) ? 50 : 0;
+  const SUB_H = cs.subPanel !== 'none' ? 80 : 0;
+  const chartW = lw - AXIS_W;
+  const chartH = lh - TIME_H - VOL_H - SUB_H;
+  if (localX < 0 || localX > chartW || localY < 0 || localY > lh) return;
+  const start = Math.floor(cs.visibleStart);
+  const count = Math.ceil(cs.visibleCount);
+  const end = Math.min(cdls.length, start + count);
+  const visible = cdls.slice(start, end);
+  if (!visible.length) return;
+  const maxP = Math.max(...visible.map(c => c.h));
+  const minP = Math.min(...visible.map(c => c.l));
+  const pad = (maxP - minP) * 0.08 || 1;
+  const minPP = minP - pad, maxPP = maxP + pad;
+  const price = maxPP - (localY / chartH) * (maxPP - minPP);
+  const barIdx = Math.floor(localX / (chartW / cs.visibleCount));
+  const bar = visible[Math.min(barIdx, visible.length - 1)];
+  renderChartForPane(pane, cdls);
+  ctx2.save();
+  ctx2.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx2.lineWidth = 1;
+  ctx2.setLineDash([3, 3]);
+  ctx2.beginPath(); ctx2.moveTo(localX, 0); ctx2.lineTo(localX, chartH); ctx2.stroke();
+  ctx2.beginPath(); ctx2.moveTo(0, localY); ctx2.lineTo(chartW, localY); ctx2.stroke();
+  ctx2.setLineDash([]);
+  ctx2.restore();
+  const tip = document.getElementById('ohlcTip');
+  if (tip && bar) {
+    tip.style.display = 'block';
+    tip.style.left = (cv.getBoundingClientRect().left + localX + 12) + 'px';
+    tip.style.top  = (cv.getBoundingClientRect().top  + localY - 10) + 'px';
+    tip.innerHTML = `<b>${pane.symbol}</b> O:${bar.o?.toFixed(2)} H:${bar.h?.toFixed(2)} L:${bar.l?.toFixed(2)} C:${bar.c?.toFixed(2)}`;
+  }
+}
+
+// Keep renderCrosshair as shim for any legacy callers
+function renderCrosshair(lx, ly) { renderCrosshairForPane(state.activePane, lx, ly); }
 
 function showLoadingBanner(show) {
   const el = document.getElementById('loadingBanner');
