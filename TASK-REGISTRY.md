@@ -10,6 +10,7 @@
 | APEX-20260501-004 | Multi-pane chart layout | **COMPLETE** | 2026-05-01 | 1x1, 1x2, 2x2 grid. Per-pane symbol, TF, chartState, mouse handlers, WS routing. 7 commits. |
 | APEX-20260501-005 | HANDOFF-03 pane-aware assessment | **COMPLETE** | 2026-05-02 | Per-pane ⚡ buttons, assessment + chat route to active pane, tooltip redesigned |
 | APEX-20260502-001 | HANDOFF-02 theme sweep | **COMPLETE** | 2026-05-02 | CSS + JS + canvas ctx sweep. 124 hex targets audited, 31 replaced. Light and arctic themes fully functional. |
+| APEX-20260502-002 | Supabase auth — Phase A | **COMPLETE** | 2026-05-02 | Email provider enabled with confirmation. profiles table + RLS + auto-create trigger. |
 
 ---
 
