@@ -3542,8 +3542,12 @@ function relativeTime(d) {
   return Math.floor(sec / 86400) + 'd ago';
 }
 
-async function runInstantAssessment() {
-  const candles = state.candles[state.symbol];
+async function runInstantAssessment(paneIndex) {
+  const _pi = paneIndex ?? state.activePane;
+  const _p  = state.panes[_pi];
+  const sym = _p?.symbol    || state.symbol;
+  const tf  = _p?.timeframe || state.timeframe;
+  const candles = state.candles[sym];
   if (!candles || candles.length < 20) { toast('No chart data yet', 'bear'); return; }
   const last = candles.at(-1);
   const prev20 = candles.slice(-20);
@@ -3578,10 +3582,10 @@ Format EXACTLY:
 [4-5 price levels with labels]
 
 ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
-  const userMsg = `${state.symbol} | Price: ${last.c.toFixed(2)} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)} | SMA20: ${sma20.toFixed(2)} (${trend}) | Structure: ${structure} | ATR: ${atr.toFixed(2)} | TF: ${state.timeframe}\nGive full structured assessment now.`;
+  const userMsg = `${sym} | Price: ${last.c.toFixed(2)} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)} | SMA20: ${sma20.toFixed(2)} (${trend}) | Structure: ${structure} | ATR: ${atr.toFixed(2)} | TF: ${tf}\nGive full structured assessment now.`;
   const chatMessages = document.getElementById('chatMessages');
   const loadingId = 'assess_' + Date.now();
-  chatMessages.innerHTML += `<div id="${loadingId}" class="msg ai" style="border-left:2px solid var(--gold);padding-left:8px;margin-bottom:10px"><div style="color:var(--gold);font-size:10px;letter-spacing:1px;margin-bottom:4px">⚡ INSTANT ASSESSMENT — ${state.symbol} ${state.timeframe}</div><div class="assess-body" style="white-space:pre-wrap;line-height:1.6;font-size:11px">Analyzing...</div></div>`;
+  chatMessages.innerHTML += `<div id="${loadingId}" class="msg ai" style="border-left:2px solid var(--gold);padding-left:8px;margin-bottom:10px"><div style="color:var(--gold);font-size:10px;letter-spacing:1px;margin-bottom:4px">⚡ INSTANT ASSESSMENT — ${sym} ${tf}</div><div class="assess-body" style="white-space:pre-wrap;line-height:1.6;font-size:11px">Analyzing...</div></div>`;
   chatMessages.scrollTop = chatMessages.scrollHeight;
   try {
     const r = await fetch('/.netlify/functions/claude-proxy', {
@@ -4731,7 +4735,7 @@ function updateConnPill() {
 
 document.getElementById('chatSend').addEventListener('click', sendChat);
 document.getElementById('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
-document.getElementById('assessBtn').addEventListener('click', requestInstantAssessment);
+document.getElementById('assessBtn').addEventListener('click', () => requestInstantAssessment(state.activePane));
 
 /* ============================================================
    PHASE 1A — DISCLAIMER WIRING
@@ -4760,14 +4764,18 @@ document.getElementById('assessBtn').addEventListener('click', requestInstantAss
 // Wraps the real runInstantAssessment call behind a one-per-session
 // modal that forces the user to actively acknowledge AI limitations.
 // Acknowledgment is session-scoped (sessionStorage), not permanent.
-function requestInstantAssessment() {
-  const candles = state.candles[state.symbol];
+let _pendingAssessPaneIdx = 0;
+function requestInstantAssessment(paneIndex) {
+  paneIndex = paneIndex ?? state.activePane;
+  const sym = state.panes?.[paneIndex]?.symbol || state.symbol;
+  const candles = state.candles[sym];
   if (!candles || candles.length < 20) {
     toast('No chart data yet', 'bear');
     return;
   }
+  _pendingAssessPaneIdx = paneIndex;
   if (sessionStorage.getItem('apex_assess_acked') === '1') {
-    runInstantAssessment();
+    runInstantAssessment(paneIndex);
     return;
   }
   openModal('assessAckModal');
@@ -4780,7 +4788,7 @@ document.getElementById('assessAckCancel').addEventListener('click', () => {
 document.getElementById('assessAckRun').addEventListener('click', () => {
   sessionStorage.setItem('apex_assess_acked', '1');
   closeModal('assessAckModal');
-  runInstantAssessment();
+  runInstantAssessment(_pendingAssessPaneIdx);
 });
 
 async function sendChat() {
@@ -4791,7 +4799,7 @@ async function sendChat() {
   // Multi-word triggers like 'read the tape' are matched as phrases inside \b boundaries.
   const assessTrigger = /\b(assess|read the tape|setup|what do you see|give me a read|levels|read)\b/i;
   if (assessTrigger.test(q)) {
-    requestInstantAssessment();
+    requestInstantAssessment(state.activePane);
     input.value = '';
     return;
   }
@@ -4823,7 +4831,7 @@ async function sendChat() {
       body: JSON.stringify({
         system: `You are APEX AI, a professional trading assistant embedded in a personal trading terminal. You have full access to the current chart state, indicators, signals, agent verdicts, and positions shown below. Answer questions about the chart, setups, risk, and trade management directly and specifically using this data. Never say you cannot see the chart — you have all relevant computed values. Be direct, specific, and actionable.
 
-${buildChartContext()}`,
+${buildChartContext(state.activePane)}`,
         messages: state.chatHistory,
         max_tokens: 1000,
       }),
@@ -4848,8 +4856,12 @@ ${buildChartContext()}`,
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-function buildChartContext() {
-  const sym = state.symbol;
+function buildChartContext(paneIndex) {
+  const _pi = paneIndex ?? state.activePane;
+  const _p  = state.panes[_pi];
+  const sym = _p?.symbol    || state.symbol;
+  const tf  = _p?.timeframe || state.timeframe;
+  const range = state.range;
   const candles = state.candles[sym] || [];
   const p = state.prices[sym] || {};
   if (!candles.length) return `Symbol: ${sym} | No chart data loaded yet.`;
@@ -4918,7 +4930,7 @@ function buildChartContext() {
 
   return `=== APEX LIVE CONTEXT ===
 Symbol: ${sym} | Price: ${last.c.toFixed(2)} | Chg: ${p.chgPct >= 0 ? '+' : ''}${(p.chgPct || 0).toFixed(2)}%
-Timeframe: ${state.timeframe} | Range: ${state.range}
+Timeframe: ${tf} | Range: ${range}
 ATR(14): ${atr ? atr.toFixed(2) : 'n/a'} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)}
 SMA20: ${sma20.toFixed(2)} | SMA50: ${sma50 ? sma50.toFixed(2) : 'n/a'}
 Price vs SMA20: ${last.c > sma20 ? 'ABOVE (bullish lean)' : 'BELOW (bearish lean)'}
