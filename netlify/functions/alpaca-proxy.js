@@ -2,14 +2,35 @@
 // Keeps ALPACA_KEY_ID and ALPACA_SECRET_KEY server-side.
 // Browser POSTs { path, params } and gets back Alpaca's response.
 
+const crypto = require('crypto');
+
+function verifyJWT(token, secret) {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [h, p, s] = parts;
+  const sig = crypto.createHmac('sha256', secret).update(`${h}.${p}`).digest('base64url');
+  if (sig !== s) return null;
+  const payload = JSON.parse(Buffer.from(p, 'base64url').toString());
+  if (payload.exp && Date.now() / 1000 > payload.exp) return null;
+  return payload;
+}
+
 exports.handler = async (event) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
-  if (event.httpMethod !== 'POST') return { statusCode: 405, headers: cors, body: 'Method Not Allowed' };
+
+  const secret = process.env.SUPABASE_JWT_SECRET;
+  const authHeader = event.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!secret || !token || !verifyJWT(token, secret)) {
+    return { statusCode: 401, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized' }) };
+  }
+
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers: { ...cors, 'Content-Type': 'application/json' }, body: 'Method Not Allowed' };
 
   const KEY = process.env.ALPACA_KEY_ID;
   const SECRET = process.env.ALPACA_SECRET_KEY;
