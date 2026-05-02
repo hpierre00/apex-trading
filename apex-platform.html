@@ -598,10 +598,16 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <button class="tf-btn" data-theme="light" title="Light (Ivory) — partial">☀️</button>
           <button class="tf-btn" data-theme="arctic" title="Arctic Blue — partial">❄️</button>
         </div>
+        <div class="tf-group" style="margin-left:8px" title="Chart layout">
+          <button class="tf-btn" id="layout1" onclick="initLayout(1)" title="Single chart">▣</button>
+          <button class="tf-btn" id="layout2" onclick="initLayout(2)" title="Side by side">⬛⬛</button>
+          <button class="tf-btn" id="layout4" onclick="initLayout(4)" title="2×2 grid">⊞</button>
+        </div>
       </div>
 
       <div class="chart-container" id="chartContainer">
         <canvas class="chart-canvas" id="chart"></canvas>
+        <div id="chartArea" style="position:absolute;inset:0;overflow:hidden;"></div>
         <div class="chart-hint">DRAG chart to pan · WHEEL to zoom · DRAG price axis to zoom price · SHIFT+DRAG vertical · DOUBLE-CLICK to reset</div>
         <div class="chart-controls">
           <button class="chart-ctrl-btn" id="zoomIn">+</button>
@@ -1106,9 +1112,79 @@ function syncActivePane() {
   p.timeframe = state.timeframe;
 }
 
-function initLayout() {
-  if (!state.panes.length) state.panes.push(createPane());
+function initLayout(count) {
+  count = count || 1;
+  // Grow panes array to match count, shrink if needed
+  while (state.panes.length < count) {
+    const i = state.panes.length;
+    state.panes.push({
+      symbol: state.symbol,
+      timeframe: state.timeframe,
+      chartState: i === 0 ? chartState : JSON.parse(JSON.stringify(chartState)),
+      canvas: null, // assigned below
+    });
+  }
+  state.panes.length = count;
+  if (state.activePane >= count) state.activePane = 0;
+
+  const area = document.getElementById('chartArea');
+  area.innerHTML = '';
+  area.style.display = 'grid';
+  area.style.gap = '2px';
+  area.style.background = '#0b1221';
+
+  if (count === 1) {
+    area.style.gridTemplateColumns = '1fr';
+    area.style.gridTemplateRows = '1fr';
+  } else if (count === 2) {
+    area.style.gridTemplateColumns = '1fr 1fr';
+    area.style.gridTemplateRows = '1fr';
+  } else {
+    area.style.gridTemplateColumns = '1fr 1fr';
+    area.style.gridTemplateRows = '1fr 1fr';
+  }
+
+  state.panes.forEach((pane, i) => {
+    const wrapper = document.createElement('div');
+    wrapper.id = `pane-${i}`;
+    wrapper.style.cssText = 'position:relative;overflow:hidden;min-height:0;min-width:0;';
+    if (i === state.activePane) wrapper.style.outline = '1px solid var(--gold, #f5a623)';
+
+    // Symbol label top-left
+    const label = document.createElement('div');
+    label.id = `pane-label-${i}`;
+    label.style.cssText = 'position:absolute;top:4px;left:6px;z-index:10;font-size:10px;color:#fff;opacity:0.7;pointer-events:none;';
+    label.textContent = pane.symbol + ' · ' + pane.timeframe;
+    wrapper.appendChild(label);
+
+    // Pane 0 reuses the module-level canvas so resizeCanvas() keeps working
+    const cv = i === 0 ? canvas : document.createElement('canvas');
+    if (i !== 0) {
+      cv.id = `pane-canvas-${i}`;
+      cv.style.cssText = 'width:100%;height:100%;display:block;';
+    }
+    cv.addEventListener('click', () => {
+      state.activePane = i;
+      document.querySelectorAll('[id^="pane-"]').forEach((el, idx) => {
+        if (el.id.startsWith('pane-') && !el.id.includes('canvas') && !el.id.includes('label')) {
+          el.style.outline = idx === i ? '1px solid var(--gold, #f5a623)' : 'none';
+        }
+      });
+    });
+
+    wrapper.appendChild(cv);
+    area.appendChild(wrapper);
+    pane.canvas = cv;
+  });
+
+  // Pane 0 must keep the original canvas reference for all legacy code
+  // (mouse handlers, resizeCanvas, etc. reference module-level `canvas`)
+  // Override: reassign canvas element id so resizeCanvas still works
+  // Keep module-level canvas pointing at pane 0's canvas
+  Object.defineProperty(window, 'canvasPane0', { value: state.panes[0].canvas, configurable: true });
+
   syncActivePane();
+  resizeCanvas();
 }
 
 const canvas = document.getElementById('chart');
@@ -1125,6 +1201,18 @@ function resizeCanvas() {
   canvas.style.height = ch + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   renderChart();
+  // Resize all additional panes
+  state.panes.forEach((pane, i) => {
+    if (i === 0) return; // pane 0 handled by existing logic above
+    if (!pane.canvas) return;
+    const rect = pane.canvas.parentElement?.getBoundingClientRect();
+    if (!rect || !rect.width || !rect.height) return;
+    const d = window.devicePixelRatio || 1;
+    pane.canvas.width = rect.width * d;
+    pane.canvas.height = rect.height * d;
+    pane.canvas.getContext('2d').setTransform(d, 0, 0, d, 0, 0);
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  });
 }
 
 function clampView() {
