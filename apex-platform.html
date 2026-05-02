@@ -1369,6 +1369,12 @@ function scheduleWatchlistUpdate() {
 }
 
 function renderChartForPane(pane, candles) {
+  const _cs2 = getComputedStyle(document.documentElement);
+  const _themeBg        = _cs2.getPropertyValue('--chart-bg').trim()  || '#0b1221';
+  const _themeGrid      = _cs2.getPropertyValue('--border').trim()    || '#121924';
+  const _themeTextFaint = _cs2.getPropertyValue('--text-faint').trim()|| '#5a6678';
+  const _themeGold      = _cs2.getPropertyValue('--gold').trim()      || '#f5a623';
+  const _themePanel     = _cs2.getPropertyValue('--panel').trim()     || '#0f1729';
   try {
   candles = candles || [];
   const ctx = pane.canvas.getContext('2d');
@@ -1378,7 +1384,7 @@ function renderChartForPane(pane, candles) {
   if (!candles.length) {
     // Clear canvas and show empty message
     if (cw > 0) {
-      ctx.fillStyle = '#0b1221';
+      ctx.fillStyle = _themeBg;
       ctx.fillRect(0, 0, cw, ch);
     }
     if (emptyEl) emptyEl.style.display = 'block';
@@ -1422,16 +1428,16 @@ function renderChartForPane(pane, candles) {
   const xAt = (i) => (i - pane.chartState.visibleStart) * candleW + candleW / 2;
 
   // --- clear
-  ctx.fillStyle = '#0b1221';
+  ctx.fillStyle = _themeBg;
   ctx.fillRect(0, 0, cw, ch);
 
   // --- grid + axis labels
   ctx.font = '10px monospace';
-  ctx.fillStyle = '#5a6678';
+  ctx.fillStyle = _themeTextFaint;
   for (let i = 0; i <= 6; i++) {
     const yy = (chartH * i) / 6;
     if (indOn('grid', pane.chartState)) {
-      ctx.strokeStyle = '#12192480';
+      ctx.strokeStyle = _themeGrid + '80';
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(chartW, yy); ctx.stroke();
     }
@@ -1476,7 +1482,7 @@ function renderChartForPane(pane, candles) {
   // --- volume
   if (indOn('volume', pane.chartState) && maxV > 0) {
     const volTop = chartH + 2;
-    ctx.fillStyle = '#12192480';
+    ctx.fillStyle = _themeGrid + '80';
     ctx.fillRect(0, volTop, chartW, VOL_H - 4);
     for (let i = 0; i < visible.length; i++) {
       const c = visible[i];
@@ -1486,7 +1492,7 @@ function renderChartForPane(pane, candles) {
       const bw = Math.max(1, candleW * 0.7);
       ctx.fillRect(xCenter - bw / 2, volTop + (VOL_H - 6) - vh, bw, vh);
     }
-    ctx.fillStyle = '#5a6678';
+    ctx.fillStyle = _themeTextFaint;
     ctx.fillText('VOL', 4, volTop + 10);
   }
 
@@ -1505,7 +1511,7 @@ function renderChartForPane(pane, candles) {
 
   // --- time axis
   const timeY = ch - TIME_H + 14;
-  ctx.fillStyle = '#5a6678';
+  ctx.fillStyle = _themeTextFaint;
   ctx.font = '10px monospace';
   const labels = 6;
   for (let i = 0; i < labels; i++) {
@@ -1524,11 +1530,11 @@ function renderChartForPane(pane, candles) {
   const lastC = candles.at(-1);
   if (lastC && indOn('lastPx', pane.chartState)) {
     const ly = y(lastC.c);
-    ctx.strokeStyle = '#f5a62380';
+    ctx.strokeStyle = _themeGold + '80';
     ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(chartW, ly); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#f5a623';
+    ctx.fillStyle = _themeGold;
     ctx.fillRect(chartW, ly - 8, AXIS_W, 16);
     ctx.fillStyle = '#0b1221';
     ctx.font = 'bold 10px monospace';
@@ -1539,23 +1545,23 @@ function renderChartForPane(pane, candles) {
   state.alerts.filter(a => a.sym === pane.symbol && !a.triggered).forEach(a => {
     const ay = y(a.px);
     if (ay < 0 || ay > chartH) return;
-    ctx.strokeStyle = '#f5a62390';
+    ctx.strokeStyle = _themeGold + '90';
     ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.moveTo(0, ay); ctx.lineTo(chartW, ay); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#f5a623';
+    ctx.fillStyle = _themeGold;
     ctx.font = '10px monospace';
     ctx.fillText('🔔 ' + a.px.toFixed(2), 6, ay - 4);
   });
   } catch (e) {
     console.error('APEX renderChart fatal error:', e);
     if (ctx && cw && ch) {
-      ctx.fillStyle = '#0b1221';
+      ctx.fillStyle = _themeBg;
       ctx.fillRect(0, 0, cw, ch);
       ctx.fillStyle = '#f6465d';
       ctx.font = '12px monospace';
       ctx.fillText('Chart render error: ' + e.message, 16, ch / 2 - 10);
-      ctx.fillStyle = '#5a6678';
+      ctx.fillStyle = _themeTextFaint;
       ctx.font = '10px monospace';
       ctx.fillText('Check console. Double-click chart to reset.', 16, ch / 2 + 10);
     }
@@ -1713,9 +1719,9 @@ function drawDonchian(candles, start, end, period, y, xAt) {
 
 function drawSubPanel(candles, start, end, top, height, chartW, xAt) {
   // background
-  ctx.fillStyle = '#0f172980';
+  ctx.fillStyle = _themePanel + '80';
   ctx.fillRect(0, top, chartW, height);
-  ctx.strokeStyle = '#1e2a3f';
+  ctx.strokeStyle = _themeGrid;
   ctx.beginPath(); ctx.moveTo(0, top); ctx.lineTo(chartW, top); ctx.stroke();
 
   const pad = 4;
@@ -1754,7 +1760,7 @@ function drawRSISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
     }
   }
   ctx.stroke();
-  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
+  ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('RSI 14', 4, top + 10);
   ctx.fillText('70', chartW + 4, ay(70, 0, 100) + 3);
   ctx.fillText('30', chartW + 4, ay(30, 0, 100) + 3);
@@ -1799,7 +1805,7 @@ function drawMACDSubPanel(candles, start, end, top, h, chartW, xAt) {
   const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
   const zero = ay(0);
   // zero line
-  ctx.strokeStyle = '#5a667840'; ctx.setLineDash([2, 3]);
+  ctx.strokeStyle = _themeTextFaint + '40'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, zero); ctx.lineTo(chartW, zero); ctx.stroke();
   ctx.setLineDash([]);
   // Histogram
@@ -1826,7 +1832,7 @@ function drawMACDSubPanel(candles, start, end, top, h, chartW, xAt) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
+  ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('MACD 12/26/9', 4, top + 10);
 }
 
@@ -1902,7 +1908,7 @@ function drawStochSubPanel(candles, start, end, top, h, chartW, xAt, ay) {
   };
   line(smoothed, '#2e7fff');
   line(dArr, '#f5a623');
-  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
+  ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('Stoch 14,3,3', 4, top + 10);
 }
 
@@ -1938,7 +1944,7 @@ function drawCCISubPanel(candles, start, end, top, h, chartW, xAt) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
+  ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('CCI 20', 4, top + 10);
 }
 
@@ -1967,7 +1973,7 @@ function drawWilliamsSubPanel(candles, start, end, top, h, chartW, xAt, ay) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
+  ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('Williams %R 14', 4, top + 10);
 }
 
@@ -1985,7 +1991,7 @@ function drawROCSubPanel(candles, start, end, top, h, chartW, xAt) {
   if (!isFinite(lo)) return;
   const pad = 4;
   const ay = (v) => top + pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo || 1));
-  ctx.strokeStyle = '#5a667840'; ctx.setLineDash([2, 3]);
+  ctx.strokeStyle = _themeTextFaint + '40'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, ay(0)); ctx.lineTo(chartW, ay(0)); ctx.stroke();
   ctx.setLineDash([]);
   ctx.strokeStyle = '#29b6f6'; ctx.lineWidth = 1.5;
@@ -1996,7 +2002,7 @@ function drawROCSubPanel(candles, start, end, top, h, chartW, xAt) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
+  ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('ROC 12', 4, top + 10);
 }
 
@@ -2032,7 +2038,7 @@ function drawATRSubPanel(candles, start, end, top, h, chartW, xAt) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
+  ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('ATR 14', 4, top + 10);
 }
 
@@ -2056,7 +2062,7 @@ function drawOBVSubPanel(candles, start, end, top, h, chartW, xAt) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
+  ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('OBV', 4, top + 10);
 }
 
@@ -2088,7 +2094,7 @@ function drawMFISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
     if (first) { ctx.moveTo(x, py); first = false; } else ctx.lineTo(x, py);
   }
   ctx.stroke();
-  ctx.fillStyle = '#5a6678'; ctx.font = '9px monospace';
+  ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('MFI 14', 4, top + 10);
 }
 
