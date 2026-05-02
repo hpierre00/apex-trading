@@ -969,6 +969,7 @@ const state = {
   // Multi-pane chart model. panes[0] mirrors globals in 1x1 mode.
   panes: [],
   activePane: 0,
+  wsSubCount: {},
   // Session-only multi-turn chat memory for AI Chat. Not persisted to localStorage.
   // Cleared on symbol switch so Claude doesn't mix context from different tickers.
   chatHistory: [],
@@ -1112,6 +1113,17 @@ function syncActivePane() {
   p.timeframe = state.timeframe;
 }
 
+function scheduleRenderPane(index) {
+  const pane = state.panes[index];
+  if (!pane) return;
+  if (pane._rafPending) return;
+  pane._rafPending = true;
+  requestAnimationFrame(() => {
+    pane._rafPending = false;
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  });
+}
+
 function initLayout(count) {
   count = count || 1;
   // Grow panes array to match count, shrink if needed
@@ -1176,6 +1188,15 @@ function initLayout(count) {
     area.appendChild(wrapper);
     pane.canvas = cv;
     attachPaneHandlers(i);
+  });
+
+  // Subscribe WS to all pane symbols
+  const allSyms = [...new Set(state.panes.map(p => p.symbol))];
+  allSyms.forEach(sym => {
+    if (state.alpaca.ws && state.alpaca.ws.readyState === 1 && !state.wsSubCount[sym]) {
+      state.alpaca.ws.send(JSON.stringify({ action: 'subscribe', trades: [sym], bars: [sym] }));
+    }
+    state.wsSubCount[sym] = (state.wsSubCount[sym] || 0) + 1;
   });
 
   // Pane 0 must keep the original canvas reference for all legacy code
@@ -4530,6 +4551,9 @@ async function connectAlpaca() {
           scheduleHeaderUpdate();
         }
         scheduleWatchlistUpdate();
+        state.panes.forEach((pane, i) => {
+          if (pane.symbol === m.S) scheduleRenderPane(i);
+        });
       } else if (m.T === 'b') {
         const arr = state.candles[m.S];
         if (arr) {
@@ -4553,6 +4577,9 @@ async function connectAlpaca() {
           }
         }
         state.alpaca.lastTickAt = Date.now();
+        state.panes.forEach((pane, i) => {
+          if (pane.symbol === m.S) scheduleRenderPane(i);
+        });
         if (m.S === (state.panes?.[state.activePane]?.symbol || state.symbol)) {
           runSmartSignals();
         }
