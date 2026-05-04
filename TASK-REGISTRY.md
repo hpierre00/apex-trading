@@ -13,6 +13,7 @@
 | APEX-20260502-002 | Supabase auth — Phase A | **COMPLETE** | 2026-05-02 | Email provider enabled with confirmation. profiles table + RLS + auto-create trigger. |
 | APEX-20260502-003 | Supabase auth — full implementation | **COMPLETE** | 2026-05-02 | Login/signup modal, session gate, JWT on all 5 proxies, 9 fetch calls wired. Email+password auth end-to-end. |
 | APEX-20260504-001 | Multi-pane UX — per-pane symbol/TF, live data all panes | **COMPLETE** | 2026-05-04 | Per-pane symbol input, TF buttons, simTick renders all panes, outline logic fixed |
+| APEX-20260504-002 | Email confirmation flow | **COMPLETE** | 2026-05-04 | emailRedirectTo fix confirmed working end-to-end. Signup → confirm → login → terminal loads with live data. |
 
 ---
 
