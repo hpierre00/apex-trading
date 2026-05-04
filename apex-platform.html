@@ -1186,6 +1186,48 @@ function initLayout(count) {
     label.textContent = pane.symbol + ' · ' + pane.timeframe;
     wrapper.appendChild(label);
 
+    // Mini toolbar — symbol input + TF buttons
+    const miniBar = document.createElement('div');
+    miniBar.style.cssText = 'position:absolute;top:20px;left:0;right:0;z-index:10;display:flex;gap:2px;padding:2px 4px;background:rgba(11,18,33,0.85);';
+
+    const symInput = document.createElement('input');
+    symInput.value = pane.symbol;
+    symInput.style.cssText = 'background:#0b1221;border:1px solid #1e2d45;color:#f5a623;font-family:monospace;font-size:9px;font-weight:700;padding:2px 4px;width:52px;text-transform:uppercase;outline:none;';
+    symInput.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const sym = symInput.value.trim().toUpperCase();
+      if (!sym) return;
+      pane.symbol = sym;
+      document.getElementById(`pane-label-${i}`).textContent = sym + ' · ' + pane.timeframe;
+      if (!state.candles[sym]) state.candles[sym] = genCandles(sym, 300, pane.timeframe);
+      if (state.alpaca.state === 'live' && !state.wsSubCount[sym]) {
+        state.alpaca.ws?.send(JSON.stringify({ action: 'subscribe', trades: [sym], bars: [sym] }));
+        state.wsSubCount[sym] = 1;
+      }
+      renderChartForPane(pane, state.candles[sym]);
+    });
+    miniBar.appendChild(symInput);
+
+    const tfs = ['1m','5m','15m','1h','1d'];
+    tfs.forEach(tf => {
+      const btn = document.createElement('button');
+      btn.textContent = tf;
+      btn.style.cssText = 'background:none;border:1px solid #1e2d45;color:#5a6678;font-family:monospace;font-size:8px;padding:1px 3px;cursor:pointer;';
+      if (tf === pane.timeframe) { btn.style.borderColor = '#f5a623'; btn.style.color = '#f5a623'; }
+      btn.addEventListener('click', () => {
+        pane.timeframe = tf;
+        document.getElementById(`pane-label-${i}`).textContent = pane.symbol + ' · ' + tf;
+        miniBar.querySelectorAll('button').forEach(b => {
+          b.style.borderColor = b.textContent === tf ? '#f5a623' : '#1e2d45';
+          b.style.color = b.textContent === tf ? '#f5a623' : '#5a6678';
+        });
+        if (!state.candles[pane.symbol]) state.candles[pane.symbol] = genCandles(pane.symbol, 300, tf);
+        renderChartForPane(pane, state.candles[pane.symbol]);
+      });
+      miniBar.appendChild(btn);
+    });
+    wrapper.appendChild(miniBar);
+
     const assessPaneBtn = document.createElement('button');
     assessPaneBtn.style.cssText = 'position:absolute;top:3px;right:6px;z-index:10;background:var(--gold,#f5a623);color:#000;border:none;border-radius:3px;font-size:9px;font-weight:700;padding:2px 5px;cursor:pointer;';
     assessPaneBtn.textContent = '⚡';
@@ -1205,10 +1247,9 @@ function initLayout(count) {
     }
     cv.addEventListener('click', () => {
       state.activePane = i;
-      document.querySelectorAll('[id^="pane-"]').forEach((el, idx) => {
-        if (el.id.startsWith('pane-') && !el.id.includes('canvas') && !el.id.includes('label')) {
-          el.style.outline = idx === i ? '1px solid var(--gold, #f5a623)' : 'none';
-        }
+      state.panes.forEach((_, pi) => {
+        const w = document.getElementById(`pane-${pi}`);
+        if (w) w.style.outline = pi === i ? '1px solid var(--gold,#f5a623)' : 'none';
       });
     });
 
@@ -2198,9 +2239,9 @@ function attachPaneHandlers(paneIndex) {
     const d = getPaneDrag(paneIndex);
     state.activePane = paneIndex;
     // update gold border
-    document.querySelectorAll('[id^="pane-"]').forEach(el => {
-      if (el.id.match(/^pane-\d+$/) && !el.id.includes('canvas') && !el.id.includes('label'))
-        el.style.outline = el.id === `pane-${paneIndex}` ? '1px solid var(--gold,#f5a623)' : 'none';
+    state.panes.forEach((_, pi) => {
+      const w = document.getElementById(`pane-${pi}`);
+      if (w) w.style.outline = pi === paneIndex ? '1px solid var(--gold,#f5a623)' : 'none';
     });
     // Sync toolbar TF buttons to reflect this pane's timeframe
     document.querySelectorAll('.tf-btn[data-tf]').forEach(b => {
@@ -5057,7 +5098,9 @@ function simTick() {
   renderPositions();
   renderTicker();
   updateSymHeader();
-  renderChart();
+  state.panes.forEach((pane, i) => {
+    renderChartForPane(pane, state.candles[pane.symbol] || []);
+  });
   checkAlerts();
 }
 
