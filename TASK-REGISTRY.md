@@ -12,6 +12,7 @@
 | APEX-20260502-001 | HANDOFF-02 theme sweep | **COMPLETE** | 2026-05-02 | CSS + JS + canvas ctx sweep. 124 hex targets audited, 31 replaced. Light and arctic themes fully functional. |
 | APEX-20260502-002 | Supabase auth — Phase A | **COMPLETE** | 2026-05-02 | Email provider enabled with confirmation. profiles table + RLS + auto-create trigger. |
 | APEX-20260502-003 | Supabase auth — full implementation | **COMPLETE** | 2026-05-02 | Login/signup modal, session gate, JWT on all 5 proxies, 9 fetch calls wired. Email+password auth end-to-end. |
+| APEX-20260504-001 | Multi-pane UX — per-pane symbol/TF, live data all panes | **COMPLETE** | 2026-05-04 | Per-pane symbol input, TF buttons, simTick renders all panes, outline logic fixed |
 
 ---
 
