@@ -5283,7 +5283,13 @@ async function handleAuthSubmit() {
     if (mode === 'login') {
       result = await _supabase.auth.signInWithPassword({ email, password });
     } else {
-      result = await _supabase.auth.signUp({ email, password });
+      result = await _supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: 'https://clever-sherbet-f7c895.netlify.app/app'
+          }
+        });
     }
     if (result.error) {
       errEl.textContent = result.error.message;
