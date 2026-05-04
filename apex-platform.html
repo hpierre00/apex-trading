@@ -1384,13 +1384,19 @@ function scheduleWatchlistUpdate() {
   }, delay);
 }
 
+let _themeBg = '#0b1221';
+let _themeGrid = '#121924';
+let _themeTextFaint = '#5a6678';
+let _themeGold = '#f5a623';
+let _themePanel = '#0f1729';
+
 function renderChartForPane(pane, candles) {
   const _cs2 = getComputedStyle(document.documentElement);
-  const _themeBg        = _cs2.getPropertyValue('--chart-bg').trim()  || '#0b1221';
-  const _themeGrid      = _cs2.getPropertyValue('--border').trim()    || '#121924';
-  const _themeTextFaint = _cs2.getPropertyValue('--text-faint').trim()|| '#5a6678';
-  const _themeGold      = _cs2.getPropertyValue('--gold').trim()      || '#f5a623';
-  const _themePanel     = _cs2.getPropertyValue('--panel').trim()     || '#0f1729';
+  _themeBg        = _cs2.getPropertyValue('--chart-bg').trim()  || '#0b1221';
+  _themeGrid      = _cs2.getPropertyValue('--border').trim()    || '#121924';
+  _themeTextFaint = _cs2.getPropertyValue('--text-faint').trim()|| '#5a6678';
+  _themeGold      = _cs2.getPropertyValue('--gold').trim()      || '#f5a623';
+  _themePanel     = _cs2.getPropertyValue('--panel').trim()     || '#0f1729';
   try {
   candles = candles || [];
   const ctx = pane.canvas.getContext('2d');
@@ -4317,6 +4323,7 @@ document.getElementById('reconnectWsBtn').addEventListener('click', () => {
 });
 
 async function runHealthChecks() {
+  if (!_session?.access_token) return;
   const set = (id, txt, color) => {
     const el = document.getElementById(id);
     if (!el) return;
