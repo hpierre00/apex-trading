@@ -2,18 +2,8 @@
 // FRED requires a free API key for JSON responses; we ship one or the user provides via env var.
 // Exposes whitelisted series IDs only.
 
-const crypto = require('crypto');
-
-function verifyJWT(token, secret) {
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [h, p, s] = parts;
-  const sig = crypto.createHmac('sha256', secret).update(`${h}.${p}`).digest('base64url');
-  if (sig !== s) return null;
-  const payload = JSON.parse(Buffer.from(p, 'base64url').toString());
-  if (payload.exp && Date.now() / 1000 > payload.exp) return null;
-  return payload;
-}
+const SUPABASE_URL = 'https://soghksmuocrgtttmnete.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZ2hrc211b2NyZ3R0dG1uZXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTg4MTEsImV4cCI6MjA5MjY5NDgxMX0.FWRiSZG5yGsJdZvntD5LrqmV07NFEjZWjisJSK95b7A';
 
 exports.handler = async (event) => {
   const cors = {
@@ -23,10 +13,15 @@ exports.handler = async (event) => {
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
 
-  const secret = process.env.SUPABASE_JWT_SECRET;
   const authHeader = event.headers['authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!secret || !token || !verifyJWT(token, secret)) {
+  if (!token) {
+    return { statusCode: 401, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized' }) };
+  }
+  const authCheck = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY }
+  });
+  if (!authCheck.ok) {
     return { statusCode: 401, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized' }) };
   }
 
