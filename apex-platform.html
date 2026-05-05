@@ -5337,7 +5337,7 @@ async function handleAuthSubmit() {
           email,
           password,
           options: {
-            emailRedirectTo: 'https://clever-sherbet-f7c895.netlify.app/app'
+            emailRedirectTo: 'https://vectatrade.com/app'
           }
         });
     }
@@ -5413,7 +5413,7 @@ async function handleGoogleSignIn() {
   const { error } = await _supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: 'https://clever-sherbet-f7c895.netlify.app/app'
+      redirectTo: 'https://vectatrade.com/app'
     }
   });
   if (error) {
