@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1400">
-<title>APEX — AI Trading Terminal v5</title>
+<title>Vecta Trade — AI Trading Terminal</title>
 <style>
 :root {
   /* Shared across all themes (accents, not theme-dependent) */
@@ -511,7 +511,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   <!-- TOPBAR -->
   <header class="topbar">
     <div>
-      <div class="brand">APEX</div>
+      <div class="brand">Vecta Trade</div>
       <div class="brand-sub">AI TRADING TERMINAL v5</div>
     </div>
     <div class="search">
@@ -533,7 +533,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   <div class="session-disclaimer" id="sessionDisclaimer">
     <div>
       <strong>⚠ NOT FINANCIAL ADVICE.</strong>
-      APEX provides AI-generated market analysis that may contain errors or hallucinations.
+      Vecta Trade provides AI-generated market analysis that may contain errors or hallucinations.
       This is not a trading recommendation. Every trading decision is your own.
       Verify all information independently before acting.
     </div>
@@ -649,7 +649,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         </div>
         <button id="assessBtn" title="Instant AI assessment of active chart" style="width:calc(100% - 16px);margin:0 8px 6px;background:var(--gold);color:var(--bg);font-weight:700;letter-spacing:1px;padding:6px;border:none;cursor:pointer;font-family:monospace;font-size:11px">⚡ INSTANT ASSESSMENT</button>
         <div class="chat-input-wrap">
-          <input class="chat-input" id="chatInput" placeholder="Ask APEX..." autocomplete="off">
+          <input class="chat-input" id="chatInput" placeholder="Ask Vecta Trade..." autocomplete="off">
           <button class="chat-send" id="chatSend" title="Send message">▶</button>
         </div>
       </div>
@@ -664,7 +664,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div class="sb" id="mktStatus">● MARKET OPEN</div>
     <div class="spacer" style="flex:1"></div>
     <div class="sb" id="clock"></div>
-    <div class="sb">APEX v5.0.0</div>
+    <div class="sb">Vecta Trade v5.0.0</div>
   </footer>
 
 </div>
@@ -919,7 +919,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
 <script>
 /* ============================================================
-   APEX v5 — AI Trading Terminal
+   Vecta Trade — AI Trading Terminal
    ============================================================ */
 
 const SUPABASE_URL = 'https://soghksmuocrgtttmnete.supabase.co';
@@ -4346,7 +4346,7 @@ document.getElementById('notifVol').addEventListener('input', (e) => {
 
 document.getElementById('notifTestBtn').addEventListener('click', () => {
   playSound('alert');
-  pushNotify('APEX test', 'Browser notifications are working.', 'alert');
+  pushNotify('Vecta Trade test', 'Browser notifications are working.', 'alert');
 });
 
 document.getElementById('runHealthBtn').addEventListener('click', runHealthChecks);
@@ -4930,7 +4930,7 @@ async function sendChat() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({
-        system: `You are APEX AI, a professional trading assistant embedded in a personal trading terminal. You have full access to the current chart state, indicators, signals, agent verdicts, and positions shown below. Answer questions about the chart, setups, risk, and trade management directly and specifically using this data. Never say you cannot see the chart — you have all relevant computed values. Be direct, specific, and actionable.
+        system: `You are Vecta Trade AI, a professional trading assistant embedded in a personal trading terminal. You have full access to the current chart state, indicators, signals, agent verdicts, and positions shown below. Answer questions about the chart, setups, risk, and trade management directly and specifically using this data. Never say you cannot see the chart — you have all relevant computed values. Be direct, specific, and actionable.
 
 ${buildChartContext(state.activePane)}`,
         messages: state.chatHistory,
@@ -5029,7 +5029,7 @@ function buildChartContext(paneIndex) {
     ? `AUTO-BALANCED (based on ${state.learnedWeights._meta.basedOnSignals} signals)`
     : 'using default weights (insufficient history)';
 
-  return `=== APEX LIVE CONTEXT ===
+  return `=== VECTA TRADE LIVE CONTEXT ===
 Symbol: ${sym} | Price: ${last.c.toFixed(2)} | Chg: ${p.chgPct >= 0 ? '+' : ''}${(p.chgPct || 0).toFixed(2)}%
 Timeframe: ${tf} | Range: ${range}
 ATR(14): ${atr ? atr.toFixed(2) : 'n/a'} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)}
@@ -5431,7 +5431,7 @@ bootApp();
 <div id="authModal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;">
   <div style="background:#0f1729;border:1px solid #1e2d45;border-radius:8px;padding:32px;width:100%;max-width:400px;font-family:monospace;">
     <div style="text-align:center;margin-bottom:24px;">
-      <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#f5a623;">APEX</div>
+      <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#f5a623;">VECTA TRADE</div>
       <div style="font-size:11px;color:#5a6678;margin-top:4px;letter-spacing:1px;">AI TRADING TERMINAL</div>
     </div>
     <div id="authTabs" style="display:flex;margin-bottom:20px;border-bottom:1px solid #1e2d45;">
