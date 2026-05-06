@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Market Scanner — Tradolux</title>
+<meta name="description" content="Real-time market scanner: top movers, most active stocks, earnings calendar, and upcoming IPOs. Watch the market before you trade it.">
+<meta property="og:title" content="Live Market Scanner — Tradolux">
+<meta property="og:description" content="Real-time market data, top movers, and earnings calendar. Free preview.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="/css/marketing.css">
+<style>
+/* ── Teal brand override for this page ── */
+:root {
+  --gold:     #1a7a6e;
+  --gold-dim: #155f55;
+  --bg:       #070d1f;
+  --panel:    #0d1629;
+  --panel-2:  #111f38;
+  --border:   #1a2740;
+}
+a:hover { color: #22a090; }
+.nav-links a.cta         { background: #1a7a6e; color: #e8f5f2; }
+.nav-links a.cta:hover   { background: #22a090; color: #fff; }
+.btn-primary             { background: #1a7a6e; color: #e8f5f2; }
+.btn-primary:hover       { background: #22a090; color: #fff; }
+.section-header .eyebrow { color: #1a7a6e; }
+
+/* ── Market summary bar ── */
+.market-bar {
+  background: #080f22;
+  border-bottom: 1px solid var(--border);
+}
+.market-bar-inner {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-items: stretch;
+}
+.market-bar-inner::-webkit-scrollbar { display: none; }
+
+.ticker-pill {
+  flex: 0 0 auto;
+  padding: 10px 20px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 160px;
+}
+.ticker-pill .t-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #3a4a62;
+  font-family: monospace;
+  text-transform: uppercase;
+}
+.ticker-pill .t-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e5e9f0;
+  font-family: monospace;
+}
+.ticker-pill .t-chg {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+}
+.t-chg.bull { color: #00c076; }
+.t-chg.bear { color: #f6465d; }
+.t-chg.flat { color: #5a6678; }
+
+.bar-status {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #3a4a62;
+  font-family: monospace;
+  white-space: nowrap;
+}
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00c076;
+  flex-shrink: 0;
+  animation: livepulse 2s ease-in-out infinite;
+}
+@keyframes livepulse {
+  0%,100% { opacity:1; }
+  50%      { opacity:.35; }
+}
+
+/* ── Page layout ── */
+.preview-main {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.scanner-col {
+  flex: 0 0 60%;
+  min-width: 0;
+}
+.right-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Primary tabs ── */
+.tabs-primary {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.tab-primary-btn {
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #3a4a62;
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color .15s;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.tab-primary-btn:hover { color: #8b95a7; }
+.tab-primary-btn.active { color: #1a7a6e; border-bottom-color: #1a7a6e; }
+
+/* ── Scanner toolbar ── */
+.scanner-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tabs-secondary { display: flex; gap: 4px; }
+.tab-sec-btn {
+  padding: 5px 12px;
+  background: #0d1629;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: #3a4a62;
+  font-family: monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.tab-sec-btn:hover { color: #8b95a7; border-color: #243350; }
+.tab-sec-btn.active {
+  background: rgba(26,122,110,.12);
+  border-color: #1a7a6e;
+  color: #1a7a6e;
+}
+.scan-ts {
+  font-size: 9px;
+  color: #2a3a52;
+  font-family: monospace;
+}
+
+/* ── Scanner table ── */
+.scanner-wrap {
+  background: #080f22;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.scanner-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: monospace;
+  font-size: 12px;
+}
+.scanner-table thead th {
+  padding: 8px 10px;
+  background: #0d1629;
+  color: #2a3a52;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.scanner-table th.r, .scanner-table td.r { text-align: right; }
+.scanner-table tbody td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(26,39,64,.5);
+  color: #8b95a7;
+  vertical-align: middle;
+}
+.scanner-table tbody tr:last-child td { border-bottom: none; }
+.scanner-table tbody tr:hover td { background: rgba(26,122,110,.04); }
+.td-rank  { color: #2a3a52; font-size: 10px; width: 28px; }
+.td-sym   { font-weight: 700; color: #c8d0dd; letter-spacing: .5px; }
+.td-price { color: #e5e9f0; }
+.td-bull  { color: #00c076; font-weight: 700; }
+.td-bear  { color: #f6465d; font-weight: 700; }
+.td-vol   { color: #5a6678; }
+.td-dim   { color: #3a4a62; }
+
+/* Extended hours placeholder */
+.ext-note {
+  padding: 44px 20px;
+  text-align: center;
+}
+.ext-note strong {
+  display: block;
+  font-size: 14px;
+  color: #1a7a6e;
+  margin-bottom: 8px;
+}
+.ext-note p {
+  font-size: 13px;
+  color: #3a4a62;
+  margin-bottom: 20px;
+}
+
+/* skeleton shimmer */
+.skel {
+  display: inline-block;
+  background: linear-gradient(90deg,#0d1629 25%,#111f38 50%,#0d1629 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 3px;
+  height: 10px;
+  vertical-align: middle;
+}
+@keyframes shimmer {
+  from { background-position:-200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+/* ── Right panel cards ── */
+.panel-card {
+  background: #080f22;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.panel-card-hd {
+  padding: 9px 14px;
+  background: #0d1629;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.panel-card-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #1a7a6e;
+  text-transform: uppercase;
+  font-family: monospace;
+}
+.panel-card-sub {
+  font-size: 9px;
+  color: #2a3a52;
+  font-family: monospace;
+}
+
+/* Earnings + IPO mini tables */
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: monospace;
+  font-size: 11px;
+}
+.mini-table th {
+  padding: 6px 10px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #2a3a52;
+  border-bottom: 1px solid rgba(26,39,64,.5);
+  text-align: left;
+}
+.mini-table th.r, .mini-table td.r { text-align: right; }
+.mini-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(26,39,64,.35);
+  color: #5a6678;
+  vertical-align: middle;
+}
+.mini-table tr:last-child td { border-bottom: none; }
+.mini-table .ms   { font-weight: 700; color: #c8d0dd; }
+.mini-table .mco  { color: #8b95a7; font-size: 10px; }
+.mini-table .mbmo { color: #4c9aff; font-size: 8px; font-weight: 700; letter-spacing: .5px; }
+.mini-table .mamc { color: #e9b840; font-size: 8px; font-weight: 700; letter-spacing: .5px; }
+.mini-table .meps { color: #e5e9f0; }
+.mini-table tr.today-row td { background: rgba(26,122,110,.07); }
+.mini-table tr.today-row .ms { color: #1a7a6e; }
+
+/* CTA card */
+.cta-card {
+  background: linear-gradient(140deg,rgba(26,122,110,.14) 0%,rgba(26,122,110,.04) 100%);
+  border: 1px solid rgba(26,122,110,.3);
+  border-radius: 6px;
+  padding: 22px 18px;
+  text-align: center;
+}
+.cta-card h3 {
+  font-size: 15px;
+  color: #e5e9f0;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.cta-card .cta-sub {
+  font-size: 12px;
+  color: #5a6678;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.feature-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.ftag {
+  font-size: 9px;
+  padding: 3px 8px;
+  background: rgba(26,122,110,.1);
+  border: 1px solid rgba(26,122,110,.2);
+  border-radius: 10px;
+  color: #1a7a6e;
+  font-family: monospace;
+  letter-spacing: .5px;
+}
+.btn-cta-main {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background: #1a7a6e;
+  color: #e8f5f2;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-align: center;
+  text-decoration: none;
+  margin-bottom: 10px;
+  transition: background .15s;
+}
+.btn-cta-main:hover { background: #22a090; color: #fff; }
+.cta-signin {
+  font-size: 11px;
+  color: #3a4a62;
+  text-decoration: none;
+  display: block;
+}
+.cta-signin:hover { color: #1a7a6e; }
+
+/* ── Footer ── */
+.preview-footer {
+  background: #080f22;
+  border-top: 1px solid var(--border);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: #2a3a52;
+}
+.preview-footer a {
+  color: #3a4a62;
+  text-decoration: none;
+  margin: 0 8px;
+}
+.preview-footer a:hover { color: #1a7a6e; }
+
+/* ── Responsive ── */
+@media (max-width: 920px) {
+  .preview-main { flex-direction: column; }
+  .scanner-col, .right-col { flex: none; width: 100%; }
+}
+@media (max-width: 600px) {
+  .tab-primary-btn { padding: 8px 10px; font-size: 9px; }
+  .ticker-pill { min-width: 130px; padding: 8px 14px; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="/" class="brand">Tradolux</a>
+    <nav class="nav-links">
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/app">Sign in</a>
+      <a href="#trial" class="cta">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ── Market summary bar ── -->
+<div class="market-bar">
+  <div class="market-bar-inner" id="marketBarInner">
+    <!-- populated by JS -->
+    <div class="ticker-pill"><span class="t-label">S&amp;P 500</span><span class="t-price"><span class="skel" style="width:58px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">NASDAQ</span><span class="t-price"><span class="skel" style="width:54px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">DOW</span><span class="t-price"><span class="skel" style="width:56px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">RUSSELL 2K</span><span class="t-price"><span class="skel" style="width:52px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">VIX PROXY</span><span class="t-price"><span class="skel" style="width:44px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="bar-status">
+      <div class="live-dot"></div>
+      <span id="barTs">Loading…</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main content ── -->
+<div class="preview-main">
+
+  <!-- LEFT: Scanner -->
+  <div class="scanner-col">
+    <div class="tabs-primary">
+      <button class="tab-primary-btn active" data-tab="regular">REGULAR HOURS</button>
+      <button class="tab-primary-btn" data-tab="pre">PRE-MARKET</button>
+      <button class="tab-primary-btn" data-tab="after">AFTER HOURS</button>
+    </div>
+
+    <div class="scanner-toolbar">
+      <div class="tabs-secondary">
+        <button class="tab-sec-btn active" data-sub="active">MOST ACTIVE</button>
+        <button class="tab-sec-btn" data-sub="volatile">MOST VOLATILE</button>
+      </div>
+      <span class="scan-ts" id="scanTs">Loading…</span>
+    </div>
+
+    <!-- Regular hours table -->
+    <div id="scannerWrap" class="scanner-wrap">
+      <table class="scanner-table">
+        <thead><tr id="scannerHeads">
+          <th>#</th><th>SYMBOL</th><th class="r">PRICE</th><th class="r">CHANGE</th><th class="r">VOLUME</th><th class="r">REL.VOL</th>
+        </tr></thead>
+        <tbody id="scannerBody">
+          <!-- skeleton rows -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Extended hours placeholder (hidden by default) -->
+    <div id="extHoursWrap" class="scanner-wrap" style="display:none">
+      <div class="ext-note">
+        <strong>Extended Hours Scanning</strong>
+        <p>Pre-market and after-hours data is available inside the<br>Tradolux terminal for Pro and Elite subscribers.</p>
+        <a href="/app" class="btn-cta-main" style="display:inline-block;width:auto;padding:10px 22px;font-size:12px;">Open Terminal →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Panels -->
+  <div class="right-col">
+
+    <!-- Earnings This Week -->
+    <div class="panel-card">
+      <div class="panel-card-hd">
+        <span class="panel-card-title">Earnings This Week</span>
+        <span class="panel-card-sub">Estimates · Dates subject to change</span>
+      </div>
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>SYM</th><th>COMPANY</th><th>DATE</th><th>TIME</th><th class="r">EST. EPS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="today-row">
+            <td class="ms">SMCI</td><td class="mco">Super Micro</td><td>May 6</td><td class="mamc">AMC</td><td class="r meps">$0.68</td>
+          </tr>
+          <tr class="today-row">
+            <td class="ms">ARM</td><td class="mco">Arm Holdings</td><td>May 6</td><td class="mamc">AMC</td><td class="r meps">$0.45</td>
+          </tr>
+          <tr>
+            <td class="ms">UBER</td><td class="mco">Uber Tech.</td><td>May 7</td><td class="mbmo">BMO</td><td class="r meps">$0.78</td>
+          </tr>
+          <tr>
+            <td class="ms">LYFT</td><td class="mco">Lyft Inc.</td><td>May 7</td><td class="mamc">AMC</td><td class="r meps">$0.21</td>
+          </tr>
+          <tr>
+            <td class="ms">SHOP</td><td class="mco">Shopify</td><td>May 8</td><td class="mbmo">BMO</td><td class="r meps">$2.34</td>
+          </tr>
+          <tr>
+            <td class="ms">COIN</td><td class="mco">Coinbase</td><td>May 8</td><td class="mamc">AMC</td><td class="r meps">$1.85</td>
+          </tr>
+          <tr>
+            <td class="ms">RBLX</td><td class="mco">Roblox Corp.</td><td>May 8</td><td class="mamc">AMC</td><td class="r meps">$0.05</td>
+          </tr>
+          <tr>
+            <td class="ms">PLTR</td><td class="mco">Palantir</td><td>May 5</td><td class="mamc">AMC</td><td class="r meps">$0.13</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Upcoming IPOs -->
+    <div class="panel-card">
+      <div class="panel-card-hd">
+        <span class="panel-card-title">Upcoming IPOs</span>
+        <span class="panel-card-sub">IPO calendar updates weekly</span>
+      </div>
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>COMPANY</th><th>TICKER</th><th>EXP. DATE</th><th class="r">PRICE RANGE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mco">Cerebras Systems</td><td class="ms">CBRS</td><td>Q2 2026</td><td class="r meps">$28–$34</td>
+          </tr>
+          <tr>
+            <td class="mco">Chime Financial</td><td class="ms">CHME</td><td>Q2 2026</td><td class="r meps">$18–$22</td>
+          </tr>
+          <tr>
+            <td class="mco">Klarna Group</td><td class="ms">KLAR</td><td>Q2 2026</td><td class="r meps">$60–$72</td>
+          </tr>
+          <tr>
+            <td class="mco">Medline Industries</td><td class="ms">MDLN</td><td>Q3 2026</td><td class="r meps">$22–$26</td>
+          </tr>
+          <tr>
+            <td class="mco">Anthropic</td><td class="ms">ANTH</td><td>TBD</td><td class="r">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-card" id="trial">
+      <h3>You're watching the market.<br>Trade it smarter.</h3>
+      <p class="cta-sub">5 AI agents. Live signals. Institutional-grade analysis.<br>Built for independent traders.</p>
+      <div class="feature-tags">
+        <span class="ftag">REAL-TIME DATA</span>
+        <span class="ftag">AI ANALYSIS</span>
+        <span class="ftag">MULTI-PANE CHARTS</span>
+        <span class="ftag">LIVE SIGNALS</span>
+        <span class="ftag">INSTANT ASSESSMENT</span>
+      </div>
+      <a href="/app" class="btn-cta-main">Start 14-day free trial</a>
+      <a href="/app" class="cta-signin">Already have an account? Sign in →</a>
+    </div>
+
+  </div><!-- /right-col -->
+</div><!-- /preview-main -->
+
+<footer class="preview-footer">
+  <span>© 2026 Tradolux. Not financial advice.</span>
+  <span>
+    <a href="/legal/privacy.html">Privacy</a>
+    <a href="/legal/terms.html">Terms</a>
+    <a href="/legal/disclaimer.html">Disclaimer</a>
+    <a href="/app">Sign in</a>
+    <a href="/app">Get started</a>
+  </span>
+</footer>
+
+<script>
+(function () {
+'use strict';
+
+const INDEX_SYMS = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIXY'];
+const INDEX_LABELS = { SPY:'S&P 500', QQQ:'NASDAQ', DIA:'DOW', IWM:'RUSSELL 2K', VIXY:'VIX PROXY' };
+
+const SCANNER_SYMS = [
+  'AAPL','TSLA','NVDA','AMD','MSFT','AMZN','META','GOOGL','NFLX','SPY',
+  'QQQ','SOXS','SOXL','TQQQ','SQQQ','PLTR','COIN','MSTR','GME','AMC',
+  'BABA','NIO','RIVN','LCID','F','GM','BAC','JPM','GS','XOM','CVX',
+  'INTC','QCOM','ARM','SMCI','MRVL'
+];
+
+const ALL_SYMS = [...new Set([...INDEX_SYMS, ...SCANNER_SYMS])];
+const ENDPOINT = '/.netlify/functions/market-snapshot';
+
+let snapshots  = {};
+let primaryTab = 'regular';
+let subTab     = 'active';
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function price(snap)  { return snap?.latestTrade?.p || snap?.dailyBar?.c || null; }
+function prev(snap)   { return snap?.prevDailyBar?.c || null; }
+function chgPct(snap) {
+  const p = price(snap), pv = prev(snap);
+  return (p && pv) ? (p - pv) / pv * 100 : null;
+}
+function vol(snap)    { return snap?.dailyBar?.v || 0; }
+function relVol(snap) {
+  const dv = snap?.dailyBar?.v || 0;
+  const pv = snap?.prevDailyBar?.v || 0;
+  return pv > 0 ? dv / pv : null;
+}
+function atrPct(snap) {
+  const h = snap?.dailyBar?.h, l = snap?.dailyBar?.l, pv = prev(snap);
+  return (h && l && pv) ? (h - l) / pv * 100 : null;
+}
+
+function fmtPrice(p)  { return p != null ? '$' + p.toFixed(2) : '—'; }
+function fmtChg(c)    {
+  if (c == null) return '—';
+  return (c >= 0 ? '+' : '') + c.toFixed(2) + '%';
+}
+function fmtVol(v) {
+  if (!v) return '—';
+  if (v >= 1e9) return (v/1e9).toFixed(1) + 'B';
+  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return (v/1e3).toFixed(0) + 'K';
+  return String(v);
+}
+function chgClass(c) {
+  if (c == null) return 'td-dim';
+  return c >= 0 ? 'td-bull' : 'td-bear';
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function ts() {
+  return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+// ── Fetch ────────────────────────────────────────────────────────────────────
+
+async function fetchAll() {
+  try {
+    const r = await fetch(ENDPOINT + '?symbols=' + ALL_SYMS.join(','));
+    if (!r.ok) return;
+    snapshots = await r.json();
+    renderBar();
+    renderScanner();
+    document.getElementById('scanTs').textContent = 'Updated ' + ts();
+    document.getElementById('barTs').textContent  = 'Live · ' + ts();
+  } catch (e) {
+    console.warn('Snapshot fetch error:', e);
+  }
+}
+
+async function fetchBarOnly() {
+  try {
+    const r = await fetch(ENDPOINT + '?symbols=' + INDEX_SYMS.join(','));
+    if (!r.ok) return;
+    const data = await r.json();
+    Object.assign(snapshots, data);
+    renderBar();
+    document.getElementById('barTs').textContent = 'Live · ' + ts();
+  } catch (e) { /* silent */ }
+}
+
+// ── Render bar ───────────────────────────────────────────────────────────────
+
+function renderBar() {
+  const wrap = document.getElementById('marketBarInner');
+  const html = INDEX_SYMS.map(sym => {
+    const snap = snapshots[sym];
+    const p    = price(snap);
+    const c    = chgPct(snap);
+    const cc   = c == null ? 'flat' : c >= 0 ? 'bull' : 'bear';
+    return `<div class="ticker-pill">
+      <span class="t-label">${esc(INDEX_LABELS[sym])}</span>
+      <span class="t-price">${fmtPrice(p)}</span>
+      <span class="t-chg ${cc}">${fmtChg(c)}</span>
+    </div>`;
+  }).join('');
+
+  const statusDiv = `<div class="bar-status">
+    <div class="live-dot"></div>
+    <span id="barTs">${document.getElementById('barTs')?.textContent || 'Live'}</span>
+  </div>`;
+
+  wrap.innerHTML = html + statusDiv;
+}
+
+// ── Render scanner ────────────────────────────────────────────────────────────
+
+function renderSkeleton() {
+  const cols = subTab === 'active' ? 6 : 7;
+  document.getElementById('scannerBody').innerHTML =
+    Array.from({length: 20}, (_, i) => {
+      const w = [28 + (i * 7) % 22];
+      return `<tr><td class="td-rank">${i+1}</td>
+        <td class="td-sym"><span class="skel" style="width:${w}px"></span></td>
+        ${Array.from({length: cols-2}, () => `<td class="r"><span class="skel" style="width:${40+Math.floor(Math.random()*20)}px"></span></td>`).join('')}
+      </tr>`;
+    }).join('');
+}
+
+function renderScanner() {
+  const scanWrap = document.getElementById('scannerWrap');
+  const extWrap  = document.getElementById('extHoursWrap');
+
+  if (primaryTab !== 'regular') {
+    scanWrap.style.display = 'none';
+    extWrap.style.display  = 'block';
+    return;
+  }
+  scanWrap.style.display = 'block';
+  extWrap.style.display  = 'none';
+
+  const rows = SCANNER_SYMS.map(sym => ({
+    sym,
+    p:   price(snapshots[sym]),
+    c:   chgPct(snapshots[sym]),
+    v:   vol(snapshots[sym]),
+    rv:  relVol(snapshots[sym]),
+    atr: atrPct(snapshots[sym]),
+    hi:  snapshots[sym]?.dailyBar?.h || null,
+    lo:  snapshots[sym]?.dailyBar?.l || null,
+  }));
+
+  if (subTab === 'active') {
+    rows.sort((a, b) => (b.v || 0) - (a.v || 0));
+    document.getElementById('scannerHeads').innerHTML =
+      '<th>#</th><th>SYMBOL</th><th class="r">PRICE</th><th class="r">CHANGE</th><th class="r">VOLUME</th><th class="r">REL.VOL</th>';
+
+    document.getElementById('scannerBody').innerHTML =
+      rows.slice(0, 20).map((r, i) => `
+        <tr>
+          <td class="td-rank">${i+1}</td>
+          <td class="td-sym">${esc(r.sym)}</td>
+          <td class="r td-price">${fmtPrice(r.p)}</td>
+          <td class="r ${chgClass(r.c)}">${fmtChg(r.c)}</td>
+          <td class="r td-vol">${fmtVol(r.v)}</td>
+          <td class="r td-dim">${r.rv != null ? r.rv.toFixed(1)+'x' : '—'}</td>
+        </tr>`).join('');
+
+  } else {
+    rows.sort((a, b) => Math.abs(b.c || 0) - Math.abs(a.c || 0));
+    document.getElementById('scannerHeads').innerHTML =
+      '<th>#</th><th>SYMBOL</th><th class="r">PRICE</th><th class="r">CHANGE</th><th class="r">ATR%</th><th class="r">SESSION HIGH</th><th class="r">SESSION LOW</th>';
+
+    document.getElementById('scannerBody').innerHTML =
+      rows.slice(0, 20).map((r, i) => `
+        <tr>
+          <td class="td-rank">${i+1}</td>
+          <td class="td-sym">${esc(r.sym)}</td>
+          <td class="r td-price">${fmtPrice(r.p)}</td>
+          <td class="r ${chgClass(r.c)}">${fmtChg(r.c)}</td>
+          <td class="r td-vol">${r.atr != null ? r.atr.toFixed(1)+'%' : '—'}</td>
+          <td class="r td-dim">${r.hi != null ? '$'+r.hi.toFixed(2) : '—'}</td>
+          <td class="r td-dim">${r.lo != null ? '$'+r.lo.toFixed(2) : '—'}</td>
+        </tr>`).join('');
+  }
+}
+
+// ── Tab wiring ────────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.tab-primary-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.tab-primary-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    primaryTab = this.dataset.tab || 'regular';
+    renderScanner();
+  });
+});
+
+document.querySelectorAll('.tab-sec-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.tab-sec-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    subTab = this.dataset.sub;
+    renderScanner();
+  });
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+
+renderSkeleton();
+fetchAll();
+setInterval(fetchBarOnly, 30000);   // bar: 30s
+setInterval(fetchAll,    60000);    // full: 60s
+
+})();
+</script>
+
+</body>
+</html>

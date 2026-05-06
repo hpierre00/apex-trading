@@ -35,7 +35,8 @@
     </p>
     <div class="hero-actions">
       <a href="/app" class="btn btn-primary">Launch Terminal</a>
-      <a href="#waitlist" class="btn btn-secondary">Join Waitlist</a>
+      <a href="/market-preview.html" class="btn btn-secondary">View live market →</a>
+      <a href="#waitlist" class="btn btn-ghost">Join Waitlist</a>
     </div>
   </div>
 </section>
@@ -95,14 +96,23 @@
     <div class="section-header">
       <span class="eyebrow">Pricing</span>
       <h2>Simple plans. No games.</h2>
-      <p>Free tier available. Paid tiers launch with early access. Join the waitlist to secure founding-member pricing.</p>
+      <p>Start free. Upgrade when you're ready. Annual billing saves 20%.</p>
+    </div>
+
+    <!-- Billing toggle -->
+    <div style="display:flex;justify-content:center;gap:4px;margin-bottom:36px;">
+      <button id="toggleMonthly" onclick="setBilling('monthly')" style="padding:8px 20px;border-radius:5px 0 0 5px;border:1px solid var(--border);background:var(--gold);color:#0b1221;font-size:13px;font-weight:700;cursor:pointer;">Monthly</button>
+      <button id="toggleAnnual"  onclick="setBilling('annual')"  style="padding:8px 20px;border-radius:0 5px 5px 0;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:13px;font-weight:600;cursor:pointer;">Annual <span style="background:#00c076;color:#0b1221;font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;margin-left:4px;">SAVE 20%</span></button>
     </div>
 
     <div class="pricing-grid">
+      <!-- Explorer (Free) -->
       <div class="price-card">
-        <div class="tier">Free</div>
-        <div class="price"><span class="amount">$0</span><span class="period">forever</span></div>
-        <div class="desc">Get the feel of the platform. Charts and basic watchlist, no strings attached.</div>
+        <div class="tier">Explorer</div>
+        <div class="price">
+          <span class="amount">$0</span><span class="period">forever</span>
+        </div>
+        <div class="desc">Charts and a basic watchlist, free forever. No credit card required.</div>
         <ul>
           <li>Charts for any ticker</li>
           <li>5 watchlist symbols</li>
@@ -110,15 +120,42 @@
           <li>Delayed market data</li>
           <li class="muted">AI chat</li>
           <li class="muted">Instant Assessment</li>
+          <li class="muted">Smart alerts</li>
         </ul>
         <a href="/app" class="btn btn-secondary">Launch Free</a>
       </div>
 
+      <!-- Pro -->
       <div class="price-card featured">
         <div class="badge">MOST POPULAR</div>
         <div class="tier">Pro</div>
-        <div class="price"><span class="amount">$39</span><span class="period">/ month</span></div>
-        <div class="desc">The full Vecta Trade terminal. Real-time data, unlimited AI chat, every feature.</div>
+        <div class="price">
+          <span class="amount"><span class="pm">$39</span><span class="pa" style="display:none">$31</span></span>
+          <span class="period">/ month</span>
+        </div>
+        <div class="pa annual-note" style="display:none;font-size:11px;color:var(--text-faint);margin-bottom:2px;">Billed $372 / year</div>
+        <div class="desc">Real-time data and full AI analysis. 14-day free trial · Credit card required.</div>
+        <ul>
+          <li>Real-time market data</li>
+          <li>Unlimited watchlist</li>
+          <li>All 30+ indicators</li>
+          <li>10 price alerts</li>
+          <li>AI chat (200 msg/day)</li>
+          <li>Instant Assessment</li>
+          <li>2-pane charts</li>
+        </ul>
+        <a href="#waitlist" class="btn btn-primary">Start Free Trial</a>
+      </div>
+
+      <!-- Elite -->
+      <div class="price-card">
+        <div class="tier">Elite</div>
+        <div class="price">
+          <span class="amount"><span class="pm">$79</span><span class="pa" style="display:none">$63</span></span>
+          <span class="period">/ month</span>
+        </div>
+        <div class="pa annual-note" style="display:none;font-size:11px;color:var(--text-faint);margin-bottom:2px;">Billed $756 / year</div>
+        <div class="desc">Everything in Pro, plus unlimited AI and 4-pane charts. 14-day free trial · Credit card required.</div>
         <ul>
           <li>Real-time market data</li>
           <li>Unlimited watchlist</li>
@@ -126,31 +163,37 @@
           <li>Unlimited price alerts</li>
           <li>Unlimited AI chat</li>
           <li>Instant Assessment</li>
+          <li>4-pane charts</li>
         </ul>
-        <a href="#waitlist" class="btn btn-primary">Join Waitlist</a>
-      </div>
-
-      <div class="price-card">
-        <div class="tier">Essential</div>
-        <div class="price"><span class="amount">$19</span><span class="period">/ month</span></div>
-        <div class="desc">Serious charting and alerts without the AI premium.</div>
-        <ul>
-          <li>Real-time market data</li>
-          <li>Unlimited watchlist</li>
-          <li>All 30+ indicators</li>
-          <li>Up to 10 price alerts</li>
-          <li class="muted">AI chat</li>
-          <li class="muted">Instant Assessment</li>
-        </ul>
-        <a href="#waitlist" class="btn btn-secondary">Join Waitlist</a>
+        <a href="#waitlist" class="btn btn-secondary">Start Free Trial</a>
       </div>
     </div>
 
-    <div style="text-align:center; margin-top:32px;">
+    <p style="text-align:center;font-size:12px;color:var(--text-faint);margin-top:20px;">
+      Cancel before day 14 and you will not be charged.
+    </p>
+    <div style="text-align:center; margin-top:12px;">
       <a href="/pricing.html" style="color:var(--text-dim); font-size:14px;">Full pricing details →</a>
     </div>
   </div>
 </section>
+
+<script>
+function setBilling(mode) {
+  var isAnnual = mode === 'annual';
+  document.querySelectorAll('.pm').forEach(function(el) { el.style.display = isAnnual ? 'none' : ''; });
+  document.querySelectorAll('.pa').forEach(function(el) { el.style.display = isAnnual ? '' : 'none'; });
+  var mBtn = document.getElementById('toggleMonthly');
+  var aBtn = document.getElementById('toggleAnnual');
+  if (isAnnual) {
+    mBtn.style.background = 'transparent'; mBtn.style.color = 'var(--text-dim)';
+    aBtn.style.background = 'var(--gold)';  aBtn.style.color = '#0b1221';
+  } else {
+    mBtn.style.background = 'var(--gold)'; mBtn.style.color = '#0b1221';
+    aBtn.style.background = 'transparent'; aBtn.style.color = 'var(--text-dim)';
+  }
+}
+</script>
 
 <section id="waitlist">
   <div class="container">
