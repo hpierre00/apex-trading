@@ -915,10 +915,10 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
       <div style="border-top:1px solid #1a2748;margin:0 0 12px;padding-top:14px;text-align:center;">
         <div style="font-size:10px;color:#4a5470;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Upgrade your plan</div>
         <div style="display:flex;gap:8px;justify-content:center;">
-          <a href="https://buy.stripe.com/dRm00l9hH1Q2fCqfbFb7y00" target="_blank"
-             style="background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:10px;font-weight:700;padding:6px 14px;border-radius:3px;text-decoration:none;letter-spacing:0.06em;">Pro $79/mo</a>
-          <a href="https://buy.stripe.com/28E00l3Xn52eai60gLb7y02" target="_blank"
-             style="background:#0e1830;border:1px solid #1a7a6e;color:#1a7a6e;font-family:monospace;font-size:10px;font-weight:700;padding:6px 14px;border-radius:3px;text-decoration:none;letter-spacing:0.06em;">Elite $149/mo</a>
+          <button onclick="startCheckout('price_1TU4wlRAfobZUNrFPmVgeONk')"
+            style="background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:10px;font-weight:700;padding:6px 14px;border-radius:3px;border:none;cursor:pointer;letter-spacing:0.06em;">Pro $79/mo</button>
+          <button onclick="startCheckout('price_1TU4wuRAfobZUNrF7AhIbytY')"
+            style="background:#0e1830;border:1px solid #1a7a6e;color:#1a7a6e;font-family:monospace;font-size:10px;font-weight:700;padding:6px 14px;border-radius:3px;border:1px solid #1a7a6e;cursor:pointer;letter-spacing:0.06em;">Elite $149/mo</button>
         </div>
       </div>
       <button onclick="handleSignOut()" style="background:#f6465d20;border:1px solid #f6465d;color:#f6465d;padding:6px 16px;border-radius:4px;font-family:monospace;font-size:10px;cursor:pointer;letter-spacing:1px;">SIGN OUT</button>
@@ -5396,6 +5396,35 @@ async function handleSignOut() {
   _session = null;
   closeModal('settingsModal');
   showAuthModal();
+}
+
+async function startCheckout(priceId) {
+  const btn = event.currentTarget;
+  const orig = btn.textContent;
+  btn.textContent = 'LOADING...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/stripe-checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (_session?.access_token || '')
+      },
+      body: JSON.stringify({ priceId })
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert('Checkout failed. Please try again.');
+      btn.textContent = orig;
+      btn.disabled = false;
+    }
+  } catch (e) {
+    alert('Checkout failed. Please try again.');
+    btn.textContent = orig;
+    btn.disabled = false;
+  }
 }
 
 async function bootApp() {

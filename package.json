@@ -3,5 +3,8 @@
   "version": "5.0.0",
   "private": true,
   "description": "APEX AI Trading Terminal",
-  "engines": { "node": ">=18" }
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "stripe": "^14.0.0"
+  }
 }
