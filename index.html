@@ -144,7 +144,11 @@
           <li>Instant Assessment</li>
           <li>2-pane charts</li>
         </ul>
-        <a href="#waitlist" class="btn btn-primary">Start Free Trial</a>
+        <a id="pro-cta"
+           data-monthly="https://buy.stripe.com/dRm00l9hH1Q2fCqfbFb7y00"
+           data-annual="https://buy.stripe.com/dRm5kFdxXgKW2PE6F9b7y01"
+           href="https://buy.stripe.com/dRm00l9hH1Q2fCqfbFb7y00"
+           class="btn btn-primary">Start 14-day free trial</a>
       </div>
 
       <!-- Elite -->
@@ -165,7 +169,11 @@
           <li>Instant Assessment</li>
           <li>4-pane charts</li>
         </ul>
-        <a href="#waitlist" class="btn btn-secondary">Start Free Trial</a>
+        <a id="elite-cta"
+           data-monthly="https://buy.stripe.com/28E00l3Xn52eai60gLb7y02"
+           data-annual="https://buy.stripe.com/3cI4gB9hH7am75U5B5b7y03"
+           href="https://buy.stripe.com/28E00l3Xn52eai60gLb7y02"
+           class="btn btn-secondary">Start 14-day free trial</a>
       </div>
     </div>
 
@@ -192,6 +200,10 @@ function setBilling(mode) {
     mBtn.style.background = 'var(--gold)'; mBtn.style.color = '#0b1221';
     aBtn.style.background = 'transparent'; aBtn.style.color = 'var(--text-dim)';
   }
+  var proCta   = document.getElementById('pro-cta');
+  var eliteCta = document.getElementById('elite-cta');
+  if (proCta)   proCta.href   = isAnnual ? proCta.dataset.annual   : proCta.dataset.monthly;
+  if (eliteCta) eliteCta.href = isAnnual ? eliteCta.dataset.annual : eliteCta.dataset.monthly;
 }
 </script>
 
