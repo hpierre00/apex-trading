@@ -24,6 +24,15 @@ export default async (req) => {
   }
 
   const url = new URL(req.url);
+
+  // Health check — returns immediately without hitting Alpaca
+  if (url.searchParams.get('health') === '1') {
+    return new Response(JSON.stringify({ status: 'ok', time: Date.now() }), {
+      status: 200,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+
   const symbols = url.searchParams.get('symbols') || 'AAPL,TSLA,NVDA,AMD,MSFT';
 
   try {
@@ -36,9 +45,17 @@ export default async (req) => {
         },
       }
     );
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('[market-snapshot] Alpaca error:', resp.status, errText);
+      return new Response(JSON.stringify({ error: 'Alpaca error', status: resp.status }), {
+        status: resp.status,
+        headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
     const text = await resp.text();
     return new Response(text, {
-      status: resp.status,
+      status: 200,
       headers: { ...cors, 'Content-Type': 'application/json' },
     });
   } catch (err) {

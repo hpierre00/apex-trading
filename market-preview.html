@@ -647,24 +647,43 @@ function ts() {
 // ── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchAll() {
-  const url = ENDPOINT + '?symbols=' + ALL_SYMS.join(',');
   try {
-    const r = await fetch(url);
-    console.log('[market-preview] fetch status:', r.status, url);
-    if (!r.ok) {
-      const text = await r.text();
-      console.warn('[market-preview] fetch error body:', text.substring(0, 200));
+    // Batch into groups of 10 to avoid URL length limits
+    const BATCH_SIZE = 10;
+    const batches = [];
+    for (let i = 0; i < ALL_SYMS.length; i += BATCH_SIZE) {
+      batches.push(ALL_SYMS.slice(i, i + BATCH_SIZE));
+    }
+
+    const results = await Promise.all(
+      batches.map(batch =>
+        fetch(ENDPOINT + '?symbols=' + batch.join(','))
+          .then(r => {
+            console.log('[market-preview] batch status:', r.status, 'symbols:', batch.join(','));
+            return r.ok ? r.json() : {};
+          })
+          .catch(e => { console.warn('[market-preview] batch error:', e); return {}; })
+      )
+    );
+
+    // Merge all batch results
+    snapshots = Object.assign({}, ...results);
+    console.log('[market-preview] loaded symbols:', Object.keys(snapshots).length);
+
+    if (Object.keys(snapshots).length === 0) {
+      document.getElementById('scanTs').textContent = 'Market data temporarily unavailable. Retrying in 30s…';
+      renderPlaceholder();
       scheduleRetry();
       return;
     }
-    snapshots = await r.json();
+
     renderBar();
     renderScanner();
     document.getElementById('scanTs').textContent = 'Updated ' + ts();
     document.getElementById('barTs').textContent  = 'Live · ' + ts();
   } catch (e) {
-    console.warn('[market-preview] Snapshot fetch error:', e);
-    document.getElementById('scanTs').textContent = 'Market data temporarily unavailable. Retrying…';
+    console.warn('[market-preview] fetchAll error:', e);
+    document.getElementById('scanTs').textContent = 'Market data temporarily unavailable. Retrying in 30s…';
     renderPlaceholder();
     scheduleRetry();
   }
@@ -678,9 +697,12 @@ function scheduleRetry() {
 
 function renderPlaceholder() {
   document.getElementById('scannerBody').innerHTML =
-    SCANNER_SYMS.slice(0, 20).map((sym, i) => `
+    `<tr><td colspan="6" style="text-align:center;padding:20px;color:#4a5470;">
+      Market data loading… Right-click → Inspect → Console for details.
+    </td></tr>` +
+    SCANNER_SYMS.slice(0, 19).map((sym, i) => `
       <tr>
-        <td class="td-rank">${i+1}</td>
+        <td class="td-rank">${i+2}</td>
         <td class="td-sym">${esc(sym)}</td>
         <td class="r td-dim">—</td>
         <td class="r td-dim">—</td>
@@ -739,6 +761,11 @@ function renderSkeleton() {
 }
 
 function renderScanner() {
+  if (!snapshots || Object.keys(snapshots).length === 0) {
+    renderPlaceholder();
+    return;
+  }
+
   const scanWrap = document.getElementById('scannerWrap');
   const extWrap  = document.getElementById('extHoursWrap');
 
