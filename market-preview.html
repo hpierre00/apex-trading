@@ -596,7 +596,7 @@ const SCANNER_SYMS = [
 ];
 
 const ALL_SYMS = [...new Set([...INDEX_SYMS, ...SCANNER_SYMS])];
-const ENDPOINT = '/.netlify/functions/market-snapshot';
+const ENDPOINT = '/api/market-snapshot';
 
 let snapshots  = {};
 let primaryTab = 'regular';
@@ -647,17 +647,32 @@ function ts() {
 // ── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchAll() {
+  const url = ENDPOINT + '?symbols=' + ALL_SYMS.join(',');
   try {
-    const r = await fetch(ENDPOINT + '?symbols=' + ALL_SYMS.join(','));
-    if (!r.ok) return;
+    const r = await fetch(url);
+    console.log('[market-preview] fetch status:', r.status, url);
+    if (!r.ok) {
+      const text = await r.text();
+      console.warn('[market-preview] fetch error body:', text.substring(0, 200));
+      scheduleRetry();
+      return;
+    }
     snapshots = await r.json();
     renderBar();
     renderScanner();
     document.getElementById('scanTs').textContent = 'Updated ' + ts();
     document.getElementById('barTs').textContent  = 'Live · ' + ts();
   } catch (e) {
-    console.warn('Snapshot fetch error:', e);
+    console.warn('[market-preview] Snapshot fetch error:', e);
+    document.getElementById('scanTs').textContent = 'Market data loading…';
+    scheduleRetry();
   }
+}
+
+let _retryTimer = null;
+function scheduleRetry() {
+  if (_retryTimer) return;
+  _retryTimer = setTimeout(() => { _retryTimer = null; fetchAll(); }, 10000);
 }
 
 async function fetchBarOnly() {

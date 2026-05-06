@@ -162,7 +162,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 .panel-body { flex: 1; overflow-y: auto; }
 
 /* ====== LEFT: WATCHLIST + POSITIONS ====== */
-.watchlist { max-height: 50%; overflow-y: auto; }
+.watchlist { max-height: 40vh; min-height: 0; overflow-y: auto; }
 .watch-row {
   display: grid; grid-template-columns: 60px 1fr auto;
   padding: 6px 12px; gap: 8px;
@@ -231,7 +231,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   pointer-events: none; z-index: 5;
 }
 .chart-controls {
-  position: absolute; top: 8px; right: 12px;
+  position: absolute; bottom: 8px; right: 12px;
   display: flex; gap: 4px; z-index: 5;
 }
 .chart-ctrl-btn {
@@ -4922,7 +4922,7 @@ async function sendChat() {
   // one-time-per-browser-session reminder that AI output can be wrong.
   // Placed before the user message so it reads top-down as a preamble.
   if (sessionStorage.getItem('apex_chat_banner_shown') !== '1') {
-    msgs.insertAdjacentHTML('beforeend', `<div class="chat-first-banner"><strong>⚠ Heads up:</strong> APEX AI can make mistakes. Treat responses as a starting point for research, not as final answers. Never trade based on AI output alone.</div>`);
+    msgs.insertAdjacentHTML('beforeend', `<div class="chat-first-banner"><strong>⚠ Heads up:</strong> Tradolux AI can make mistakes. Treat responses as a starting point for research, not as final answers. Never trade based on AI output alone.</div>`);
     sessionStorage.setItem('apex_chat_banner_shown', '1');
   }
 
@@ -4937,7 +4937,7 @@ async function sendChat() {
   if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
 
   try {
-    const res = await fetch('/.netlify/functions/claude-proxy', {
+    const fetchOpts = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({
@@ -4947,7 +4947,14 @@ ${buildChartContext(state.activePane)}`,
         messages: state.chatHistory,
         max_tokens: 1000,
       }),
-    });
+    };
+    let res = await fetch('/.netlify/functions/claude-proxy', fetchOpts);
+    // Auto-retry once on 529 (API overloaded) after a 3-second pause
+    if (res.status === 529) {
+      thinkingEl.textContent = '...retrying...';
+      await new Promise(r => setTimeout(r, 3000));
+      res = await fetch('/.netlify/functions/claude-proxy', fetchOpts);
+    }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const text = data.content?.[0]?.text || data.completion || 'No response.';
@@ -4961,7 +4968,7 @@ ${buildChartContext(state.activePane)}`,
       if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
     }
   } catch (e) {
-    thinkingEl.textContent = '⚠ AI unreachable. Deploy the claude-proxy function to enable chat. (' + e.message + ')';
+    thinkingEl.textContent = '⚠ AI service temporarily unavailable. Please try again in a moment.';
     // Roll back the user message from history so a failed turn doesn't corrupt context
     state.chatHistory.pop();
   }
