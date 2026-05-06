@@ -15,6 +15,10 @@
 | APEX-20260504-001 | Multi-pane UX — per-pane symbol/TF, live data all panes | **COMPLETE** | 2026-05-04 | Per-pane symbol input, TF buttons, simTick renders all panes, outline logic fixed |
 | APEX-20260504-002 | Email confirmation flow | **COMPLETE** | 2026-05-04 | emailRedirectTo fix confirmed working end-to-end. Signup → confirm → login → terminal loads with live data. |
 | APEX-20260504-003 | Google OAuth | **COMPLETE** | 2026-05-04 | Google sign-in button added to auth modal. signInWithOAuth wired with redirectTo. Tested and working. |
+| APEX-20260506-001 | Full rebrand APEX → Tradolux across all pages | **COMPLETE** | 2026-05-06 | apex-platform.html, features.html, privacy.html, terms.html, market-preview.html all rebranded |
+| APEX-20260506-002 | Stripe integration — products, prices, checkout, payment links | **COMPLETE** | 2026-05-06 | Pro $79/$756, Elite $149/$1428, stripe-checkout.mjs, 14-day trial, upgrade buttons in terminal |
+| APEX-20260506-003 | Pre-login market dashboard | **COMPLETE** | 2026-05-06 | market-preview.html — scanner, earnings, IPO panel, market bar, /api/market-snapshot proxy |
+| APEX-20260506-004 | UI fixes — chart overlap, 529 retry, watchlist scroll, rebrand | **COMPLETE** | 2026-05-06 | RESET button moved, AI retry logic, watchlist 40vh scroll, error messages cleaned |
 
 ---
 
