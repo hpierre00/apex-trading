@@ -27,7 +27,7 @@
   --text: #e5e9f0;        /* off-white primary text */
   --text-dim: #8b95a7;    /* muted blue-gray secondary text */
   --text-faint: #5a6678;  /* tertiary, captions, footnotes */
-  --gold: #f5a623;        /* warm amber accent, less neon than legacy yellow */
+  --gold: #1a7a6e;        /* Tradolux Teal primary */
   --bull: #00c076;        /* institutional green */
   --bear: #f6465d;        /* readable red, not alarm red */
   --chart-bg: #0b1221;
@@ -49,7 +49,7 @@
   --text: #1a1a2e;
   --text-dim: #5a6070;
   --text-faint: #9aa0ac;
-  --gold: #c8920a;
+  --gold: #24a893;
   --bull: #0a9e63;
   --bear: #d63649;
   --chart-bg: #fafaf8;
@@ -69,7 +69,7 @@
   --text: #0f2137;
   --text-dim: #4a6080;
   --text-faint: #8a9ab0;
-  --gold: #d4920a;
+  --gold: #24a893;
   --bull: #0a8a56;
   --bear: #c4303f;
   --chart-bg: #f8fafc;
@@ -1177,7 +1177,7 @@ function initLayout(count) {
     const wrapper = document.createElement('div');
     wrapper.id = `pane-${i}`;
     wrapper.style.cssText = 'position:relative;overflow:hidden;min-height:0;min-width:0;';
-    if (i === state.activePane) wrapper.style.outline = '1px solid var(--gold, #f5a623)';
+    if (i === state.activePane) wrapper.style.outline = '1px solid var(--gold, #1a7a6e)';
 
     // Symbol label top-left
     const label = document.createElement('div');
@@ -1192,7 +1192,7 @@ function initLayout(count) {
 
     const symInput = document.createElement('input');
     symInput.value = pane.symbol;
-    symInput.style.cssText = 'background:#0b1221;border:1px solid #1e2d45;color:#f5a623;font-family:monospace;font-size:9px;font-weight:700;padding:2px 4px;width:52px;text-transform:uppercase;outline:none;';
+    symInput.style.cssText = 'background:#0b1221;border:1px solid #1e2d45;color:#1a7a6e;font-family:monospace;font-size:9px;font-weight:700;padding:2px 4px;width:52px;text-transform:uppercase;outline:none;';
     symInput.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       const sym = symInput.value.trim().toUpperCase();
@@ -1213,13 +1213,13 @@ function initLayout(count) {
       const btn = document.createElement('button');
       btn.textContent = tf;
       btn.style.cssText = 'background:none;border:1px solid #1e2d45;color:#5a6678;font-family:monospace;font-size:8px;padding:1px 3px;cursor:pointer;';
-      if (tf === pane.timeframe) { btn.style.borderColor = '#f5a623'; btn.style.color = '#f5a623'; }
+      if (tf === pane.timeframe) { btn.style.borderColor = '#1a7a6e'; btn.style.color = '#1a7a6e'; }
       btn.addEventListener('click', () => {
         pane.timeframe = tf;
         document.getElementById(`pane-label-${i}`).textContent = pane.symbol + ' · ' + tf;
         miniBar.querySelectorAll('button').forEach(b => {
-          b.style.borderColor = b.textContent === tf ? '#f5a623' : '#1e2d45';
-          b.style.color = b.textContent === tf ? '#f5a623' : '#5a6678';
+          b.style.borderColor = b.textContent === tf ? '#1a7a6e' : '#1e2d45';
+          b.style.color = b.textContent === tf ? '#1a7a6e' : '#5a6678';
         });
         if (!state.candles[pane.symbol]) state.candles[pane.symbol] = genCandles(pane.symbol, 300, tf);
         renderChartForPane(pane, state.candles[pane.symbol]);
@@ -1229,7 +1229,7 @@ function initLayout(count) {
     wrapper.appendChild(miniBar);
 
     const assessPaneBtn = document.createElement('button');
-    assessPaneBtn.style.cssText = 'position:absolute;top:3px;right:6px;z-index:10;background:var(--gold,#f5a623);color:#000;border:none;border-radius:3px;font-size:9px;font-weight:700;padding:2px 5px;cursor:pointer;';
+    assessPaneBtn.style.cssText = 'position:absolute;top:3px;right:6px;z-index:10;background:var(--gold,#1a7a6e);color:#000;border:none;border-radius:3px;font-size:9px;font-weight:700;padding:2px 5px;cursor:pointer;';
     assessPaneBtn.textContent = '⚡';
     assessPaneBtn.title = 'Instant Assessment for this pane';
     assessPaneBtn.addEventListener('click', (e) => {
@@ -1249,7 +1249,7 @@ function initLayout(count) {
       state.activePane = i;
       state.panes.forEach((_, pi) => {
         const w = document.getElementById(`pane-${pi}`);
-        if (w) w.style.outline = pi === i ? '1px solid var(--gold,#f5a623)' : 'none';
+        if (w) w.style.outline = pi === i ? '1px solid var(--gold,#1a7a6e)' : 'none';
       });
     });
 
@@ -1269,7 +1269,7 @@ function initLayout(count) {
   });
 
   const activeWrapper = document.getElementById(`pane-${state.activePane}`);
-  if (activeWrapper) activeWrapper.style.outline = '1px solid var(--gold, #f5a623)';
+  if (activeWrapper) activeWrapper.style.outline = '1px solid var(--gold, #1a7a6e)';
 
   // Pane 0 must keep the original canvas reference for all legacy code
   // (mouse handlers, resizeCanvas, etc. reference module-level `canvas`)
@@ -1428,7 +1428,7 @@ function scheduleWatchlistUpdate() {
 let _themeBg = '#0b1221';
 let _themeGrid = '#121924';
 let _themeTextFaint = '#5a6678';
-let _themeGold = '#f5a623';
+let _themeGold = '#1a7a6e';
 let _themePanel = '#0f1729';
 
 function renderChartForPane(pane, candles) {
@@ -1436,7 +1436,7 @@ function renderChartForPane(pane, candles) {
   _themeBg        = _cs2.getPropertyValue('--chart-bg').trim()  || '#0b1221';
   _themeGrid      = _cs2.getPropertyValue('--border').trim()    || '#121924';
   _themeTextFaint = _cs2.getPropertyValue('--text-faint').trim()|| '#5a6678';
-  _themeGold      = _cs2.getPropertyValue('--gold').trim()      || '#f5a623';
+  _themeGold      = _cs2.getPropertyValue('--gold').trim()      || '#1a7a6e';
   _themePanel     = _cs2.getPropertyValue('--panel').trim()     || '#0f1729';
   try {
   candles = candles || [];
@@ -1888,7 +1888,7 @@ function drawMACDSubPanel(candles, start, end, top, h, chartW, xAt) {
   }
   ctx.stroke();
   // Signal
-  ctx.strokeStyle = '#f5a623';
+  ctx.strokeStyle = '#1a7a6e';
   ctx.beginPath(); first = true;
   for (let i = Math.max(start, slow); i < end; i++) {
     const x = xAt(i), py = ay(signalArr[i] ?? 0);
@@ -1970,7 +1970,7 @@ function drawStochSubPanel(candles, start, end, top, h, chartW, xAt, ay) {
     ctx.stroke();
   };
   line(smoothed, '#2e7fff');
-  line(dArr, '#f5a623');
+  line(dArr, '#1a7a6e');
   ctx.fillStyle = _themeTextFaint; ctx.font = '9px monospace';
   ctx.fillText('Stoch 14,3,3', 4, top + 10);
 }
@@ -2188,7 +2188,7 @@ function drawVWAPBands(visible, y, candleW, bandPct = 0.035) {
 
 function drawVWAP(visible, y, candleW) {
   let cumPV = 0, cumV = 0;
-  ctx.strokeStyle = '#f5a623'; ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1a7a6e'; ctx.lineWidth = 1.5;
   ctx.setLineDash([4, 2]);
   ctx.beginPath();
   for (let i = 0; i < visible.length; i++) {
@@ -2241,7 +2241,7 @@ function attachPaneHandlers(paneIndex) {
     // update gold border
     state.panes.forEach((_, pi) => {
       const w = document.getElementById(`pane-${pi}`);
-      if (w) w.style.outline = pi === paneIndex ? '1px solid var(--gold,#f5a623)' : 'none';
+      if (w) w.style.outline = pi === paneIndex ? '1px solid var(--gold,#1a7a6e)' : 'none';
     });
     // Sync toolbar TF buttons to reflect this pane's timeframe
     document.querySelectorAll('.tf-btn[data-tf]').forEach(b => {
@@ -2387,7 +2387,7 @@ function renderCrosshairForPane(paneIndex, localX, localY) {
     const chgPct = (chg / bar.o * 100).toFixed(2);
     const color = chg >= 0 ? 'var(--bull)' : 'var(--bear)';
     ohlcBar.innerHTML =
-      `<span style="color:var(--gold,#f5a623);font-weight:700;margin-right:10px">${pane.symbol}</span>` +
+      `<span style="color:var(--gold,#1a7a6e);font-weight:700;margin-right:10px">${pane.symbol}</span>` +
       `O <b>${bar.o?.toFixed(2)}</b> &nbsp;` +
       `H <b style="color:var(--bull)">${bar.h?.toFixed(2)}</b> &nbsp;` +
       `L <b style="color:var(--bear)">${bar.l?.toFixed(2)}</b> &nbsp;` +
@@ -5302,10 +5302,10 @@ function hideAuthModal() {
 
 function showAuthTab(tab) {
   const isLogin = tab === 'login';
-  document.getElementById('tabLogin').style.borderBottomColor = isLogin ? '#f5a623' : 'transparent';
-  document.getElementById('tabLogin').style.color = isLogin ? '#f5a623' : '#5a6678';
-  document.getElementById('tabSignup').style.borderBottomColor = isLogin ? 'transparent' : '#f5a623';
-  document.getElementById('tabSignup').style.color = isLogin ? '#5a6678' : '#f5a623';
+  document.getElementById('tabLogin').style.borderBottomColor = isLogin ? '#1a7a6e' : 'transparent';
+  document.getElementById('tabLogin').style.color = isLogin ? '#1a7a6e' : '#5a6678';
+  document.getElementById('tabSignup').style.borderBottomColor = isLogin ? 'transparent' : '#1a7a6e';
+  document.getElementById('tabSignup').style.color = isLogin ? '#5a6678' : '#1a7a6e';
   document.getElementById('authSubmit').textContent = isLogin ? 'SIGN IN' : 'CREATE ACCOUNT';
   document.getElementById('authPassword').placeholder = isLogin ? 'Password' : 'Password (min 8 characters)';
   document.getElementById('authError').style.display = 'none';
@@ -5431,11 +5431,11 @@ bootApp();
 <div id="authModal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;">
   <div style="background:#0f1729;border:1px solid #1e2d45;border-radius:8px;padding:32px;width:100%;max-width:400px;font-family:monospace;">
     <div style="text-align:center;margin-bottom:24px;">
-      <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#f5a623;">VECTA TRADE</div>
+      <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#1a7a6e;">VECTA TRADE</div>
       <div style="font-size:11px;color:#5a6678;margin-top:4px;letter-spacing:1px;">AI TRADING TERMINAL</div>
     </div>
     <div id="authTabs" style="display:flex;margin-bottom:20px;border-bottom:1px solid #1e2d45;">
-      <button id="tabLogin" onclick="showAuthTab('login')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid #f5a623;color:#f5a623;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>
+      <button id="tabLogin" onclick="showAuthTab('login')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid #1a7a6e;color:#1a7a6e;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>
       <button id="tabSignup" onclick="showAuthTab('signup')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:#5a6678;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;">CREATE ACCOUNT</button>
     </div>
     <div id="authError" style="display:none;background:#f6465d20;border:1px solid #f6465d;color:#f6465d;padding:8px 12px;border-radius:4px;font-size:10px;margin-bottom:12px;"></div>
@@ -5445,7 +5445,7 @@ bootApp();
     <input id="authPassword" type="password" placeholder="Password (min 8 characters)" autocomplete="current-password"
       style="width:100%;box-sizing:border-box;background:#0b1221;border:1px solid #1e2d45;color:#e5e9f0;padding:10px 12px;border-radius:4px;font-family:monospace;font-size:11px;margin-bottom:16px;outline:none;">
     <button id="authSubmit" onclick="handleAuthSubmit()"
-      style="width:100%;background:#f5a623;color:#000;border:none;padding:10px;border-radius:4px;font-family:monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>
+      style="width:100%;background:#1a7a6e;color:#e8f5f2;border:none;padding:10px;border-radius:4px;font-family:monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>
     <div style="text-align:center;margin-top:12px;">
       <button onclick="handleForgotPassword()" style="background:none;border:none;color:#5a6678;font-family:monospace;font-size:10px;cursor:pointer;text-decoration:underline;">Forgot password?</button>
     </div>
