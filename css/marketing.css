@@ -434,3 +434,17 @@ section.alt { background: var(--panel); border-top: 1px solid var(--border); bor
 .compare td { color: var(--text-dim); }
 .compare td.yes { color: var(--bull); font-weight: 600; }
 .compare td.no  { color: var(--text-faint); }
+
+/* =============== MOBILE RESPONSIVE =============== */
+@media (max-width: 768px) {
+  h1 { font-size: 30px; }
+  h2 { font-size: 22px; }
+  p.lead { font-size: 15px; }
+  .hero { padding: 48px 0 36px; }
+  .hero-actions { flex-direction: column; align-items: flex-start; }
+  .hero-actions .btn { width: 100%; text-align: center; }
+  .pricing-grid { grid-template-columns: 1fr; max-width: 480px; }
+  .feature-grid { grid-template-columns: 1fr; }
+  section { padding: 48px 0; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+}

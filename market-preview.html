@@ -394,6 +394,46 @@ a:hover { color: #22a090; }
 }
 .preview-footer a:hover { color: #1a7a6e; }
 
+/* ── Index strip (sticky top bar) ── */
+#indexStrip {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #040b1a;
+  border-bottom: 1px solid #0f1f38;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-items: center;
+}
+#indexStrip::-webkit-scrollbar { display: none; }
+.idx-pill {
+  flex: 0 0 auto;
+  padding: 7px 18px;
+  border-right: 1px solid #0f1f38;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: monospace;
+  white-space: nowrap;
+}
+.idx-pill .ix-sym { font-size: 10px; font-weight: 700; color: #4a5a72; letter-spacing: 0.8px; }
+.idx-pill .ix-price { font-size: 12px; font-weight: 600; color: #c8cedd; }
+.idx-pill .ix-chg { font-size: 11px; font-weight: 700; }
+.ix-chg.bull { color: #00c076; }
+.ix-chg.bear { color: #f6465d; }
+.ix-chg.flat { color: #5a6678; }
+#indexStrip .strip-label {
+  margin-left: auto;
+  padding: 7px 14px;
+  border-left: 1px solid #0f1f38;
+  font-size: 9px;
+  color: #2a3a52;
+  font-family: monospace;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
 /* ── Responsive ── */
 @media (max-width: 920px) {
   .preview-main { flex-direction: column; }
@@ -418,6 +458,16 @@ a:hover { color: #22a090; }
     </nav>
   </div>
 </header>
+
+<!-- ── Live indexes strip ── -->
+<div id="indexStrip">
+  <div class="idx-pill"><span class="ix-sym">SPY</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">QQQ</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">DIA</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">IWM</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">VIX</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <span class="strip-label">LIVE INDEXES</span>
+</div>
 
 <!-- ── Market summary bar ── -->
 <div class="market-bar">
@@ -552,9 +602,88 @@ a:hover { color: #22a090; }
       </table>
     </div>
 
+    <!-- Market News -->
+    <div class="panel-card">
+      <div class="panel-card-hd">
+        <span class="panel-card-title">Market News</span>
+        <span class="panel-card-sub">Top stories · Updated hourly</span>
+      </div>
+      <div style="display:grid;gap:1px;background:var(--border);">
+        <div style="background:var(--panel);padding:10px 14px;">
+          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Fed signals patience on rate cuts as inflation data remains mixed</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">REUTERS</span>
+            <span style="color:#3a4a62;font-size:10px;">2h ago</span>
+          </div>
+        </div>
+        <div style="background:var(--panel);padding:10px 14px;">
+          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">NVDA continues AI infrastructure buildout narrative ahead of earnings</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">BLOOMBERG</span>
+            <span style="color:#3a4a62;font-size:10px;">3h ago</span>
+          </div>
+        </div>
+        <div style="background:var(--panel);padding:10px 14px;">
+          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Treasury yields ease as investors reposition ahead of CPI print</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">FINANCIAL TIMES</span>
+            <span style="color:#3a4a62;font-size:10px;">4h ago</span>
+          </div>
+        </div>
+        <div style="background:var(--panel);padding:10px 14px;">
+          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Small caps underperform as rate-sensitive sectors sell off</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">WSJ</span>
+            <span style="color:#3a4a62;font-size:10px;">5h ago</span>
+          </div>
+        </div>
+        <div style="background:var(--panel);padding:10px 14px;">
+          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Options market pricing elevated volatility into FOMC minutes release</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">MARKET WATCH</span>
+            <span style="color:#3a4a62;font-size:10px;">6h ago</span>
+          </div>
+        </div>
+        <div style="background:var(--panel);padding:10px 14px;">
+          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Energy sector leads gains as crude breaks above 3-week resistance</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">CNBC</span>
+            <span style="color:#3a4a62;font-size:10px;">7h ago</span>
+          </div>
+        </div>
+      </div>
+      <div style="padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:#3a4a62;text-align:center;">
+        Live news feed available in Pro and Elite plans →
+        <a href="/app" style="color:#1a7a6e;font-weight:600;"> Start free trial</a>
+      </div>
+    </div>
+
     <!-- CTA -->
     <div class="cta-card" id="trial">
       <h3>You're watching the market.<br>Trade it smarter.</h3>
+      <div style="background:#0e1830;border-radius:6px;padding:10px;margin-bottom:12px;font-family:monospace;font-size:10px;">
+        <div style="color:#1a7a6e;font-weight:700;margin-bottom:6px;">⚡ LIVE AI ANALYSIS — AAPL</div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2748;padding:3px 0;">
+          <span style="color:#5a6678;">CHART INTELLIGENCE</span>
+          <span style="color:#2a9d6e;">● BULLISH</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2748;padding:3px 0;">
+          <span style="color:#5a6678;">SENTIMENT</span>
+          <span style="color:#8a92a6;">● NEUTRAL</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2748;padding:3px 0;">
+          <span style="color:#5a6678;">FUNDAMENTAL</span>
+          <span style="color:#2a9d6e;">● STRONG</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2748;padding:3px 0;">
+          <span style="color:#5a6678;">RISK MANAGEMENT</span>
+          <span style="color:#d94f4f;">● CAUTION</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;">
+          <span style="color:#5a6678;">MACRO</span>
+          <span style="color:#8a92a6;">● HEADWIND</span>
+        </div>
+      </div>
       <p class="cta-sub">5 AI agents. Live signals. Institutional-grade analysis.<br>Built for independent traders.</p>
       <div class="feature-tags">
         <span class="ftag">REAL-TIME DATA</span>
@@ -677,6 +806,7 @@ async function fetchAll() {
       return;
     }
 
+    renderIndexStrip();
     renderBar();
     renderScanner();
     document.getElementById('scanTs').textContent = 'Updated ' + ts();
@@ -717,9 +847,32 @@ async function fetchBarOnly() {
     if (!r.ok) return;
     const data = await r.json();
     Object.assign(snapshots, data);
+    renderIndexStrip();
     renderBar();
     document.getElementById('barTs').textContent = 'Live · ' + ts();
   } catch (e) { /* silent */ }
+}
+
+// ── Render index strip ───────────────────────────────────────────────────────
+
+const STRIP_SYMS   = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIXY'];
+const STRIP_LABELS = { SPY:'SPY', QQQ:'QQQ', DIA:'DIA', IWM:'IWM', VIXY:'VIX' };
+
+function renderIndexStrip() {
+  const strip = document.getElementById('indexStrip');
+  if (!strip) return;
+  const pills = STRIP_SYMS.map(sym => {
+    const snap = snapshots[sym];
+    const p    = price(snap);
+    const c    = chgPct(snap);
+    const cc   = c == null ? 'flat' : c >= 0 ? 'bull' : 'bear';
+    return `<div class="idx-pill">
+      <span class="ix-sym">${STRIP_LABELS[sym]}</span>
+      <span class="ix-price">${fmtPrice(p)}</span>
+      <span class="ix-chg ${cc}">${fmtChg(c)}</span>
+    </div>`;
+  }).join('');
+  strip.innerHTML = pills + `<span class="strip-label">LIVE INDEXES</span>`;
 }
 
 // ── Render bar ───────────────────────────────────────────────────────────────

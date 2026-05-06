@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1400">
-<title>Vecta Trade — AI Trading Terminal</title>
+<title>Tradolux — AI Trading Terminal</title>
 <style>
 :root {
   /* Shared across all themes (accents, not theme-dependent) */
@@ -501,6 +501,31 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   letter-spacing: 0.5px;
   margin-bottom: 6px;
 }
+
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+  .left-panel { display: none !important; }
+  .app-body { flex-direction: column; }
+  .chart-area { width: 100% !important; min-height: 50vh; }
+  .right-panel { width: 100% !important; max-height: 40vh; overflow-y: auto; }
+  .ticker-strip { display: none; }
+  .brand-sub { display: none; }
+  #symSearch { width: 120px; }
+  .tab-bar { overflow-x: auto; white-space: nowrap; }
+  .toolbar { overflow-x: auto; }
+  .layout-2col, .layout-grid { grid-template-columns: 1fr !important; }
+  .layout-2col > div:not(:first-child),
+  .layout-grid > div:not(:first-child) { display: none; }
+  #authModal > div {
+    max-width: 100% !important;
+    height: 100vh;
+    border-radius: 0;
+  }
+  #settingsModal {
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    width: 100% !important; max-width: 100% !important;
+  }
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -511,7 +536,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   <!-- TOPBAR -->
   <header class="topbar">
     <div>
-      <div class="brand">Vecta Trade</div>
+      <div class="brand">Tradolux</div>
       <div class="brand-sub">AI TRADING TERMINAL v5</div>
     </div>
     <div class="search">
@@ -533,7 +558,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   <div class="session-disclaimer" id="sessionDisclaimer">
     <div>
       <strong>⚠ NOT FINANCIAL ADVICE.</strong>
-      Vecta Trade provides AI-generated market analysis that may contain errors or hallucinations.
+      Tradolux provides AI-generated market analysis that may contain errors or hallucinations.
       This is not a trading recommendation. Every trading decision is your own.
       Verify all information independently before acting.
     </div>
@@ -645,11 +670,11 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
       <div class="chat-panel">
         <div class="panel-header"><span>AI CHAT</span></div>
         <div class="chat-messages" id="chatMessages">
-          <div class="msg ai">Vecta Trade AI online. Ask me about the chart, signals, risk, or anything market-related.</div>
+          <div class="msg ai">Tradolux AI online. Ask me about the chart, signals, risk, or anything market-related.</div>
         </div>
         <button id="assessBtn" title="Instant AI assessment of active chart" style="width:calc(100% - 16px);margin:0 8px 6px;background:var(--gold);color:var(--bg);font-weight:700;letter-spacing:1px;padding:6px;border:none;cursor:pointer;font-family:monospace;font-size:11px">⚡ INSTANT ASSESSMENT</button>
         <div class="chat-input-wrap">
-          <input class="chat-input" id="chatInput" placeholder="Ask Vecta Trade..." autocomplete="off">
+          <input class="chat-input" id="chatInput" placeholder="Ask Tradolux..." autocomplete="off">
           <button class="chat-send" id="chatSend" title="Send message">▶</button>
         </div>
       </div>
@@ -664,7 +689,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div class="sb" id="mktStatus">● MARKET OPEN</div>
     <div class="spacer" style="flex:1"></div>
     <div class="sb" id="clock"></div>
-    <div class="sb">Vecta Trade v5.0.0</div>
+    <div class="sb">Tradolux v5.0.0</div>
   </footer>
 
 </div>
@@ -928,7 +953,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
 <script>
 /* ============================================================
-   Vecta Trade — AI Trading Terminal
+   Tradolux — AI Trading Terminal
    ============================================================ */
 
 // Stripe publishable key stored in Netlify env var STRIPE_PUBLISHABLE_KEY
@@ -3751,7 +3776,7 @@ function renderPerformanceTab() {
   const expired = all.filter(s => s.status === 'EXPIRED');
 
   if (!all.length) {
-    content.innerHTML = `<div class="empty">No signals recorded yet. Signal performance will appear here once agents start publishing signals and outcomes are tracked against live price data.</div>`;
+    content.innerHTML = `<div class="empty">No completed trades yet. Signals are tracked automatically as you use the terminal. Start trading to see your performance.</div>`;
     return;
   }
 
@@ -3854,6 +3879,48 @@ function renderPerformanceTab() {
       Each signal is tracked against live bars. WIN TP1 = +2R (ATR multiples). WIN TP2 = +4R. LOSS = −1.5R (stop distance). Expiry after 50 bars without resolution. Expectancy = (win% × avg win R) − (loss% × avg loss R). Signals with few samples produce noisy agent stats; the gap becomes meaningful at 30+ resolved signals per agent.
       <br><br>
       <b>Reset:</b> <a href="#" onclick="if(confirm('Delete all ${all.length} signal records permanently?')){state.signalHistory=[];state.signals=[];saveSignals();renderPerformanceTab();}return false;" style="color:var(--bear)">clear all signal history</a>
+    </div>
+
+    <div style="margin-top:14px">
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);font-weight:600;margin-bottom:6px">SIGNAL HISTORY</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:10px">
+          <thead>
+            <tr style="color:var(--text-faint);text-align:left;border-bottom:1px solid var(--border)">
+              <th style="padding:5px 8px;white-space:nowrap">SYMBOL</th>
+              <th style="padding:5px 8px;">TF</th>
+              <th style="padding:5px 8px;">DIR</th>
+              <th style="padding:5px 8px;text-align:right">ENTRY</th>
+              <th style="padding:5px 8px;text-align:right">TARGET</th>
+              <th style="padding:5px 8px;text-align:right">STOP</th>
+              <th style="padding:5px 8px;text-align:right">OUTCOME</th>
+              <th style="padding:5px 8px;text-align:right">R</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${all.slice(0, 50).map(s => {
+              const statusColor = (s.status === 'WIN_TP1' || s.status === 'WIN_TP2') ? 'var(--bull)'
+                : s.status === 'LOSS' ? 'var(--bear)'
+                : s.status === 'OPEN' ? 'var(--gold)'
+                : 'var(--text-faint)';
+              const outcomeStr = s.outcome != null
+                ? (s.outcome >= 0 ? '+' : '') + s.outcome.toFixed(2) + 'R'
+                : s.status === 'OPEN' ? 'OPEN' : 'EXPIRED';
+              return `<tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:5px 8px;font-weight:600;color:var(--text)">${s.sym}</td>
+                <td style="padding:5px 8px;color:var(--text-faint)">${s.timeframe}</td>
+                <td style="padding:5px 8px;color:${s.action === 'BUY' ? 'var(--bull)' : 'var(--bear)'};font-weight:700">${s.action}</td>
+                <td style="padding:5px 8px;text-align:right;color:var(--text-dim)">${s.entry ? s.entry.toFixed(2) : '—'}</td>
+                <td style="padding:5px 8px;text-align:right;color:var(--bull)">${s.tp1 ? s.tp1.toFixed(2) : '—'}</td>
+                <td style="padding:5px 8px;text-align:right;color:var(--bear)">${s.stop ? s.stop.toFixed(2) : '—'}</td>
+                <td style="padding:5px 8px;text-align:right;color:${statusColor};font-weight:600">${outcomeStr}</td>
+                <td style="padding:5px 8px;text-align:right;color:${statusColor}">${s.rr ? s.rr.toFixed(2) : '—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      ${all.length > 50 ? `<div style="text-align:center;padding:8px;font-size:10px;color:var(--text-faint)">Showing 50 of ${all.length} signals</div>` : ''}
     </div>
   `;
 }
@@ -4357,7 +4424,7 @@ document.getElementById('notifVol').addEventListener('input', (e) => {
 
 document.getElementById('notifTestBtn').addEventListener('click', () => {
   playSound('alert');
-  pushNotify('Vecta Trade test', 'Browser notifications are working.', 'alert');
+  pushNotify('Tradolux test', 'Browser notifications are working.', 'alert');
 });
 
 document.getElementById('runHealthBtn').addEventListener('click', runHealthChecks);
@@ -4953,7 +5020,7 @@ async function sendChat() {
 
   try {
     const res = await fetchClaude({
-      system: `You are Vecta Trade AI, a professional trading assistant embedded in a personal trading terminal. You have full access to the current chart state, indicators, signals, agent verdicts, and positions shown below. Answer questions about the chart, setups, risk, and trade management directly and specifically using this data. Never say you cannot see the chart — you have all relevant computed values. Be direct, specific, and actionable.
+      system: `You are Tradolux AI, a professional trading assistant embedded in a personal trading terminal. You have full access to the current chart state, indicators, signals, agent verdicts, and positions shown below. Answer questions about the chart, setups, risk, and trade management directly and specifically using this data. Never say you cannot see the chart — you have all relevant computed values. Be direct, specific, and actionable.
 
 ${buildChartContext(state.activePane)}`,
       messages: state.chatHistory,
