@@ -596,7 +596,7 @@ const SCANNER_SYMS = [
 ];
 
 const ALL_SYMS = [...new Set([...INDEX_SYMS, ...SCANNER_SYMS])];
-const ENDPOINT = '/api/market-snapshot';
+const ENDPOINT = '/.netlify/functions/market-snapshot';
 
 let snapshots  = {};
 let primaryTab = 'regular';
@@ -664,7 +664,8 @@ async function fetchAll() {
     document.getElementById('barTs').textContent  = 'Live · ' + ts();
   } catch (e) {
     console.warn('[market-preview] Snapshot fetch error:', e);
-    document.getElementById('scanTs').textContent = 'Market data loading…';
+    document.getElementById('scanTs').textContent = 'Market data temporarily unavailable. Retrying…';
+    renderPlaceholder();
     scheduleRetry();
   }
 }
@@ -672,7 +673,20 @@ async function fetchAll() {
 let _retryTimer = null;
 function scheduleRetry() {
   if (_retryTimer) return;
-  _retryTimer = setTimeout(() => { _retryTimer = null; fetchAll(); }, 10000);
+  _retryTimer = setTimeout(() => { _retryTimer = null; fetchAll(); }, 30000);
+}
+
+function renderPlaceholder() {
+  document.getElementById('scannerBody').innerHTML =
+    SCANNER_SYMS.slice(0, 20).map((sym, i) => `
+      <tr>
+        <td class="td-rank">${i+1}</td>
+        <td class="td-sym">${esc(sym)}</td>
+        <td class="r td-dim">—</td>
+        <td class="r td-dim">—</td>
+        <td class="r td-dim">—</td>
+        <td class="r td-dim">—</td>
+      </tr>`).join('');
 }
 
 async function fetchBarOnly() {

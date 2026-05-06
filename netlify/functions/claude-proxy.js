@@ -47,16 +47,30 @@ exports.handler = async (event) => {
   // Forward system prompt if caller provides one (AI chat uses this for live chart context)
   if (body.system) payload.system = body.system;
 
+  const anthropicReq = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify(payload),
+  };
+
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify(payload),
-    });
+    let r = await fetch('https://api.anthropic.com/v1/messages', anthropicReq);
+    // Retry once on 529 (Anthropic overloaded) after a 2-second pause
+    if (r.status === 529) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      r = await fetch('https://api.anthropic.com/v1/messages', anthropicReq);
+    }
+    if (r.status === 529) {
+      return {
+        statusCode: 529,
+        headers: { ...cors, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'AI temporarily overloaded. Please retry.' }),
+      };
+    }
     const text = await r.text();
     return {
       statusCode: r.status,

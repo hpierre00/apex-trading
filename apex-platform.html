@@ -594,6 +594,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         <button class="icon-btn" id="advancedPeriodBtn" title="Custom timeframe × range" style="padding:4px 10px">⋯</button>
         <button class="icon-btn" id="alertBtn" title="Set price alert for active symbol">🔔 ALERT</button>
         <button class="icon-btn" id="indBtn" title="Toggle indicators">INDICATORS</button>
+        <button class="icon-btn" id="resetView" title="Reset chart view">RESET</button>
         <div class="tf-group" id="themeGroup" style="margin-left:6px" title="Theme">
           <button class="tf-btn" data-theme="dark" title="Dark theme">🌙</button>
           <button class="tf-btn" data-theme="light" title="Light theme">☀️</button>
@@ -614,7 +615,6 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         <div class="chart-controls">
           <button class="chart-ctrl-btn" id="zoomIn" title="Zoom in">+</button>
           <button class="chart-ctrl-btn" id="zoomOut" title="Zoom out">−</button>
-          <button class="chart-ctrl-btn" id="resetView" title="Reset chart view">RESET</button>
         </div>
         <div id="loadingBanner" style="display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(245, 166, 35,0.9);color:#0b1221;font-size:10px;font-weight:700;letter-spacing:1.5px;padding:4px 12px;z-index:6">LOADING DATA...</div>
         <div id="ohlcTip" style="display:none;position:absolute;pointer-events:none;background:rgba(10,15,22,0.95);border:1px solid var(--gold);padding:6px 10px;font-size:10px;line-height:1.5;z-index:7;white-space:nowrap;font-family:monospace"></div>
@@ -1522,7 +1522,7 @@ function renderChartForPane(pane, candles) {
   // --- Overlay indicators (drawn under candles)
   const safeDrawOverlay = (fn, label) => {
     try { fn(); }
-    catch (e) { console.warn(`APEX indicator error [${label}]:`, e.message); }
+    catch (e) { console.warn(`Tradolux indicator error [${label}]:`, e.message); }
   };
   if (indOn('sma20', pane.chartState)) safeDrawOverlay(() => drawSMA(candles, start, end, 20, y, xAt, '#ff9800'), 'SMA20');
   if (indOn('sma50', pane.chartState)) safeDrawOverlay(() => drawSMA(candles, start, end, 50, y, xAt, '#2e7fff'), 'SMA50');
@@ -1576,7 +1576,7 @@ function renderChartForPane(pane, candles) {
     try {
       drawSubPanel(candles, start, end, subTop, SUB_H, chartW, xAt);
     } catch (e) {
-      console.warn(`APEX sub-panel error [${pane.chartState.subPanel}]:`, e.message);
+      console.warn(`Tradolux sub-panel error [${pane.chartState.subPanel}]:`, e.message);
       ctx.fillStyle = '#f6465d';
       ctx.font = '10px monospace';
       ctx.fillText(`${pane.chartState.subPanel} error: ${e.message}`, 8, subTop + 16);
@@ -1628,7 +1628,7 @@ function renderChartForPane(pane, candles) {
     ctx.fillText('🔔 ' + a.px.toFixed(2), 6, ay - 4);
   });
   } catch (e) {
-    console.error('APEX renderChart fatal error:', e);
+    console.error('Tradolux renderChart fatal error:', e);
     if (ctx && cw && ch) {
       ctx.fillStyle = _themeBg;
       ctx.fillRect(0, 0, cw, ch);
@@ -1644,7 +1644,7 @@ function renderChartForPane(pane, candles) {
 
 function renderChart() {
     const pane = state.panes[state.activePane];
-    if (!pane) { console.warn('APEX: renderChart called before initLayout'); return; }
+    if (!pane) { console.warn('Tradolux: renderChart called before initLayout'); return; }
     renderChartForPane(pane, state.candles[state.symbol]);
   }
 
@@ -3376,7 +3376,7 @@ function renderTabs() {
   switch (state.activeTab) {
     case 'signals': return renderSignalsTab();
     case 'alerts': return renderAlertsTab();
-    case 'orders': content.innerHTML = `<div class="empty">No live orders. APEX is signal-only — execute manually on IBKR.</div>`; return;
+    case 'orders': content.innerHTML = `<div class="empty">No live orders. Tradolux is signal-only — execute manually on IBKR.</div>`; return;
     case 'news': return renderNewsTab();
     case 'performance': return renderPerformanceTab();
     case 'overview': return renderOverviewTab();
@@ -3673,7 +3673,7 @@ async function runInstantAssessment(paneIndex) {
   let structure = 'consolidating';
   if (higherHighs && higherLows) structure = 'higher highs, higher lows (uptrend)';
   else if (!higherHighs && !higherLows) structure = 'lower highs, lower lows (downtrend)';
-  const systemPrompt = `You are a professional intraday trading analyst for APEX terminal. Direct, structured, actionable. No disclaimers.
+  const systemPrompt = `You are a professional intraday trading analyst for Tradolux terminal. Direct, structured, actionable. No disclaimers.
 Format EXACTLY:
 
 🧠 CURRENT READ
@@ -3698,11 +3698,11 @@ ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
   chatMessages.innerHTML += `<div id="${loadingId}" class="msg ai" style="border-left:2px solid var(--gold);padding-left:8px;margin-bottom:10px"><div style="color:var(--gold);font-size:10px;letter-spacing:1px;margin-bottom:4px">⚡ INSTANT ASSESSMENT — ${sym} ${tf}</div><div class="assess-body" style="white-space:pre-wrap;line-height:1.6;font-size:11px">Analyzing...</div></div>`;
   chatMessages.scrollTop = chatMessages.scrollHeight;
   try {
-    const r = await fetch('/.netlify/functions/claude-proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
-      body: JSON.stringify({ system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 800 }),
-    });
+    const r = await fetchClaude(
+      { system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 800 },
+      _session?.access_token || ''
+    );
+    if (!r || !r.ok) throw new Error(r ? 'HTTP ' + r.status : 'No response');
     const data = await r.json();
     const text = data.content?.[0]?.text || 'Assessment failed.';
     const el = document.getElementById(loadingId);
@@ -4789,7 +4789,7 @@ setInterval(() => {
   if (state.alpaca.reconnectTimer) return; // reconnect already scheduled
   const deadMs = Date.now() - (state.alpaca.lastTickAt || 0);
   if (deadMs > 90000) {
-    console.warn('APEX watchdog: feed dead for 90s, forcing reconnect');
+    console.warn('Tradolux watchdog: feed dead for 90s, forcing reconnect');
     // Clamp attempt counter so backoff doesn't start at 60s after a long dead period
     state.alpaca.reconnectAttempts = Math.min(state.alpaca.reconnectAttempts, 5);
     connectAlpaca();
@@ -4903,6 +4903,21 @@ document.getElementById('assessAckRun').addEventListener('click', () => {
   runInstantAssessment(_pendingAssessPaneIdx);
 });
 
+async function fetchClaude(body, token, retries = 2) {
+  for (let i = 0; i < retries; i++) {
+    const res = await fetch('/.netlify/functions/claude-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(body)
+    });
+    if (res.status === 529 && i < retries - 1) {
+      await new Promise(r => setTimeout(r, 3000 * (i + 1)));
+      continue;
+    }
+    return res;
+  }
+}
+
 async function sendChat() {
   const input = document.getElementById('chatInput');
   const q = input.value.trim();
@@ -4937,25 +4952,14 @@ async function sendChat() {
   if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
 
   try {
-    const fetchOpts = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
-      body: JSON.stringify({
-        system: `You are Vecta Trade AI, a professional trading assistant embedded in a personal trading terminal. You have full access to the current chart state, indicators, signals, agent verdicts, and positions shown below. Answer questions about the chart, setups, risk, and trade management directly and specifically using this data. Never say you cannot see the chart — you have all relevant computed values. Be direct, specific, and actionable.
+    const res = await fetchClaude({
+      system: `You are Vecta Trade AI, a professional trading assistant embedded in a personal trading terminal. You have full access to the current chart state, indicators, signals, agent verdicts, and positions shown below. Answer questions about the chart, setups, risk, and trade management directly and specifically using this data. Never say you cannot see the chart — you have all relevant computed values. Be direct, specific, and actionable.
 
 ${buildChartContext(state.activePane)}`,
-        messages: state.chatHistory,
-        max_tokens: 1000,
-      }),
-    };
-    let res = await fetch('/.netlify/functions/claude-proxy', fetchOpts);
-    // Auto-retry once on 529 (API overloaded) after a 3-second pause
-    if (res.status === 529) {
-      thinkingEl.textContent = '...retrying...';
-      await new Promise(r => setTimeout(r, 3000));
-      res = await fetch('/.netlify/functions/claude-proxy', fetchOpts);
-    }
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+      messages: state.chatHistory,
+      max_tokens: 1000,
+    }, _session?.access_token || '');
+    if (!res || !res.ok) throw new Error(res ? 'HTTP ' + res.status : 'No response');
     const data = await res.json();
     const text = data.content?.[0]?.text || data.completion || 'No response.';
     thinkingEl.textContent = text;
