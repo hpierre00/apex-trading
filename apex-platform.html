@@ -546,6 +546,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div class="conn-pill sim" id="connPill">
       <span class="dot"></span><span id="connLabel">SIMULATED DATA</span>
     </div>
+    <span id="planBadge" style="display:none;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;font-family:monospace;letter-spacing:0.08em;color:#e8f5f2;margin-right:6px;"></span>
     <button class="icon-btn" id="settingsBtn" title="Settings">⚙ SETTINGS</button>
   </header>
 
@@ -962,6 +963,7 @@ const SUPABASE_URL = 'https://soghksmuocrgtttmnete.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZ2hrc211b2NyZ3R0dG1uZXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTg4MTEsImV4cCI6MjA5MjY5NDgxMX0.FWRiSZG5yGsJdZvntD5LrqmV07NFEjZWjisJSK95b7A';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _session = null;
+let _userPlan = 'free'; // 'free' | 'starter' | 'pro' | 'elite'
 
 _supabase.auth.onAuthStateChange((event, session) => {
   _session = session;
@@ -3410,6 +3412,21 @@ function renderTabs() {
 
 function renderSignalsTab() {
   const content = document.getElementById('tabContent');
+
+  if (_userPlan === 'free' || _userPlan === 'starter') {
+    const upgradeHtml = `<div style="background:#1a2748;border:1px solid #1a7a6e;border-radius:4px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="color:#e8f5f2;font-size:11px;font-weight:700;margin-bottom:2px;">Smart Signals — Pro Plan</div>
+        <div style="color:#4a5470;font-size:10px;">Upgrade to unlock 9 smart signal detectors, unlimited AI assessments, and all 5 agents.</div>
+      </div>
+      <a href="https://buy.stripe.com/dRm00l9hH1Q2fCqfbFb7y00" target="_blank"
+         style="background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:10px;font-weight:700;padding:6px 14px;border-radius:3px;text-decoration:none;white-space:nowrap;margin-left:12px;">
+        Upgrade →
+      </a>
+    </div>`;
+    if (content) content.insertAdjacentHTML('afterbegin', upgradeHtml);
+  }
+
   const filter = state.signalsFilter || 'open';
   const filtered = state.signalHistory.filter(s => {
     if (filter === 'open') return s.status === 'OPEN';
@@ -5505,20 +5522,78 @@ async function startCheckout(priceId) {
   }
 }
 
+async function fetchUserPlan() {
+  if (!_session?.user?.id) return;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${_session.user.id}&select=plan,subscription_status,trial_end`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${_session.access_token}`
+        }
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data[0]) {
+        const { plan, subscription_status, trial_end } = data[0];
+        const isActive = ['trialing', 'active'].includes(subscription_status);
+        _userPlan = isActive ? (plan || 'free') : 'free';
+        console.log('[plan] user plan:', _userPlan, 'status:', subscription_status);
+        applyPlanGating();
+      }
+    }
+  } catch (e) {
+    console.warn('[plan] fetchUserPlan error:', e);
+  }
+}
+
+function applyPlanGating() {
+  const badge = document.getElementById('planBadge');
+  if (badge) {
+    badge.textContent = _userPlan.toUpperCase();
+    badge.style.display = 'inline-block';
+    badge.style.background = _userPlan === 'elite' ? '#c9a84c'
+      : _userPlan === 'pro' ? '#1a7a6e'
+      : '#1a2748';
+  }
+
+  if (_userPlan === 'free' || _userPlan === 'starter') {
+    const signalsToggle = document.getElementById('signalsToggle');
+    if (signalsToggle) {
+      signalsToggle.title = 'Smart signals — Pro plan required';
+    }
+  }
+
+  if (_userPlan === 'free' || _userPlan === 'starter') {
+    document.querySelectorAll('.layout-btn[data-layout="2col"], .layout-btn[data-layout="grid"]').forEach(btn => {
+      btn.title = 'Multi-pane — Pro plan required';
+      btn.style.opacity = '0.4';
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        alert('Multi-pane charts require a Pro or Elite plan. Upgrade at tradolux.com');
+      };
+    });
+  }
+}
+
 async function bootApp() {
   const { data: { session } } = await _supabase.auth.getSession();
   if (session) {
     _session = session;
     hideAuthModal();
     init();
+    await fetchUserPlan();
   } else {
     showAuthModal();
-    const unsub = _supabase.auth.onAuthStateChange((event, sess) => {
+    const unsub = _supabase.auth.onAuthStateChange(async (event, sess) => {
       if (sess && event !== 'SIGNED_OUT') {
         _session = sess;
         hideAuthModal();
         unsub.data.subscription.unsubscribe();
         init();
+        await fetchUserPlan();
       }
     });
   }
