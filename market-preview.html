@@ -481,11 +481,11 @@ a:hover { color: #22a090; }
 <div class="market-bar">
   <div class="market-bar-inner" id="marketBarInner">
     <!-- populated by JS -->
-    <div class="ticker-pill"><span class="t-label">S&amp;P 500</span><span class="t-price"><span class="skel" style="width:58px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">NASDAQ</span><span class="t-price"><span class="skel" style="width:54px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">DOW</span><span class="t-price"><span class="skel" style="width:56px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">RUSSELL 2K</span><span class="t-price"><span class="skel" style="width:52px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">VIX PROXY</span><span class="t-price"><span class="skel" style="width:44px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">S&amp;P 500 (SPY)</span><span class="t-price"><span class="skel" style="width:58px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">NASDAQ 100 (QQQ)</span><span class="t-price"><span class="skel" style="width:54px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">DOW (DIA)</span><span class="t-price"><span class="skel" style="width:56px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">RUSSELL 2K (IWM)</span><span class="t-price"><span class="skel" style="width:52px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">VIX (VIXY)</span><span class="t-price"><span class="skel" style="width:44px"></span></span><span class="t-chg flat">—</span></div>
     <div class="bar-status">
       <div class="live-dot"></div>
       <span id="barTs">Loading…</span>
@@ -680,7 +680,7 @@ a:hover { color: #22a090; }
 'use strict';
 
 const INDEX_SYMS = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIXY'];
-const INDEX_LABELS = { SPY:'S&P 500', QQQ:'NASDAQ', DIA:'DOW', IWM:'RUSSELL 2K', VIXY:'VIX PROXY' };
+const INDEX_LABELS = { SPY:'S&P 500 (SPY)', QQQ:'NASDAQ 100 (QQQ)', DIA:'DOW (DIA)', IWM:'RUSSELL 2K (IWM)', VIXY:'VIX (VIXY)' };
 
 const SCANNER_SYMS = [
   'AAPL','TSLA','NVDA','AMD','MSFT','AMZN','META','GOOGL','NFLX','SPY',
@@ -832,7 +832,7 @@ function renderIndexStrip() {
     const c    = chgPct(snap);
     const cc   = c == null ? 'flat' : c >= 0 ? 'bull' : 'bear';
     return `<div class="idx-pill">
-      <span class="ix-sym">${STRIP_LABELS[sym]}</span>
+      <span class="ix-sym">${STRIP_LABELS[sym]}<span style="display:block;font-size:8px;color:#2a3550;font-weight:400;letter-spacing:0;">ETF</span></span>
       <span class="ix-price">${fmtPrice(p)}</span>
       <span class="ix-chg ${cc}">${fmtChg(c)}</span>
     </div>`;
