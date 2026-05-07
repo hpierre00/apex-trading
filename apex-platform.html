@@ -227,7 +227,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 .chart-canvas.dragging { cursor: grabbing; }
 .chart-hint {
   position: absolute; top: 8px; left: 12px;
-  font-size: 10px; color: var(--text-faint); letter-spacing: 1px;
+  font-size: 10px; color: var(--text-faint); letter-spacing: 1px; opacity: 0.3;
   pointer-events: none; z-index: 5;
 }
 .chart-controls {
@@ -349,7 +349,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   flex: 1; min-height: 200px;
   display: flex; flex-direction: column;
 }
-.chat-messages { flex: 1; overflow-y: auto; padding: 8px; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 8px; scroll-behavior: smooth; }
 .msg { margin-bottom: 8px; font-size: 11px; line-height: 1.4; }
 .msg.user { color: var(--text); }
 .msg.user::before { content: '> '; color: var(--gold); }
@@ -894,6 +894,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 <!-- ===== STATUS MODAL ===== -->
 <div class="modal-backdrop" id="settingsModal">
   <div class="modal" style="width:520px;max-width:95vw">
+    <h2 style="margin:0 0 16px;font-size:13px;letter-spacing:0.1em;font-weight:700;">SETTINGS</h2>
     <h3>SYSTEM STATUS</h3>
     <div style="font-size:11px;line-height:1.9">
       <div>Alpaca WebSocket: <b id="stWs">checking...</b></div>
@@ -1414,7 +1415,7 @@ function sessionReferenceClose(candles) {
   // close" from a user's perspective). Return it directly.
   // This handles the IEX-delay case where Alpaca's daily bar for today
   // hasn't been published yet during early market hours.
-  if (latestDate !== todayDate) return latest.c;
+  if (latestDate !== todayDate) return candles.at(-2)?.c ?? latest.c;
 
   // Latest candle is today (intraday timeframe, or daily bar already
   // published for today). Walk backward to find the prior trading
@@ -1621,9 +1622,16 @@ function renderChartForPane(pane, candles) {
     const d = new Date(candles[idx].t);
     const mins = tfMinutes(pane.timeframe);
     // Show date for multi-day spans, time for intraday
-    const label = mins >= 1440
-      ? (d.getMonth() + 1) + '/' + d.getDate() + (mins >= 10080 ? '/' + String(d.getFullYear()).slice(2) : '')
-      : d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    let label;
+    if (mins >= 1440) {
+      label = (d.getMonth() + 1) + '/' + d.getDate() + (mins >= 10080 ? '/' + String(d.getFullYear()).slice(2) : '');
+    } else {
+      const prevIdx = Math.floor(start + (count / labels) * (i - 1));
+      const isDayBoundary = i === 0 || (candles[prevIdx] && getTradingDate(new Date(candles[prevIdx].t)) !== getTradingDate(d));
+      label = isDayBoundary
+        ? (d.getMonth() + 1) + '/' + d.getDate()
+        : d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    }
     ctx.fillText(label, (chartW / labels) * i + 4, timeY);
   }
 
@@ -4391,9 +4399,15 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
   // Hydrate notification toggles from current state
   document.getElementById('notifSound').checked = state.notif.soundEnabled;
   document.getElementById('notifPush').checked = state.notif.pushEnabled;
+  const pushGranted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+  const subCbs = ['notifOnAlert', 'notifOnSignal', 'notifOnSmartSignal'];
   document.getElementById('notifOnAlert').checked = state.notif.notifyOnAlert;
   document.getElementById('notifOnSignal').checked = state.notif.notifyOnSignal;
   document.getElementById('notifOnSmartSignal').checked = state.notif.notifyOnSmartSignal !== false;
+  subCbs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !pushGranted;
+  });
   document.getElementById('notifVol').value = state.notif.soundVolume;
   updateNotifPushStatus();
 });
