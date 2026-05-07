@@ -5443,7 +5443,7 @@ async function handleAuthSubmit() {
           email,
           password,
           options: {
-            emailRedirectTo: 'https://vectatrade.com/app'
+            emailRedirectTo: 'https://tradolux.com/app'
           }
         });
     }
@@ -5606,7 +5606,7 @@ async function handleGoogleSignIn() {
   const { error } = await _supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: 'https://vectatrade.com/app'
+      redirectTo: 'https://tradolux.com/app'
     }
   });
   if (error) {
