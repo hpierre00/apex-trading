@@ -1,9 +1,8 @@
-// Netlify Function v2 — creates a Stripe Checkout session with 14-day trial.
-// Requires: STRIPE_SECRET_KEY in Netlify env vars.
+// netlify/functions/stripe-checkout.js
+// Creates a Stripe Checkout session with 14-day free trial.
+// Requires: STRIPE_SECRET_KEY, SUPABASE_ANON_KEY in Netlify env vars.
 
-export const config = { path: '/api/stripe-checkout' };
-
-import Stripe from 'stripe';
+const Stripe = require('stripe');
 
 const SUPABASE_URL      = 'https://soghksmuocrgtttmnete.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ||
@@ -24,39 +23,40 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-function err(msg, status = 400) {
-  return new Response(JSON.stringify({ error: msg }), {
-    status,
+function errResponse(msg, statusCode = 400) {
+  return {
+    statusCode,
     headers: { ...cors, 'Content-Type': 'application/json' },
-  });
+    body: JSON.stringify({ error: msg }),
+  };
 }
 
-export default async (req) => {
-  if (req.method === 'OPTIONS') return new Response('', { status: 200, headers: cors });
-  if (req.method !== 'POST') return err('Method not allowed', 405);
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
+  if (event.httpMethod !== 'POST') return errResponse('Method not allowed', 405);
 
   // Verify Supabase JWT
-  const authHeader = req.headers.get('authorization') || '';
+  const authHeader = event.headers['authorization'] || event.headers['Authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!token) return err('Unauthorized', 401);
+  if (!token) return errResponse('Unauthorized', 401);
 
   const authCheck = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
   });
-  if (!authCheck.ok) return err('Unauthorized', 401);
+  if (!authCheck.ok) return errResponse('Unauthorized', 401);
 
   const user = await authCheck.json();
 
   // Parse and validate request body
   let body;
-  try { body = await req.json(); }
-  catch { return err('Invalid JSON'); }
+  try { body = JSON.parse(event.body || '{}'); }
+  catch (e) { return errResponse('Invalid JSON'); }
 
   const { priceId } = body;
-  if (!priceId || !VALID_PRICE_IDS.has(priceId)) return err('Invalid price');
+  if (!priceId || !VALID_PRICE_IDS.has(priceId)) return errResponse('Invalid price');
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey) return err('Stripe not configured', 500);
+  if (!stripeKey) return errResponse('Stripe not configured', 500);
 
   try {
     const stripe = new Stripe(stripeKey);
@@ -70,11 +70,12 @@ export default async (req) => {
       cancel_url:  'https://tradolux.com/app',
     });
 
-    return new Response(JSON.stringify({ url: session.url }), {
-      status: 200,
+    return {
+      statusCode: 200,
       headers: { ...cors, 'Content-Type': 'application/json' },
-    });
+      body: JSON.stringify({ url: session.url }),
+    };
   } catch (e) {
-    return err('Stripe error: ' + e.message, 502);
+    return errResponse('Stripe error: ' + e.message, 502);
   }
 };
