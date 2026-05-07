@@ -386,6 +386,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   width: 440px; max-width: 92vw;
   padding: 20px;
   box-shadow: 0 0 40px rgba(245, 166, 35, 0.15);
+  max-height: 85vh; overflow-y: auto;
 }
 .modal h3 {
   font-size: 14px; letter-spacing: 2px; color: var(--gold);
@@ -593,6 +594,8 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <div class="sym-name" id="symName">AAPL</div>
           <div class="sym-px" id="symPx">$185.42</div>
           <div class="sym-chg up" id="symChg">+2.14 (+1.17%)</div>
+          <div style="font-size:10px;color:var(--bull);margin-left:6px;font-family:monospace" id="symHi" title="100-bar high"></div>
+          <div style="font-size:10px;color:var(--bear);font-family:monospace" id="symLo" title="100-bar low"></div>
         </div>
         <div class="spacer"></div>
         <div class="tf-group" id="intradayGroup">
@@ -2653,6 +2656,15 @@ function updateSymHeader() {
   const chgEl = document.getElementById('symChg');
   chgEl.textContent = `${up ? '+' : ''}${p.chg.toFixed(2)} (${up ? '+' : ''}${p.chgPct.toFixed(2)}%)`;
   chgEl.className = 'sym-chg ' + (up ? 'up' : 'down');
+  const candles = state.candles[state.symbol] || [];
+  if (candles.length) {
+    const hi100 = Math.max(...candles.slice(-100).map(c => c.h));
+    const lo100 = Math.min(...candles.slice(-100).map(c => c.l));
+    const hiEl = document.getElementById('symHi');
+    const loEl = document.getElementById('symLo');
+    if (hiEl) hiEl.textContent = 'H ' + hi100.toFixed(2);
+    if (loEl) loEl.textContent = 'L ' + lo100.toFixed(2);
+  }
 }
 
 /* ============================================================
