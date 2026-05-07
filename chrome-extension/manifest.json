@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Tradolux AI",
+  "version": "1.0.0",
+  "description": "Instant AI analysis on any stock. Powered by Tradolux.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["https://tradolux.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.finance.yahoo.com/*",
+        "*://*.cnbc.com/*",
+        "*://*.marketwatch.com/*",
+        "*://*.seekingalpha.com/*",
+        "*://*.bloomberg.com/*",
+        "*://*.tradingview.com/*",
+        "*://*.wsj.com/*",
+        "*://*.reuters.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

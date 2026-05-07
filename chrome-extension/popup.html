@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tradolux AI</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  width: 320px;
+  background: #070d1f;
+  color: #e8eaf0;
+  font-family: monospace;
+  overflow-x: hidden;
+}
+.header {
+  background: #040b1a;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #0e1830;
+}
+.brand { color: #1a7a6e; font-size: 14px; font-weight: 700; letter-spacing: 0.06em; }
+.brand-sub { font-size: 9px; color: #2a3550; letter-spacing: 1px; }
+.ticker-bar {
+  background: #0e1830;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #1a2748;
+}
+.ticker-sym { font-size: 16px; font-weight: 700; color: #e8eaf0; }
+.ticker-input {
+  background: #070d1f;
+  border: 1px solid #1a2748;
+  color: #1a7a6e;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  width: 80px;
+  text-transform: uppercase;
+  outline: none;
+  border-radius: 3px;
+}
+.ticker-input:focus { border-color: #1a7a6e; }
+.analyze-btn {
+  background: #1a7a6e;
+  color: #e8f5f2;
+  border: none;
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.analyze-btn:hover { background: #24a893; }
+.analyze-btn:disabled { background: #1a2748; color: #4a5470; cursor: default; }
+.agents { padding: 8px 14px; display: flex; flex-direction: column; gap: 4px; }
+.agent-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #0e1830;
+  border-radius: 3px;
+  border-left: 3px solid #1a2748;
+}
+.agent-row.bullish { border-left-color: #2a9d6e; }
+.agent-row.bearish { border-left-color: #d94f4f; }
+.agent-row.neutral { border-left-color: #4a5470; }
+.agent-row.caution { border-left-color: #e8a020; }
+.agent-name { font-size: 9px; color: #4a5470; letter-spacing: 1px; }
+.agent-verdict { font-size: 10px; font-weight: 700; }
+.verdict-bullish { color: #2a9d6e; }
+.verdict-bearish { color: #d94f4f; }
+.verdict-neutral { color: #5a6678; }
+.verdict-caution { color: #e8a020; }
+.summary {
+  padding: 8px 14px;
+  font-size: 10px;
+  color: #5a6678;
+  line-height: 1.6;
+  border-top: 1px solid #0e1830;
+  white-space: pre-wrap;
+}
+.loading {
+  padding: 24px 14px;
+  text-align: center;
+  color: #2a3550;
+  font-size: 11px;
+}
+.loading-dot {
+  display: inline-block;
+  width: 4px; height: 4px;
+  background: #1a7a6e;
+  border-radius: 50%;
+  animation: pulse 1s ease-in-out infinite;
+  margin: 0 2px;
+}
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
+.empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: #2a3550;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.cta {
+  padding: 10px 14px;
+  border-top: 1px solid #0e1830;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cta-link {
+  color: #1a7a6e;
+  font-size: 10px;
+  text-decoration: none;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.cta-link:hover { color: #24a893; }
+.cta-sub { font-size: 9px; color: #2a3550; }
+.error { padding: 14px; color: #d94f4f; font-size: 10px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="brand">TRADOLUX</div>
+    <div class="brand-sub">AI TRADING INTELLIGENCE</div>
+  </div>
+  <div id="statusDot" style="width:6px;height:6px;border-radius:50%;background:#2a3550;"></div>
+</div>
+
+<div class="ticker-bar">
+  <input class="ticker-input" id="tickerInput" placeholder="TICKER" maxlength="5">
+  <button class="analyze-btn" id="analyzeBtn">ANALYZE ⚡</button>
+</div>
+
+<div id="content">
+  <div class="empty">
+    Enter a ticker or visit a stock page.<br>
+    <span style="color:#1a3a30;font-size:10px;">Works on Yahoo Finance, CNBC, MarketWatch + more</span>
+  </div>
+</div>
+
+<div class="cta">
+  <a href="https://tradolux.com/app" target="_blank" class="cta-link">Open full terminal →</a>
+  <span class="cta-sub">tradolux.com</span>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
