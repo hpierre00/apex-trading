@@ -10,6 +10,8 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZ2hrc211b2NyZ3R0dG1uZXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTg4MTEsImV4cCI6MjA5MjY5NDgxMX0.FWRiSZG5yGsJdZvntD5LrqmV07NFEjZWjisJSK95b7A';
 
 const VALID_PRICE_IDS = new Set([
+  'price_1TUAErRAfobZUNrF4Wj4cOgy', // Starter monthly
+  'price_1TUAExRAfobZUNrFpRWN4SUP', // Starter annual
   'price_1TU4wlRAfobZUNrFPmVgeONk', // Pro monthly
   'price_1TU4wpRAfobZUNrFa6We3bUb', // Pro annual
   'price_1TU4wuRAfobZUNrF7AhIbytY', // Elite monthly

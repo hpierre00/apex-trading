@@ -5578,6 +5578,12 @@ function applyPlanGating() {
   }
 }
 
+// TODO: Configure Day 1/7/13 trial reminder emails in
+// Supabase Dashboard → Authentication → Email Templates
+// or via a Resend/SendGrid integration.
+// Day 1: "Welcome to Tradolux — here's how to get started"
+// Day 7: "You're halfway through your trial — have you tried Instant Assessment?"
+// Day 13: "Your trial ends tomorrow — upgrade to keep access"
 async function bootApp() {
   const { data: { session } } = await _supabase.auth.getSession();
   if (session) {

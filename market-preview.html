@@ -8,6 +8,13 @@
 <meta property="og:title" content="Live Market Scanner — Tradolux">
 <meta property="og:description" content="Real-time market data, top movers, and earnings calendar. Free preview.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://tradolux.com/market-preview.html">
+<meta property="og:image" content="https://tradolux.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Live Market Scanner — Tradolux">
+<meta name="twitter:description" content="Real-time market scanner, top movers, earnings calendar, and upcoming IPOs. Free preview.">
+<meta name="twitter:image" content="https://tradolux.com/og-image.png">
+<link rel="canonical" href="https://tradolux.com/market-preview.html">
 <link rel="stylesheet" href="/css/marketing.css">
 <style>
 /* ── Teal brand override for this page ── */
@@ -453,6 +460,9 @@ a:hover { color: #22a090; }
     <nav class="nav-links">
       <a href="/features.html">Features</a>
       <a href="/pricing.html">Pricing</a>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/about.html">About</a>
       <a href="/app">Sign in</a>
       <a href="#trial" class="cta">Start free trial</a>
     </nav>
@@ -606,52 +616,9 @@ a:hover { color: #22a090; }
     <div class="panel-card">
       <div class="panel-card-hd">
         <span class="panel-card-title">Market News</span>
-        <span class="panel-card-sub">Top stories · Updated hourly</span>
+        <span class="panel-card-sub" id="newsTs">Loading...</span>
       </div>
-      <div style="display:grid;gap:1px;background:var(--border);">
-        <div style="background:var(--panel);padding:10px 14px;">
-          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Fed signals patience on rate cuts as inflation data remains mixed</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">REUTERS</span>
-            <span style="color:#3a4a62;font-size:10px;">2h ago</span>
-          </div>
-        </div>
-        <div style="background:var(--panel);padding:10px 14px;">
-          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">NVDA continues AI infrastructure buildout narrative ahead of earnings</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">BLOOMBERG</span>
-            <span style="color:#3a4a62;font-size:10px;">3h ago</span>
-          </div>
-        </div>
-        <div style="background:var(--panel);padding:10px 14px;">
-          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Treasury yields ease as investors reposition ahead of CPI print</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">FINANCIAL TIMES</span>
-            <span style="color:#3a4a62;font-size:10px;">4h ago</span>
-          </div>
-        </div>
-        <div style="background:var(--panel);padding:10px 14px;">
-          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Small caps underperform as rate-sensitive sectors sell off</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">WSJ</span>
-            <span style="color:#3a4a62;font-size:10px;">5h ago</span>
-          </div>
-        </div>
-        <div style="background:var(--panel);padding:10px 14px;">
-          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Options market pricing elevated volatility into FOMC minutes release</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">MARKET WATCH</span>
-            <span style="color:#3a4a62;font-size:10px;">6h ago</span>
-          </div>
-        </div>
-        <div style="background:var(--panel);padding:10px 14px;">
-          <div style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;">Energy sector leads gains as crude breaks above 3-week resistance</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">CNBC</span>
-            <span style="color:#3a4a62;font-size:10px;">7h ago</span>
-          </div>
-        </div>
-      </div>
+      <div id="newsBody" style="display:grid;gap:1px;background:var(--border);"></div>
       <div style="padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:#3a4a62;text-align:center;">
         Live news feed available in Pro and Elite plans →
         <a href="/app" style="color:#1a7a6e;font-weight:600;"> Start free trial</a>
@@ -998,10 +965,45 @@ document.querySelectorAll('.tab-sec-btn').forEach(btn => {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
+async function fetchNews() {
+  try {
+    const r = await fetch('/.netlify/functions/news-proxy');
+    if (!r.ok) return;
+    const articles = await r.json();
+    if (!Array.isArray(articles) || !articles.length) return;
+
+    const timeAgo = (ts) => {
+      const diff = Math.floor((Date.now() - ts * 1000) / 60000);
+      if (diff < 60) return diff + 'm ago';
+      if (diff < 1440) return Math.floor(diff / 60) + 'h ago';
+      return Math.floor(diff / 1440) + 'd ago';
+    };
+
+    document.getElementById('newsBody').innerHTML = articles.map(a => `
+      <div style="background:var(--panel);padding:10px 14px;">
+        <a href="${a.url}" target="_blank" rel="noopener"
+           style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;display:block;text-decoration:none;">
+          ${a.headline}
+        </a>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">
+            ${(a.source || 'NEWS').toUpperCase()}
+          </span>
+          <span style="color:#3a4a62;font-size:10px;">${timeAgo(a.datetime)}</span>
+        </div>
+      </div>`).join('');
+    document.getElementById('newsTs').textContent = 'Updated ' + ts();
+  } catch (e) {
+    console.warn('[news] fetch error:', e);
+  }
+}
+
 renderSkeleton();
 fetchAll();
+fetchNews();
 setInterval(fetchBarOnly, 30000);   // bar: 30s
 setInterval(fetchAll,    60000);    // full: 60s
+setInterval(fetchNews,   60000);    // news: 60s
 
 })();
 </script>

@@ -3,20 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pricing — APEX</title>
-<meta name="description" content="APEX pricing tiers: Free, Essential $19/month, Pro $39/month. Join the waitlist for founding-member pricing.">
+<title>Pricing — Tradolux</title>
+<meta name="description" content="Tradolux plans: Starter $29/mo, Pro $79/mo, Elite $149/mo. 14-day free trial on all plans. Annual billing saves 20%.">
+<meta property="og:title" content="Pricing — Tradolux">
+<meta property="og:description" content="Starter $29/mo · Pro $79/mo · Elite $149/mo. 14-day free trial on all plans.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tradolux.com/pricing.html">
+<meta property="og:image" content="https://tradolux.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pricing — Tradolux">
+<meta name="twitter:description" content="Starter $29/mo · Pro $79/mo · Elite $149/mo. 14-day free trial on all plans.">
+<meta name="twitter:image" content="https://tradolux.com/og-image.png">
+<link rel="canonical" href="https://tradolux.com/pricing.html">
 <link rel="stylesheet" href="/css/marketing.css">
 </head>
 <body>
 
 <header class="site-header">
   <div class="container">
-    <a href="/" class="brand">APEX<span class="accent">.</span></a>
+    <a href="/" class="brand">Tradolux</a>
     <nav class="nav-links">
       <a href="/features.html">Features</a>
       <a href="/pricing.html">Pricing</a>
       <a href="/about.html">About</a>
-      <a href="/app" class="cta">Launch App</a>
+      <a href="/app">Sign in</a>
+      <a href="/app" class="cta">Start free trial</a>
     </nav>
   </div>
 </header>
@@ -24,149 +35,163 @@
 <section class="hero" style="padding-bottom:40px;">
   <div class="container">
     <span class="eyebrow">Pricing</span>
-    <h1>Straightforward plans for serious traders.</h1>
-    <p class="lead">Pick the tier that matches how you use the platform. No contracts, no surprise fees, cancel anytime.</p>
+    <h1>Simple plans. No games.</h1>
+    <p class="lead">Start free. Upgrade when you're ready. Annual billing saves 20%.</p>
   </div>
 </section>
 
-<section>
+<section class="alt">
   <div class="container">
+    <!-- Billing toggle -->
+    <div style="display:flex;justify-content:center;gap:4px;margin-bottom:36px;">
+      <button id="toggleMonthly" onclick="setBilling('monthly')" style="padding:8px 20px;border-radius:5px 0 0 5px;border:1px solid var(--border);background:var(--gold);color:#0b1221;font-size:13px;font-weight:700;cursor:pointer;">Monthly</button>
+      <button id="toggleAnnual"  onclick="setBilling('annual')"  style="padding:8px 20px;border-radius:0 5px 5px 0;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:13px;font-weight:600;cursor:pointer;">Annual <span style="background:#00c076;color:#0b1221;font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;margin-left:4px;">SAVE 20%</span></button>
+    </div>
+
     <div class="pricing-grid">
-
+      <!-- Starter -->
       <div class="price-card">
-        <div class="tier">Free</div>
-        <div class="price"><span class="amount">$0</span><span class="period">forever</span></div>
-        <div class="desc">For casual users and tire-kickers. Try the platform before committing.</div>
+        <div class="tier">Starter</div>
+        <div class="price">
+          <span class="amount"><span class="pm">$29</span><span class="pa" style="display:none">$23</span></span>
+          <span class="period">/ month</span>
+        </div>
+        <div class="pa annual-note" style="display:none;font-size:11px;color:var(--text-faint);margin-bottom:2px;">Billed $276 / year</div>
+        <div class="desc">14-day free trial · Credit card required.</div>
         <ul>
-          <li>Charts for any ticker</li>
-          <li>5 watchlist symbols</li>
-          <li>5 indicators (of 30+)</li>
-          <li>Delayed market data (15 min)</li>
-          <li class="muted">AI chat</li>
-          <li class="muted">Instant Assessment</li>
-          <li class="muted">Price alerts</li>
+          <li>Live real-time data (IEX)</li>
+          <li>1 chart pane</li>
+          <li>Chart Intelligence agent (1 of 5)</li>
+          <li>5 AI assessments per day</li>
+          <li>20 AI chat messages per day</li>
+          <li>10-symbol watchlist</li>
+          <li class="muted">✗ Smart signals (locked)</li>
+          <li class="muted">✗ Multi-pane charts (locked)</li>
+          <li class="muted">✗ Sentiment, Fundamental, Risk, Macro agents (locked)</li>
         </ul>
-        <a href="/app" class="btn btn-secondary">Launch Free</a>
+        <a id="starter-cta"
+           data-monthly="https://buy.stripe.com/aFaeVfgK952ecqe1kPb7y04"
+           data-annual="https://buy.stripe.com/9B6cN71PffGS2PE7Jdb7y05"
+           href="https://buy.stripe.com/aFaeVfgK952ecqe1kPb7y04"
+           class="btn btn-secondary">Start 14-day free trial</a>
       </div>
 
-      <div class="price-card">
-        <div class="tier">Essential</div>
-        <div class="price"><span class="amount">$19</span><span class="period">/ month</span></div>
-        <div class="desc">Real-time data and full charting without the AI premium.</div>
-        <ul>
-          <li>Everything in Free</li>
-          <li>Real-time market data</li>
-          <li>Unlimited watchlist</li>
-          <li>All 30+ indicators</li>
-          <li>Up to 10 price alerts</li>
-          <li>Performance tracking</li>
-          <li class="muted">AI chat</li>
-          <li class="muted">Instant Assessment</li>
-        </ul>
-        <a href="#waitlist" class="btn btn-secondary">Join Waitlist</a>
-      </div>
-
+      <!-- Pro -->
       <div class="price-card featured">
         <div class="badge">MOST POPULAR</div>
         <div class="tier">Pro</div>
-        <div class="price"><span class="amount">$39</span><span class="period">/ month</span></div>
-        <div class="desc">The full APEX terminal. AI-powered analysis, every feature unlocked.</div>
+        <div class="price">
+          <span class="amount"><span class="pm">$79</span><span class="pa" style="display:none">$63</span></span>
+          <span class="period">/ month</span>
+        </div>
+        <div class="pa annual-note" style="display:none;font-size:11px;color:var(--text-faint);margin-bottom:2px;">Billed $756 / year</div>
+        <div class="desc">14-day free trial · Credit card required.</div>
         <ul>
-          <li>Everything in Essential</li>
+          <li>Everything in Starter</li>
+          <li>All 5 AI agents (Chart, Sentiment, Fundamental, Risk, Macro)</li>
+          <li>Unlimited AI assessments</li>
           <li>Unlimited AI chat</li>
-          <li>Unlimited Instant Assessment</li>
-          <li>Unlimited price alerts</li>
-          <li>5-agent analytical framework</li>
-          <li>Priority support</li>
-          <li>Early access to new features</li>
+          <li>Smart signals — 9 detectors</li>
+          <li>All chart layouts (1×1, 1×2, 2×2)</li>
+          <li>Unlimited watchlist</li>
+          <li>Browser push alerts</li>
         </ul>
-        <a href="#waitlist" class="btn btn-primary">Join Waitlist</a>
+        <a id="pro-cta"
+           data-monthly="https://buy.stripe.com/dRm00l9hH1Q2fCqfbFb7y00"
+           data-annual="https://buy.stripe.com/dRm5kFdxXgKW2PE6F9b7y01"
+           href="https://buy.stripe.com/dRm00l9hH1Q2fCqfbFb7y00"
+           class="btn btn-primary">Start 14-day free trial</a>
       </div>
 
+      <!-- Elite -->
+      <div class="price-card">
+        <div class="badge" style="background:var(--gold);color:#0b1221;">BEST VALUE</div>
+        <div class="tier">Elite</div>
+        <div class="price">
+          <span class="amount"><span class="pm">$149</span><span class="pa" style="display:none">$119</span></span>
+          <span class="period">/ month</span>
+        </div>
+        <div class="pa annual-note" style="display:none;font-size:11px;color:var(--text-faint);margin-bottom:2px;">Billed $1,428 / year</div>
+        <div class="desc">14-day free trial · Credit card required.</div>
+        <ul>
+          <li>Everything in Pro</li>
+          <li>Backtester + signal performance history</li>
+          <li>Priority AI inference</li>
+          <li>API access</li>
+          <li>Early feature access</li>
+        </ul>
+        <a id="elite-cta"
+           data-monthly="https://buy.stripe.com/28E00l3Xn52eai60gLb7y02"
+           data-annual="https://buy.stripe.com/3cI4gB9hH7am75U5B5b7y03"
+           href="https://buy.stripe.com/28E00l3Xn52eai60gLb7y02"
+           class="btn btn-secondary">Start 14-day free trial</a>
+      </div>
     </div>
 
-    <p style="text-align:center; color:var(--text-faint); font-size:12px; margin-top:32px;">
-      Annual billing available at ~20% discount. Payment via Stripe, secure and cancelable.
+    <p style="text-align:center;font-size:12px;color:var(--text-faint);margin-top:24px;line-height:1.8;">
+      14-day free trial on all plans. Credit card required.<br>
+      Cancel before day 14 and you will not be charged.<br>
+      Annual plans billed in full at start of billing period.
     </p>
   </div>
 </section>
 
 <!-- Comparison table -->
-<section class="alt">
+<section>
   <div class="container" style="max-width:900px;">
-    <div class="section-header">
-      <span class="eyebrow">Detailed Comparison</span>
-      <h2>What each tier includes.</h2>
-    </div>
+    <h2 style="text-align:center;margin-bottom:40px;">Compare plans</h2>
     <table class="compare">
       <thead>
         <tr>
           <th>Feature</th>
-          <th class="num">Free</th>
-          <th class="num">Essential</th>
+          <th class="num">Starter</th>
           <th class="num">Pro</th>
+          <th class="num">Elite</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td>Charts and candles</td><td class="num yes">✓</td><td class="num yes">✓</td><td class="num yes">✓</td></tr>
-        <tr><td>Watchlist symbols</td><td class="num">5</td><td class="num yes">Unlimited</td><td class="num yes">Unlimited</td></tr>
-        <tr><td>Technical indicators</td><td class="num">5</td><td class="num yes">30+</td><td class="num yes">30+</td></tr>
-        <tr><td>Market data</td><td class="num">Delayed 15m</td><td class="num yes">Real-time</td><td class="num yes">Real-time</td></tr>
-        <tr><td>Price alerts</td><td class="num no">—</td><td class="num">10</td><td class="num yes">Unlimited</td></tr>
-        <tr><td>Performance tracking</td><td class="num no">—</td><td class="num yes">✓</td><td class="num yes">✓</td></tr>
-        <tr><td>Analytical observations</td><td class="num no">—</td><td class="num yes">✓</td><td class="num yes">✓</td></tr>
-        <tr><td>AI chat (Claude)</td><td class="num no">—</td><td class="num no">—</td><td class="num yes">Unlimited</td></tr>
-        <tr><td>Instant Assessment</td><td class="num no">—</td><td class="num no">—</td><td class="num yes">Unlimited</td></tr>
-        <tr><td>Priority support</td><td class="num no">—</td><td class="num no">—</td><td class="num yes">✓</td></tr>
+        <tr><td>Live IEX data</td><td class="num yes">✓</td><td class="num yes">✓</td><td class="num yes">✓</td></tr>
+        <tr><td>Chart panes</td><td class="num">1</td><td class="num">4</td><td class="num">4</td></tr>
+        <tr><td>AI agents</td><td class="num">1 of 5</td><td class="num yes">All 5</td><td class="num yes">All 5</td></tr>
+        <tr><td>AI assessments / day</td><td class="num">5</td><td class="num yes">Unlimited</td><td class="num yes">Unlimited</td></tr>
+        <tr><td>AI chat messages / day</td><td class="num">20</td><td class="num yes">Unlimited</td><td class="num yes">Unlimited</td></tr>
+        <tr><td>Smart signals</td><td class="num no">✗</td><td class="num yes">✓</td><td class="num yes">✓</td></tr>
+        <tr><td>Watchlist symbols</td><td class="num">10</td><td class="num yes">Unlimited</td><td class="num yes">Unlimited</td></tr>
+        <tr><td>Browser push alerts</td><td class="num no">✗</td><td class="num yes">✓</td><td class="num yes">✓</td></tr>
+        <tr><td>Backtester</td><td class="num no">✗</td><td class="num no">✗</td><td class="num yes">✓</td></tr>
+        <tr><td>API access</td><td class="num no">✗</td><td class="num no">✗</td><td class="num yes">✓</td></tr>
+        <tr><td>Priority AI inference</td><td class="num no">✗</td><td class="num no">✗</td><td class="num yes">✓</td></tr>
+        <tr><td>14-day free trial</td><td class="num yes">✓</td><td class="num yes">✓</td><td class="num yes">✓</td></tr>
       </tbody>
     </table>
   </div>
 </section>
 
 <!-- FAQ -->
-<section>
+<section class="alt">
   <div class="container" style="max-width:720px;">
     <div class="section-header">
       <span class="eyebrow">FAQ</span>
       <h2>Common questions.</h2>
     </div>
     <div class="article">
-      <h3>When will paid tiers launch?</h3>
-      <p>Paid tiers are in active development. Waitlist members get early access and founding-member pricing before general availability.</p>
+      <h3>Can I cancel during the trial?</h3>
+      <p>Yes. Cancel any time before day 14 and you will not be charged. No questions asked.</p>
 
       <h3>Can I change plans later?</h3>
-      <p>Yes. Upgrade or downgrade any time. Proration handled automatically.</p>
+      <p>Yes. Upgrade or downgrade any time. Proration is handled automatically by Stripe.</p>
 
-      <h3>What about annual billing?</h3>
-      <p>Annual billing will be available at launch, approximately 20% off monthly rates.</p>
+      <h3>What is annual billing?</h3>
+      <p>Annual plans are billed in full at the start of the billing period at approximately 20% off the monthly rate.</p>
 
       <h3>Is there a refund policy?</h3>
-      <p>We'll offer a standard 14-day money-back guarantee at launch. Details will be in the Terms of Service.</p>
+      <p>If you cancel during your 14-day trial you are not charged. After the trial, charges are non-refundable but you can cancel to stop future billing.</p>
 
-      <h3>Is APEX a broker?</h3>
-      <p>No. APEX is an analytical platform. We do not execute trades, hold funds, or provide investment advice. Trades happen at your broker of choice.</p>
+      <h3>Is Tradolux a broker?</h3>
+      <p>No. Tradolux is an analytical platform. We do not execute trades, hold funds, or provide investment advice. Trades happen at your broker of choice.</p>
 
-      <h3>Is APEX a registered investment adviser?</h3>
-      <p>No. APEX provides general market information and AI-generated analysis for educational and informational purposes only. Nothing on the platform constitutes personalized investment advice.</p>
-    </div>
-  </div>
-</section>
-
-<section id="waitlist" class="alt">
-  <div class="container">
-    <div class="section-header">
-      <span class="eyebrow">Early Access</span>
-      <h2>Lock in founding-member pricing.</h2>
-      <p>Paid tiers launch soon. Waitlist members get notified first and get pricing protection.</p>
-    </div>
-    <div class="waitlist-box">
-      <h3>Request Early Access</h3>
-      <p>We'll email you when Pro and Essential tiers are available.</p>
-      <form class="waitlist-form" id="waitlistForm">
-        <input type="email" id="waitlistEmail" placeholder="you@example.com" required autocomplete="email">
-        <button type="submit" class="btn btn-primary">Join Waitlist</button>
-      </form>
-      <div class="waitlist-msg" id="waitlistMsg"></div>
+      <h3>Is Tradolux a registered investment adviser?</h3>
+      <p>No. Tradolux provides general market information and AI-generated analysis for educational and informational purposes only. Nothing on the platform constitutes personalized investment advice.</p>
     </div>
   </div>
 </section>
@@ -175,8 +200,8 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-col">
-        <div class="brand" style="margin-bottom:12px;">APEX<span class="accent">.</span></div>
-        <p style="color:var(--text-faint); font-size:12px; line-height:1.6; max-width:280px;">
+        <div class="brand" style="margin-bottom:12px;">Tradolux</div>
+        <p style="color:var(--text-faint);font-size:12px;line-height:1.6;max-width:280px;">
           AI-powered market analysis for independent traders. Not a broker-dealer, not a registered investment adviser. Not financial advice.
         </p>
       </div>
@@ -192,65 +217,47 @@
         <h4>Company</h4>
         <ul>
           <li><a href="/about.html">About</a></li>
-          <li><a href="mailto:contact@apex.example">Contact</a></li>
+          <li><a href="mailto:contact@tradolux.com">Contact</a></li>
         </ul>
       </div>
       <div class="footer-col">
         <h4>Legal</h4>
         <ul>
-          <li><a href="/legal/disclaimer.html">Disclaimer</a></li>
-          <li><a href="/legal/risk-disclosure.html">Risk Disclosure</a></li>
           <li><a href="/legal/terms.html">Terms of Service</a></li>
           <li><a href="/legal/privacy.html">Privacy Policy</a></li>
         </ul>
       </div>
     </div>
     <div class="footer-bottom">
-      <div>&copy; 2026 APEX. All rights reserved.</div>
-      <div style="max-width:560px; text-align:right;">
-        APEX is a technology platform providing AI-generated market analysis for educational and informational purposes only.
+      <div>&copy; 2026 Tradolux. All rights reserved.</div>
+      <div style="max-width:560px;text-align:right;">
+        Tradolux provides AI-generated market analysis for educational and informational purposes only. Not financial advice.
       </div>
     </div>
   </div>
 </footer>
 
 <script>
-(function() {
-  var form = document.getElementById('waitlistForm');
-  if (!form) return;
-  var input = document.getElementById('waitlistEmail');
-  var msg = document.getElementById('waitlistMsg');
-  form.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    var email = input.value.trim().toLowerCase();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      msg.textContent = 'Please enter a valid email address.';
-      msg.className = 'waitlist-msg err';
-      return;
-    }
-    msg.textContent = 'Sending...';
-    msg.className = 'waitlist-msg';
-    try {
-      var res = await fetch('https://soghksmuocrgtttmnete.supabase.co/functions/v1/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, source: 'pricing' })
-      });
-      var data = await res.json().catch(function() { return {}; });
-      if (res.ok) {
-        msg.textContent = "You're on the list. We'll be in touch.";
-        msg.className = 'waitlist-msg ok';
-        input.value = '';
-      } else {
-        msg.textContent = data.error || 'Could not join waitlist. Please try again.';
-        msg.className = 'waitlist-msg err';
-      }
-    } catch (err) {
-      msg.textContent = 'Network error. Please try again.';
-      msg.className = 'waitlist-msg err';
-    }
-  });
-})();
+function setBilling(mode) {
+  var isAnnual = mode === 'annual';
+  document.querySelectorAll('.pm').forEach(function(el) { el.style.display = isAnnual ? 'none' : ''; });
+  document.querySelectorAll('.pa').forEach(function(el) { el.style.display = isAnnual ? '' : 'none'; });
+  var mBtn = document.getElementById('toggleMonthly');
+  var aBtn = document.getElementById('toggleAnnual');
+  if (isAnnual) {
+    mBtn.style.background = 'transparent'; mBtn.style.color = 'var(--text-dim)';
+    aBtn.style.background = 'var(--gold)';  aBtn.style.color = '#0b1221';
+  } else {
+    mBtn.style.background = 'var(--gold)'; mBtn.style.color = '#0b1221';
+    aBtn.style.background = 'transparent'; aBtn.style.color = 'var(--text-dim)';
+  }
+  var starterCta = document.getElementById('starter-cta');
+  var proCta     = document.getElementById('pro-cta');
+  var eliteCta   = document.getElementById('elite-cta');
+  if (starterCta) starterCta.href = isAnnual ? starterCta.dataset.annual : starterCta.dataset.monthly;
+  if (proCta)     proCta.href     = isAnnual ? proCta.dataset.annual     : proCta.dataset.monthly;
+  if (eliteCta)   eliteCta.href   = isAnnual ? eliteCta.dataset.annual   : eliteCta.dataset.monthly;
+}
 </script>
 
 </body>
