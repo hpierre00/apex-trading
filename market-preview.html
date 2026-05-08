@@ -680,7 +680,17 @@ a:hover { color: #22a090; }
 'use strict';
 
 const INDEX_SYMS = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIXY'];
-const INDEX_LABELS = { SPY:'S&P 500 (SPY)', QQQ:'NASDAQ 100 (QQQ)', DIA:'DOW (DIA)', IWM:'RUSSELL 2K (IWM)', VIXY:'VIX (VIXY)' };
+
+// Multipliers convert ETF price → approximate underlying index value.
+// SPY ×10 ≈ S&P 500  |  QQQ ×37.5 ≈ Nasdaq 100  |  DIA ×100 ≈ Dow
+// IWM ×10 ≈ Russell 2K  |  VIXY ×1 (VIX proxy, no conversion)
+const ETF_TO_INDEX = {
+  SPY:  { label: 'S&P 500',    mult: 10   },
+  QQQ:  { label: 'NASDAQ 100', mult: 37.5 },
+  DIA:  { label: 'DOW',        mult: 100  },
+  IWM:  { label: 'RUSSELL 2K', mult: 10   },
+  VIXY: { label: 'VIX',        mult: 1    },
+};
 
 const SCANNER_SYMS = [
   'AAPL','TSLA','NVDA','AMD','MSFT','AMZN','META','GOOGL','NFLX','SPY',
@@ -719,6 +729,15 @@ function fmtPrice(p)  { return p != null ? '$' + p.toFixed(2) : '—'; }
 function fmtChg(c)    {
   if (c == null) return '—';
   return (c >= 0 ? '+' : '') + c.toFixed(2) + '%';
+}
+// Formats a multiplied index value with commas, no $ sign.
+// VIX (mult=1) keeps one decimal; others round to whole number.
+function fmtIndex(p, mult) {
+  if (p == null) return '—';
+  const v = p * mult;
+  return mult === 1
+    ? v.toFixed(1)
+    : Math.round(v).toLocaleString();
 }
 function fmtVol(v) {
   if (!v) return '—';
@@ -831,9 +850,10 @@ function renderIndexStrip() {
     const p    = price(snap);
     const c    = chgPct(snap);
     const cc   = c == null ? 'flat' : c >= 0 ? 'bull' : 'bear';
+    const meta = ETF_TO_INDEX[sym];
     return `<div class="idx-pill">
-      <span class="ix-sym">${STRIP_LABELS[sym]}<span style="display:block;font-size:8px;color:#2a3550;font-weight:400;letter-spacing:0;">ETF</span></span>
-      <span class="ix-price">${fmtPrice(p)}</span>
+      <span class="ix-sym">${meta.label}</span>
+      <span class="ix-price">${fmtIndex(p, meta.mult)}</span>
       <span class="ix-chg ${cc}">${fmtChg(c)}</span>
     </div>`;
   }).join('');
