@@ -20,6 +20,9 @@ Respond ONLY with valid JSON in this exact format:
 Verdict must be one of: BULLISH, BEARISH, NEUTRAL, STRONG, WEAK, CAUTION, HEADWIND, TAILWIND.
 Be direct and specific. No disclaimers. No markdown. Valid JSON only.`;
 
+const ipCounts = new Map();
+const DAILY_LIMIT = 10;
+
 exports.handler = async (event) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -48,6 +51,32 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Invalid ticker' }) };
   }
 
+  const ip = event.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || event.headers['client-ip']
+    || 'unknown';
+  const now = Date.now();
+  const midnight = new Date();
+  midnight.setHours(24, 0, 0, 0);
+  const resetAt = midnight.getTime();
+
+  const record = ipCounts.get(ip) || { count: 0, resetAt };
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = resetAt;
+  }
+  if (record.count >= DAILY_LIMIT) {
+    return {
+      statusCode: 429,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: 'rate_limited',
+        message: 'Daily limit reached. Upgrade for unlimited analysis.'
+      })
+    };
+  }
+  record.count++;
+  ipCounts.set(ip, record);
+
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -55,11 +84,12 @@ exports.handler = async (event) => {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_KEY,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'prompt-caching-2024-07-31',
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 400,
-        system: SYSTEM_PROMPT,
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: `Analyze ${ticker}` }]
       })
     });
