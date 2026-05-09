@@ -1383,6 +1383,18 @@ function isMarketHours() {
   return mins >= 570 && mins <= 960;
 }
 
+function getMarketSession() {
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = et.getDay();
+  const mins = et.getHours() * 60 + et.getMinutes();
+  if (day === 0 || day === 6) return 'closed';
+  if (mins >= 570 && mins < 960) return 'open';
+  if (mins >= 240 && mins < 570) return 'pre';
+  if (mins >= 960 && mins < 1200) return 'after';
+  return 'closed';
+}
+
 // Returns trading date string in ET (YYYY-MM-DD). Used to bucket alerts
 // by trading session so prior-day alerts can be hidden from the current view.
 function getTradingDate(date) {
@@ -2654,7 +2666,11 @@ window.selectSymbol = selectSymbol;
 function updateSymHeader() {
   const p = state.prices[state.symbol] || { px: 0, chg: 0, chgPct: 0 };
   const up = p.chg >= 0;
-  document.getElementById('symPx').textContent = '$' + p.px.toFixed(2);
+  const session = getMarketSession();
+  const extBadge = (session === 'pre' || session === 'after')
+    ? ' <span style="font-size:10px;background:rgba(240,185,11,0.15);color:var(--gold);padding:1px 5px;border-radius:2px;font-family:monospace;vertical-align:middle;">EXT</span>'
+    : '';
+  document.getElementById('symPx').innerHTML = '$' + p.px.toFixed(2) + extBadge;
   const chgEl = document.getElementById('symChg');
   chgEl.textContent = `${up ? '+' : ''}${p.chg.toFixed(2)} (${up ? '+' : ''}${p.chgPct.toFixed(2)}%)`;
   chgEl.className = 'sym-chg ' + (up ? 'up' : 'down');
@@ -4704,6 +4720,23 @@ async function loadAlpacaSnapshots(symbols) {
   }
 }
 
+async function fetchExtendedQuotes(symbols) {
+  try {
+    const r = await fetch('/.netlify/functions/alpaca-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
+      body: JSON.stringify({
+        path: '/v2/stocks/quotes/latest',
+        params: { symbols: symbols.join(','), feed: 'iex' },
+      }),
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
 async function connectAlpaca() {
   // 1. Get credentials from server
   let creds;
@@ -5385,10 +5418,21 @@ async function reloadChart() {
 
 // market status
 function updateMktStatus() {
-  const open = isUSMarketOpen();
+  const session = getMarketSession();
   const el = document.getElementById('mktStatus');
-  el.textContent = open ? '● MARKET OPEN' : '● MARKET CLOSED';
-  el.style.color = open ? 'var(--bull)' : 'var(--text-dim)';
+  if (session === 'open') {
+    el.textContent = '● LIVE • MARKET OPEN';
+    el.style.color = 'var(--bull)';
+  } else if (session === 'pre') {
+    el.textContent = '● PRE-MARKET';
+    el.style.color = 'var(--gold)';
+  } else if (session === 'after') {
+    el.textContent = '● AFTER HOURS';
+    el.style.color = 'var(--gold)';
+  } else {
+    el.textContent = '● MARKET CLOSED';
+    el.style.color = 'var(--text-dim)';
+  }
 }
 
 function init() {
@@ -5419,6 +5463,33 @@ function init() {
   setInterval(updateMktStatus, 30000);
   // Signal outcome checker: every 5 seconds, walk OPEN signals and check hits
   setInterval(checkSignalOutcomes, 5000);
+  // Extended hours quote polling — pre-market (4–9:30 AM ET) and after-hours (4–8 PM ET)
+  setInterval(async () => {
+    const session = getMarketSession();
+    if (session !== 'pre' && session !== 'after') return;
+    if (state.alpaca.connected) return;
+    if (!_session?.access_token) return;
+    const syms = [...new Set([...TICKERS, ...state.watchlist])];
+    const data = await fetchExtendedQuotes(syms);
+    if (!data?.quotes) return;
+    syms.forEach(sym => {
+      const quote = data.quotes[sym];
+      if (!quote) return;
+      const ap = quote.ap ?? 0;
+      const bp = quote.bp ?? 0;
+      if (!ap && !bp) return;
+      const extPrice = ap && bp ? (ap + bp) / 2 : (ap || bp);
+      const arr = state.candles[sym];
+      if (!arr) return;
+      const refClose = sessionReferenceClose(arr) ?? arr[0].c;
+      state.prices[sym] = { px: extPrice, chg: extPrice - refClose, chgPct: ((extPrice - refClose) / refClose) * 100 };
+    });
+    state.positions.forEach(p => { if (state.prices[p.sym]) p.curr = state.prices[p.sym].px; });
+    renderWatchlist();
+    renderPositions();
+    renderTicker();
+    updateSymHeader();
+  }, 60000);
   window.addEventListener('resize', resizeCanvas);
 }
 
