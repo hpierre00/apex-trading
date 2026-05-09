@@ -474,24 +474,27 @@ a:hover { color: #22a090; }
   <div class="idx-pill"><span class="ix-sym">DIA</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
   <div class="idx-pill"><span class="ix-sym">IWM</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
   <div class="idx-pill"><span class="ix-sym">VIX</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
-  <span class="strip-label">LIVE INDEXES</span>
+  <span class="strip-label">LIVE ETFs</span>
 </div>
 
 <!-- ── Market summary bar ── -->
 <div class="market-bar">
   <div class="market-bar-inner" id="marketBarInner">
     <!-- populated by JS -->
-    <div class="ticker-pill"><span class="t-label">S&amp;P 500 (SPY)</span><span class="t-price"><span class="skel" style="width:58px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">NASDAQ 100 (QQQ)</span><span class="t-price"><span class="skel" style="width:54px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">DOW (DIA)</span><span class="t-price"><span class="skel" style="width:56px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">RUSSELL 2K (IWM)</span><span class="t-price"><span class="skel" style="width:52px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">VIX (VIXY)</span><span class="t-price"><span class="skel" style="width:44px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">SPY (S&amp;P ETF)</span><span class="t-price"><span class="skel" style="width:58px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">QQQ (Nasdaq ETF)</span><span class="t-price"><span class="skel" style="width:54px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">DIA (Dow ETF)</span><span class="t-price"><span class="skel" style="width:56px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">IWM (Russell ETF)</span><span class="t-price"><span class="skel" style="width:52px"></span></span><span class="t-chg flat">—</span></div>
+    <div class="ticker-pill"><span class="t-label">VIX (Vol proxy)</span><span class="t-price"><span class="skel" style="width:44px"></span></span><span class="t-chg flat">—</span></div>
     <div class="bar-status">
       <div class="live-dot"></div>
       <span id="barTs">Loading…</span>
     </div>
   </div>
 </div>
+<p style="text-align:center;font-size:10px;color:#4a5470;padding:2px 14px 4px;margin:0;font-family:monospace;">
+  Live ETF prices: SPY (S&amp;P 500), QQQ (Nasdaq 100), DIA (Dow Jones), IWM (Russell 2000)
+</p>
 
 <!-- ── Main content ── -->
 <div class="preview-main">
@@ -681,15 +684,12 @@ a:hover { color: #22a090; }
 
 const INDEX_SYMS = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIXY'];
 
-// Multipliers convert ETF price → approximate underlying index value.
-// SPY ×10 ≈ S&P 500  |  QQQ ×37.5 ≈ Nasdaq 100  |  DIA ×100 ≈ Dow
-// IWM ×10 ≈ Russell 2K  |  VIXY ×1 (VIX proxy, no conversion)
-const ETF_TO_INDEX = {
-  SPY:  { label: 'S&P 500',    mult: 10   },
-  QQQ:  { label: 'NASDAQ 100', mult: 37.5 },
-  DIA:  { label: 'DOW',        mult: 100  },
-  IWM:  { label: 'RUSSELL 2K', mult: 10   },
-  VIXY: { label: 'VIX',        mult: 1    },
+const INDEX_LABELS = {
+  SPY:  'SPY (S&P ETF)',
+  QQQ:  'QQQ (Nasdaq ETF)',
+  DIA:  'DIA (Dow ETF)',
+  IWM:  'IWM (Russell ETF)',
+  VIXY: 'VIX (Vol proxy)',
 };
 
 const SCANNER_SYMS = [
@@ -729,15 +729,6 @@ function fmtPrice(p)  { return p != null ? '$' + p.toFixed(2) : '—'; }
 function fmtChg(c)    {
   if (c == null) return '—';
   return (c >= 0 ? '+' : '') + c.toFixed(2) + '%';
-}
-// Formats a multiplied index value with commas, no $ sign.
-// VIX (mult=1) keeps one decimal; others round to whole number.
-function fmtIndex(p, mult) {
-  if (p == null) return '—';
-  const v = p * mult;
-  return mult === 1
-    ? v.toFixed(1)
-    : Math.round(v).toLocaleString();
 }
 function fmtVol(v) {
   if (!v) return '—';
@@ -850,14 +841,13 @@ function renderIndexStrip() {
     const p    = price(snap);
     const c    = chgPct(snap);
     const cc   = c == null ? 'flat' : c >= 0 ? 'bull' : 'bear';
-    const meta = ETF_TO_INDEX[sym];
     return `<div class="idx-pill">
-      <span class="ix-sym">${meta.label}</span>
-      <span class="ix-price">${fmtIndex(p, meta.mult)}</span>
+      <span class="ix-sym">${INDEX_LABELS[sym]}</span>
+      <span class="ix-price">${fmtPrice(p)}</span>
       <span class="ix-chg ${cc}">${fmtChg(c)}</span>
     </div>`;
   }).join('');
-  strip.innerHTML = pills + `<span class="strip-label">LIVE INDEXES</span>`;
+  strip.innerHTML = pills + `<span class="strip-label">LIVE ETFs</span>`;
 }
 
 // ── Render bar ───────────────────────────────────────────────────────────────
