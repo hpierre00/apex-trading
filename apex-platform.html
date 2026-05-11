@@ -5598,7 +5598,7 @@ async function startCheckout(priceId) {
   btn.textContent = 'LOADING...';
   btn.disabled = true;
   try {
-    const res = await fetch('/api/stripe-checkout', {
+    const res = await fetch('/.netlify/functions/stripe-checkout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

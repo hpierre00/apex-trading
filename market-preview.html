@@ -401,10 +401,34 @@ a:hover { color: #22a090; }
 }
 .preview-footer a:hover { color: #1a7a6e; }
 
-/* ── Index strip (sticky top bar) ── */
-#indexStrip {
+/* ── Real index strip (top sticky row) ── */
+#indexRowReal {
   position: sticky;
   top: 0;
+  z-index: 101;
+  background: #040b1a;
+  border-bottom: 1px solid #0f1f38;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-items: center;
+}
+#indexRowReal::-webkit-scrollbar { display: none; }
+#indexRowReal .strip-label {
+  margin-left: auto;
+  padding: 7px 14px;
+  border-left: 1px solid #0f1f38;
+  font-size: 9px;
+  color: #2a3a52;
+  font-family: monospace;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* ── ETF strip (second sticky row) ── */
+#indexStrip {
+  position: sticky;
+  top: 34px;
   z-index: 100;
   background: #040b1a;
   border-bottom: 1px solid #0f1f38;
@@ -467,7 +491,19 @@ a:hover { color: #22a090; }
   </div>
 </header>
 
-<!-- ── Live indexes strip ── -->
+<!-- ── Real index strip ── -->
+<div id="indexRowReal">
+  <div class="idx-pill"><span class="ix-sym">S&amp;P 500</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">DJIA</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">NASDAQ</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">RUSSELL 2K</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">NYSE COMP</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">S&amp;P 100</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">WILSHIRE 5K</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <span class="strip-label">LIVE INDEXES</span>
+</div>
+
+<!-- ── ETF strip ── -->
 <div id="indexStrip">
   <div class="idx-pill"><span class="ix-sym">SPY</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
   <div class="idx-pill"><span class="ix-sym">QQQ</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
@@ -476,24 +512,9 @@ a:hover { color: #22a090; }
   <div class="idx-pill"><span class="ix-sym">VIX</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
   <span class="strip-label">LIVE ETFs</span>
 </div>
-
-<!-- ── Market summary bar ── -->
-<div class="market-bar">
-  <div class="market-bar-inner" id="marketBarInner">
-    <!-- populated by JS -->
-    <div class="ticker-pill"><span class="t-label">SPY (S&amp;P ETF)</span><span class="t-price"><span class="skel" style="width:58px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">QQQ (Nasdaq ETF)</span><span class="t-price"><span class="skel" style="width:54px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">DIA (Dow ETF)</span><span class="t-price"><span class="skel" style="width:56px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">IWM (Russell ETF)</span><span class="t-price"><span class="skel" style="width:52px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="ticker-pill"><span class="t-label">VIX (Vol proxy)</span><span class="t-price"><span class="skel" style="width:44px"></span></span><span class="t-chg flat">—</span></div>
-    <div class="bar-status">
-      <div class="live-dot"></div>
-      <span id="barTs">Loading…</span>
-    </div>
-  </div>
-</div>
 <p style="text-align:center;font-size:10px;color:#4a5470;padding:2px 14px 4px;margin:0;font-family:monospace;">
   Live ETF prices: SPY (S&amp;P 500), QQQ (Nasdaq 100), DIA (Dow Jones), IWM (Russell 2000)
+  · <span id="barTs" style="color:#1a7a6e;"></span>
 </p>
 
 <!-- ── Main content ── -->
@@ -782,10 +803,10 @@ async function fetchAll() {
     }
 
     renderIndexStrip();
-    renderBar();
     renderScanner();
     document.getElementById('scanTs').textContent = 'Updated ' + ts();
-    document.getElementById('barTs').textContent  = 'Live · ' + ts();
+    const barTsEl = document.getElementById('barTs');
+    if (barTsEl) barTsEl.textContent = 'Live · ' + ts();
   } catch (e) {
     console.warn('[market-preview] fetchAll error:', e);
     document.getElementById('scanTs').textContent = 'Market data temporarily unavailable. Retrying in 30s…';
@@ -823,8 +844,8 @@ async function fetchBarOnly() {
     const data = await r.json();
     Object.assign(snapshots, data);
     renderIndexStrip();
-    renderBar();
-    document.getElementById('barTs').textContent = 'Live · ' + ts();
+    const barTsEl2 = document.getElementById('barTs');
+    if (barTsEl2) barTsEl2.textContent = 'Live · ' + ts();
   } catch (e) { /* silent */ }
 }
 
@@ -832,6 +853,52 @@ async function fetchBarOnly() {
 
 const STRIP_SYMS   = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIXY'];
 const STRIP_LABELS = { SPY:'SPY', QQQ:'QQQ', DIA:'DIA', IWM:'IWM', VIXY:'VIX' };
+
+// Real index row — Finnhub quote symbols and display labels
+const INDEX_ROW_SYMS = ['^GSPC', '^DJI', '^IXIC', '^RUT', '^NYA', '^OEX', '^W5000'];
+const INDEX_ROW_LABELS = {
+  '^GSPC':  'S&P 500',
+  '^DJI':   'DJIA',
+  '^IXIC':  'NASDAQ',
+  '^RUT':   'RUSSELL 2K',
+  '^NYA':   'NYSE COMP',
+  '^OEX':   'S&P 100',
+  '^W5000': 'WILSHIRE 5K',
+};
+let indexQuotes = {};
+
+function fmtIndexVal(v) {
+  if (v == null || v === 0) return '—';
+  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function fetchIndexData() {
+  try {
+    const r = await fetch('/.netlify/functions/index-snapshot');
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.error) return;
+    indexQuotes = data;
+    renderIndexRow();
+  } catch (e) { /* silent */ }
+}
+
+function renderIndexRow() {
+  const row = document.getElementById('indexRowReal');
+  if (!row) return;
+  const pills = INDEX_ROW_SYMS.map(sym => {
+    const q  = indexQuotes[sym];
+    const v  = q?.c ?? null;
+    const dp = q?.dp ?? null;
+    const cc = dp == null ? 'flat' : dp >= 0 ? 'bull' : 'bear';
+    return `<div class="idx-pill">
+      <span class="ix-sym">${INDEX_ROW_LABELS[sym]}</span>
+      <span class="ix-price">${fmtIndexVal(v)}</span>
+      <span class="ix-chg ${cc}">${dp != null ? (dp >= 0 ? '+' : '') + dp.toFixed(2) + '%' : '—'}</span>
+    </div>`;
+  }).join('');
+  row.innerHTML = pills + `<span class="strip-label">LIVE INDEXES</span>`;
+}
 
 function renderIndexStrip() {
   const strip = document.getElementById('indexStrip');
@@ -1008,10 +1075,12 @@ async function fetchNews() {
 
 renderSkeleton();
 fetchAll();
+fetchIndexData();
 fetchNews();
-setInterval(fetchBarOnly, 30000);   // bar: 30s
-setInterval(fetchAll,    60000);    // full: 60s
-setInterval(fetchNews,   60000);    // news: 60s
+setInterval(fetchBarOnly,   30000);  // ETF strip: 30s
+setInterval(fetchIndexData, 60000);  // real index row: 60s
+setInterval(fetchAll,       60000);  // full scanner: 60s
+setInterval(fetchNews,      60000);  // news: 60s
 
 })();
 </script>
