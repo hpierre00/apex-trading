@@ -33,7 +33,7 @@ exports.handler = async () => {
 
     const quotes = {};
     for (const { sym, data } of results) {
-      if (data && data.c) quotes[sym] = data;
+      if (data && typeof data.c === 'number') quotes[sym] = data;
     }
 
     return {
