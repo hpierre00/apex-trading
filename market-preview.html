@@ -862,11 +862,14 @@ function fmtIndexVal(v) {
 async function fetchIndexData() {
   try {
     const r = await fetch('/.netlify/functions/index-proxy');
-    if (!r.ok) return;
+    if (!r.ok) { console.warn('[index] HTTP', r.status); return; }
     const data = await r.json();
+    console.log('[index] data:', JSON.stringify(data).substring(0, 200));
     if (data.error) return;
     renderIndexRow(data);
-  } catch (e) { /* silent */ }
+    const barTs = document.getElementById('barTs');
+    if (barTs) barTs.textContent = 'Live · ' + ts();
+  } catch (e) { console.warn('[index] error:', e); }
 }
 
 function renderIndexRow(data) {
