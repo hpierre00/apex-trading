@@ -1787,7 +1787,9 @@ function renderChartForPane(pane, candles) {
 function renderChart() {
     const pane = state.panes[state.activePane];
     if (!pane) { console.warn('Tradolux: renderChart called before initLayout'); return; }
-    renderChartForPane(pane, state.candles[state.symbol]);
+    // Fallback: if state.symbol is unset, derive it from pane or first loaded key
+    const sym = state.symbol || pane.symbol || Object.keys(state.candles || {})[0];
+    renderChartForPane(pane, state.candles[sym]);
   }
 
 /* ============================================================
@@ -5884,8 +5886,14 @@ async function bootApp() {
           'candle keys:', Object.keys(state.candles || {}).join(','));
 
         if (candles?.length > 0 && state.panes?.length > 0) {
+          // Patch: state.symbol may be unset on mobile — renderChart uses it directly
+          if (!state.symbol && sym) {
+            state.symbol = sym;
+            if (state.panes[0] && !state.panes[0].symbol) state.panes[0].symbol = sym;
+            console.log('[mobile] patched state.symbol ->', sym);
+          }
           renderChart();
-          if (_dbg) _dbg.textContent += ' RENDERED';
+          if (_dbg) _dbg.textContent += ' RENDERED sym=' + state.symbol;
           console.log('[mobile] chart rendered ✓');
         }
       };
