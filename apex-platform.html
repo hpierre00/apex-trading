@@ -517,8 +517,22 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   .main-grid { grid-template-columns: 1fr !important; }
   .chart-panel { width: 100vw !important; min-width: 0 !important; overflow: visible !important; }
   .bottom-panel { display: none !important; }
-  #chartContainer { width: 100vw !important; height: 42vh !important; flex: none !important; }
+  #chartContainer { width: 100vw !important; height: 55vh !important; flex: none !important; }
   .chart-canvas-wrap { height: 100% !important; }
+
+  /* Single-row scrollable toolbar on mobile */
+  .chart-toolbar { flex-wrap: nowrap !important; overflow-x: auto !important; gap: 6px !important; padding: 3px 8px !important; scrollbar-width: none; }
+  .chart-toolbar::-webkit-scrollbar { display: none; }
+
+  /* Hide low-priority toolbar elements to save space */
+  #themeGroup { display: none !important; }
+  #layout1, #layout2, #layout4 { display: none !important; }
+  #resetView { display: none !important; }
+  #advancedPeriodBtn { display: none !important; }
+  #intradayGroup { display: none !important; }
+
+  /* Compact disclaimer */
+  .session-disclaimer { padding: 4px 10px !important; font-size: 10px !important; }
   .topbar { padding: 4px 8px !important; flex-wrap: nowrap; }
   .brand-sub { display: none !important; }
   .ticker-strip { display: none !important; }
@@ -1393,7 +1407,7 @@ function resizeCanvas() {
     const disclaimerH = document.getElementById('sessionDisclaimer')?.offsetHeight || 0;
 
     const availableH = window.innerHeight - topbarH - toolbarH - statusH - panelNavH - disclaimerH;
-    const chartH = Math.max(200, Math.floor(availableH * 0.55));
+    const chartH = Math.max(200, Math.floor(window.innerHeight * 0.55));
     const chartW = window.innerWidth;
 
     // Force chart-area container
