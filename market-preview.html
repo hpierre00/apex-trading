@@ -493,13 +493,13 @@ a:hover { color: #22a090; }
 
 <!-- ── Real index strip ── -->
 <div id="indexRowReal">
-  <div class="idx-pill"><span class="ix-sym">S&amp;P 500</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
-  <div class="idx-pill"><span class="ix-sym">DJIA</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
-  <div class="idx-pill"><span class="ix-sym">NASDAQ</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
-  <div class="idx-pill"><span class="ix-sym">RUSSELL 2K</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
-  <div class="idx-pill"><span class="ix-sym">NYSE COMP</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
-  <div class="idx-pill"><span class="ix-sym">S&amp;P 100</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
-  <div class="idx-pill"><span class="ix-sym">WILSHIRE 5K</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">S&amp;P 500</span><span class="ix-price" id="idx-SP500-px">—</span><span class="ix-chg flat" id="idx-SP500-chg">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">DJIA</span><span class="ix-price" id="idx-DOW-px">—</span><span class="ix-chg flat" id="idx-DOW-chg">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">NASDAQ</span><span class="ix-price" id="idx-NASDAQ-px">—</span><span class="ix-chg flat" id="idx-NASDAQ-chg">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">RUSSELL 2K</span><span class="ix-price" id="idx-RUT-px">—</span><span class="ix-chg flat" id="idx-RUT-chg">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">NYSE COMP</span><span class="ix-price" id="idx-NYSE-px">—</span><span class="ix-chg flat" id="idx-NYSE-chg">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">S&amp;P 100</span><span class="ix-price" id="idx-OEX-px">—</span><span class="ix-chg flat" id="idx-OEX-chg">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">WILSHIRE 5K</span><span class="ix-price" id="idx-W5000-px">—</span><span class="ix-chg flat" id="idx-W5000-chg">—</span></div>
   <span class="strip-label">LIVE INDEXES</span>
 </div>
 
@@ -854,19 +854,6 @@ async function fetchBarOnly() {
 const STRIP_SYMS   = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIXY'];
 const STRIP_LABELS = { SPY:'SPY', QQQ:'QQQ', DIA:'DIA', IWM:'IWM', VIXY:'VIX' };
 
-// Real index row — Finnhub quote symbols and display labels
-const INDEX_ROW_SYMS = ['^GSPC', '^DJI', '^IXIC', '^RUT', '^NYA', '^OEX', '^W5000'];
-const INDEX_ROW_LABELS = {
-  '^GSPC':  'S&P 500',
-  '^DJI':   'DJIA',
-  '^IXIC':  'NASDAQ',
-  '^RUT':   'RUSSELL 2K',
-  '^NYA':   'NYSE COMP',
-  '^OEX':   'S&P 100',
-  '^W5000': 'WILSHIRE 5K',
-};
-let indexQuotes = {};
-
 function fmtIndexVal(v) {
   if (v == null || v === 0) return '—';
   return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -874,30 +861,25 @@ function fmtIndexVal(v) {
 
 async function fetchIndexData() {
   try {
-    const r = await fetch('/.netlify/functions/index-snapshot');
+    const r = await fetch('/.netlify/functions/index-proxy');
     if (!r.ok) return;
     const data = await r.json();
     if (data.error) return;
-    indexQuotes = data;
-    renderIndexRow();
+    renderIndexRow(data);
   } catch (e) { /* silent */ }
 }
 
-function renderIndexRow() {
-  const row = document.getElementById('indexRowReal');
-  if (!row) return;
-  const pills = INDEX_ROW_SYMS.map(sym => {
-    const q  = indexQuotes[sym];
-    const v  = q?.c ?? null;
-    const dp = q?.dp ?? null;
+function renderIndexRow(data) {
+  for (const [key, item] of Object.entries(data)) {
+    const pxEl  = document.getElementById(`idx-${key}-px`);
+    const chgEl = document.getElementById(`idx-${key}-chg`);
+    if (!pxEl || !chgEl) continue;
+    pxEl.textContent = item.price != null ? fmtIndexVal(item.price) : '—';
+    const dp = item.changePct;
     const cc = dp == null ? 'flat' : dp >= 0 ? 'bull' : 'bear';
-    return `<div class="idx-pill">
-      <span class="ix-sym">${INDEX_ROW_LABELS[sym]}</span>
-      <span class="ix-price">${fmtIndexVal(v)}</span>
-      <span class="ix-chg ${cc}">${dp != null ? (dp >= 0 ? '+' : '') + dp.toFixed(2) + '%' : '—'}</span>
-    </div>`;
-  }).join('');
-  row.innerHTML = pills + `<span class="strip-label">LIVE INDEXES</span>`;
+    chgEl.textContent = dp != null ? (dp >= 0 ? '+' : '') + dp.toFixed(2) + '%' : '—';
+    chgEl.className = `ix-chg ${cc}`;
+  }
 }
 
 function renderIndexStrip() {

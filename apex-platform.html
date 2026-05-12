@@ -514,7 +514,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   /* ── Chart ── */
   .chart-area {
     width: 100% !important;
-    height: 52vh !important;
+    height: 45vh !important;
     min-height: 0;
     flex: none;
   }
@@ -540,21 +540,9 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   .icon-btn { font-size: 9px; padding: 4px 8px; }
   .tf-btn { font-size: 9px; padding: 4px 6px; }
 
-  /* ── Bottom tabs ── */
-  .tab-bar {
-    overflow-x: auto;
-    white-space: nowrap;
-    scrollbar-width: none;
-  }
-  .tab-bar::-webkit-scrollbar { display: none; }
-  .tab-btn { font-size: 9px; padding: 8px 10px; }
-
-  /* ── Tab content ── */
-  .tab-content {
-    height: calc(48vh - 80px);
-    overflow-y: auto;
-    font-size: 11px;
-  }
+  /* ── Bottom tabs — hidden on mobile (mobilePanel replaces) ── */
+  .tab-bar { display: none !important; }
+  .tab-content { display: none !important; }
 
   /* ── Mobile panel switcher ── */
   #mobilePanelBar {
@@ -587,7 +575,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   /* ── Mobile panels ── */
   #mobilePanel {
     display: block !important;
-    height: calc(48vh - 40px);
+    height: calc(55vh - 120px);
     overflow-y: auto;
     background: #0a1428;
   }
@@ -5594,7 +5582,7 @@ function init() {
     updateSymHeader();
   }, 60000);
   window.addEventListener('resize', resizeCanvas);
-  if (window.innerWidth <= 768) showMobilePanel('agents');
+  if (window.innerWidth <= 768) setTimeout(() => showMobilePanel('agents'), 500);
 }
 
 function showAuthModal() {
@@ -5787,6 +5775,14 @@ function applyPlanGating() {
 // Day 1: "Welcome to Tradolux — here's how to get started"
 // Day 7: "You're halfway through your trial — have you tried Instant Assessment?"
 // Day 13: "Your trial ends tomorrow — upgrade to keep access"
+function sendMobileChat(inputEl) {
+  const val = (inputEl?.value || '').trim();
+  if (!val) return;
+  inputEl.value = '';
+  document.getElementById('chatInput').value = val;
+  sendChat();
+}
+
 function showMobilePanel(panel) {
   if (window.innerWidth > 768) return;
 
@@ -5798,29 +5794,45 @@ function showMobilePanel(panel) {
 
   if (panel === 'agents') {
     const rp = document.querySelector('.right-panel');
-    mp.innerHTML = rp ? rp.innerHTML : '';
+    mp.innerHTML = rp ? rp.innerHTML
+      : '<div style="padding:16px;color:#5a6678;font-size:11px;font-family:monospace;">Loading agents…</div>';
   } else if (panel === 'chat') {
-    const chat = document.querySelector('.chat-panel');
-    mp.innerHTML = chat ? chat.innerHTML : '';
-    const btn = mp.querySelector('#chatSend, .chat-send');
-    const input = mp.querySelector('#chatInput, .chat-input');
-    if (btn && input) {
-      btn.onclick = () => {
-        document.getElementById('chatInput').value = input.value;
-        sendChat();
-        input.value = '';
-      };
-      input.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+    const existingMsgs = document.getElementById('chatMessages');
+    mp.innerHTML = `
+      <div style="display:flex;flex-direction:column;height:100%;">
+        <div id="mobChatLog" style="flex:1;overflow-y:auto;padding:10px 12px;font-size:11px;font-family:monospace;color:#e5e9f0;line-height:1.6;">
+          ${existingMsgs ? existingMsgs.innerHTML : ''}
+        </div>
+        <div style="padding:8px;border-top:1px solid #1e2a3f;display:flex;gap:6px;flex-shrink:0;">
+          <input id="mobChatInput" type="text" placeholder="Ask about ${state.activeSym || 'market'}…"
+            style="flex:1;background:#0b1221;border:1px solid #1e2a3f;color:#e5e9f0;padding:7px 10px;border-radius:3px;font-family:monospace;font-size:11px;outline:none;">
+          <button id="mobChatSend"
+            style="background:#1a7a6e;color:#e8f5f2;border:none;padding:7px 12px;border-radius:3px;font-family:monospace;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">SEND</button>
+        </div>
+      </div>`;
+    const log = mp.querySelector('#mobChatLog');
+    if (log) log.scrollTop = log.scrollHeight;
+    const sendBtn  = mp.querySelector('#mobChatSend');
+    const inputEl  = mp.querySelector('#mobChatInput');
+    if (sendBtn && inputEl) {
+      sendBtn.addEventListener('click', () => sendMobileChat(inputEl));
+      inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMobileChat(inputEl); });
     }
-    const assess = mp.querySelector('#assessBtn');
-    if (assess) assess.onclick = () => requestInstantAssessment(state.activePane);
+    const assessBtn = mp.querySelector('#assessBtn');
+    if (assessBtn) assessBtn.onclick = () => requestInstantAssessment(state.activePane);
   } else if (panel === 'watchlist') {
     const wl = document.querySelector('.left-panel');
-    mp.innerHTML = wl ? wl.innerHTML : '';
+    mp.innerHTML = wl ? wl.innerHTML
+      : '<div style="padding:16px;color:#5a6678;font-size:11px;font-family:monospace;">No watchlist.</div>';
+    mp.querySelectorAll('.watch-row').forEach(el => {
+      const sym = el.getAttribute('onclick')?.match(/'([A-Z.]+)'/)?.[1];
+      if (sym) el.onclick = () => { selectSymbol(sym); showMobilePanel('agents'); };
+    });
   } else if (panel === 'signals') {
     renderTabContent();
     const tc = document.getElementById('tabContent');
-    mp.innerHTML = tc ? tc.innerHTML : '';
+    mp.innerHTML = tc ? tc.innerHTML
+      : '<div style="padding:16px;color:#5a6678;font-size:11px;font-family:monospace;">No signals.</div>';
   }
 }
 
