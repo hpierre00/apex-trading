@@ -42,6 +42,11 @@
   status = 200
 
 [[redirects]]
+  from = "/favicon.ico"
+  to = "/og-image.png"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 404

@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1400">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/og-image.png">
 <title>Tradolux — AI Trading Terminal</title>
 <style>
 :root {
@@ -1379,12 +1380,16 @@ function resizeCanvas() {
   const rect = canvas.parentElement.getBoundingClientRect();
   cw = rect.width;
   ch = rect.height;
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    ch = Math.min(ch, Math.floor(window.innerHeight * 0.42));
+  }
   canvas.width = cw * dpr;
   canvas.height = ch * dpr;
   canvas.style.width = cw + 'px';
   canvas.style.height = ch + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  renderChart();
+  if (state.panes && state.panes.length > 0) renderChart();
   // Resize all additional panes
   state.panes.forEach((pane, i) => {
     if (i === 0) return; // pane 0 handled by existing logic above
