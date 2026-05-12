@@ -70,8 +70,14 @@ exports.handler = async (event) => {
     Object.entries(ETF_MAP).forEach(([key, { symbol, label, note }]) => {
       const snap = snaps[symbol];
       if (!snap) return;
-      const price     = snap.latestTrade?.p || snap.latestQuote?.ap || 0;
-      const prevClose = snap.dailyBar?.o    || snap.prevDailyBar?.c  || price;
+      const price     = snap.latestTrade?.p
+        || snap.minuteBar?.c
+        || snap.dailyBar?.c
+        || snap.prevDailyBar?.c
+        || 0;
+      const prevClose = snap.prevDailyBar?.c
+        || snap.dailyBar?.o
+        || price;
       const change    = price - prevClose;
       const changePct = prevClose ? (change / prevClose) * 100 : 0;
       out[key] = { price, change, changePct, label, note };

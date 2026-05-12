@@ -1377,6 +1377,11 @@ const ctx = canvas.getContext('2d');
 let cw = 0, ch = 0, dpr = window.devicePixelRatio || 1;
 
 function resizeCanvas() {
+  const ca = document.querySelector('.chart-area');
+  if (window.innerWidth <= 768 && ca) {
+    ca.style.height = '42vh';
+    ca.style.maxHeight = '42vh';
+  }
   const rect = canvas.parentElement.getBoundingClientRect();
   cw = rect.width;
   ch = rect.height;
@@ -5833,8 +5838,13 @@ async function bootApp() {
   const { data: { session } } = await _supabase.auth.getSession();
   const mobileRetry = () => {
     if (window.innerWidth <= 768) {
-      [300, 600, 1200].forEach(ms =>
-        setTimeout(() => { resizeCanvas(); renderChart(); }, ms)
+      [200, 500, 1000, 2000].forEach(ms =>
+        setTimeout(() => {
+          const ca = document.querySelector('.chart-area');
+          if (ca) ca.style.height = '42vh';
+          resizeCanvas();
+          if (state.panes && state.panes[state.activePane]) renderChart();
+        }, ms)
       );
     }
   };
