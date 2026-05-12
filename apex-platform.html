@@ -583,7 +583,6 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="visibility:hidden">
-<div id="mobile-debug" style="display:none;position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;font-size:12px;font-family:monospace;padding:4px 8px;z-index:99999;white-space:nowrap;overflow:hidden;"></div>
 
 <div class="app">
 
@@ -5878,39 +5877,12 @@ async function bootApp() {
           || Object.keys(state.candles || {})[0];
         resizeCanvas();
         const candles = state.candles?.[sym];
-        const _dbg = document.getElementById('mobile-debug');
-        if (_dbg) {
-          _dbg.style.display = 'block';
-          _dbg.textContent = 'sym:' + (sym||'?') + ' candles:' + (candles?.length??0) + ' panes:' + (state.panes?.length??0) + ' w:' + window.innerWidth + ' keys:' + (Object.keys(state.candles||{}).join(',')||'none');
-        }
-        console.log('[mobile-render] sym:', sym,
-          'candles:', candles ? candles.length : 'null',
-          'panes:', state.panes?.length,
-          'candle keys:', Object.keys(state.candles || {}).join(','));
-
         if (candles?.length > 0 && state.panes?.length > 0) {
           if (!state.symbol && sym) {
             state.symbol = sym;
             if (state.panes[0] && !state.panes[0].symbol) state.panes[0].symbol = sym;
           }
-          // Diagnostic: paint lime on canvas to confirm it's visible
-          const _cv = state.panes[0]?.canvas || document.getElementById('chart');
-          const _cc = _cv?.getContext('2d');
-          const _ctr = document.getElementById('chartContainer');
-          if (_ctr) _ctr.style.outline = '4px solid lime';
-          if (_cc && _cv) {
-            _cc.save();
-            _cc.fillStyle = 'lime';
-            _cc.fillRect(0, 0, _cv.width, _cv.height);
-            _cc.fillStyle = 'black';
-            _cc.font = '40px monospace';
-            _cc.fillText('CANVAS OK w=' + _cv.width + ' h=' + _cv.height, 20, 80);
-            _cc.restore();
-          }
-          if (_dbg) _dbg.textContent += ' cv=' + (_cv?.width||'?') + 'x' + (_cv?.height||'?') + ' ctr=' + (_ctr?.offsetWidth||'?') + 'x' + (_ctr?.offsetHeight||'?');
           renderChart();
-          if (_dbg) _dbg.textContent += ' RENDERED';
-          console.log('[mobile] chart rendered ✓');
         }
       };
       [500, 1500, 3000, 5000, 8000].forEach(ms => setTimeout(tryRender, ms));
