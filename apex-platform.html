@@ -1383,6 +1383,10 @@ function resizeCanvas() {
   const isMobile = window.innerWidth <= 768;
   if (isMobile) {
     ch = Math.min(ch, Math.floor(window.innerHeight * 0.42));
+    if (ch <= 10) {
+      ch = Math.floor(window.innerHeight * 0.42);
+      console.log('[mobile] forced ch:', ch);
+    }
   }
   if (cw <= 0 || ch <= 0) return;
   canvas.width = cw * dpr;
@@ -5827,11 +5831,20 @@ function showMobilePanel(panel) {
 
 async function bootApp() {
   const { data: { session } } = await _supabase.auth.getSession();
+  const mobileRetry = () => {
+    if (window.innerWidth <= 768) {
+      [300, 600, 1200].forEach(ms =>
+        setTimeout(() => { resizeCanvas(); renderChart(); }, ms)
+      );
+    }
+  };
+
   if (session) {
     _session = session;
     hideAuthModal();
     init();
     await fetchUserPlan();
+    mobileRetry();
   } else {
     showAuthModal();
     const unsub = _supabase.auth.onAuthStateChange(async (event, sess) => {
@@ -5841,6 +5854,7 @@ async function bootApp() {
         unsub.data.subscription.unsubscribe();
         init();
         await fetchUserPlan();
+        mobileRetry();
       }
     });
   }

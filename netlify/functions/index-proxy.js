@@ -1,15 +1,17 @@
 // netlify/functions/index-proxy.js
 // Public endpoint — no auth required.
-// Returns cleaned Finnhub index quotes with friendly keys and computed fields.
+// Fetches ETF snapshots from Alpaca (IEX feed) and labels them as index proxies.
+// Finnhub free tier dropped support for ^GSPC/^DJI/^IXIC index symbols.
 
-const INDEXES = {
-  '^GSPC':  { key: 'SP500',   label: 'S&P 500'     },
-  '^DJI':   { key: 'DOW',     label: 'DJIA'        },
-  '^IXIC':  { key: 'NASDAQ',  label: 'NASDAQ'      },
-  '^RUT':   { key: 'RUT',     label: 'RUSSELL 2K'  },
-  '^NYA':   { key: 'NYSE',    label: 'NYSE COMP'   },
-  '^OEX':   { key: 'OEX',     label: 'S&P 100'     },
-  '^W5000': { key: 'W5000',   label: 'WILSHIRE 5K' },
+const ALPACA_KEY_ID     = process.env.ALPACA_KEY_ID;
+const ALPACA_SECRET_KEY = process.env.ALPACA_SECRET_KEY;
+
+const ETF_MAP = {
+  SP500:   { symbol: 'SPY',  label: 'S&P 500',    note: 'via SPY'  },
+  DOW:     { symbol: 'DIA',  label: 'DOW JONES',  note: 'via DIA'  },
+  NASDAQ:  { symbol: 'QQQ',  label: 'NASDAQ 100', note: 'via QQQ'  },
+  RUSSELL: { symbol: 'IWM',  label: 'RUSSELL 2K', note: 'via IWM'  },
+  VIX:     { symbol: 'VIXY', label: 'VIX',        note: 'via VIXY' },
 };
 
 exports.handler = async (event) => {
@@ -18,50 +20,60 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 
-  const KEY = process.env.FINNHUB_API_KEY;
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
 
-  if ((event.queryStringParameters || {}).test === '1') {
+  const params = event.queryStringParameters || {};
+  if (params.test === '1') {
     return {
       statusCode: 200,
       headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'ok', key_present: !!KEY, key_prefix: KEY ? KEY.substring(0, 4) : 'none' }),
+      body: JSON.stringify({
+        status: 'ok',
+        key_present: !!ALPACA_KEY_ID,
+        key_prefix: ALPACA_KEY_ID ? ALPACA_KEY_ID.substring(0, 4) : 'none',
+      }),
     };
   }
 
-  if (!KEY) {
+  if (!ALPACA_KEY_ID) {
     return {
       statusCode: 500,
       headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'FINNHUB_API_KEY not set' }),
+      body: JSON.stringify({ error: 'ALPACA_KEY_ID not set' }),
     };
   }
 
+  const symbols = Object.values(ETF_MAP).map(e => e.symbol).join(',');
   try {
-    const results = await Promise.all(
-      Object.keys(INDEXES).map(sym =>
-        fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${KEY}`, {
-          headers: { Accept: 'application/json' },
-        })
-          .then(r => r.ok ? r.json() : null)
-          .then(data => ({ sym, data }))
-          .catch(() => ({ sym, data: null }))
-      )
+    const r = await fetch(
+      `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbols}&feed=iex`,
+      {
+        headers: {
+          'APCA-API-KEY-ID':     ALPACA_KEY_ID,
+          'APCA-API-SECRET-KEY': ALPACA_SECRET_KEY,
+        },
+      }
     );
-
-    const out = {};
-    for (const { sym, data } of results) {
-      if (!data || typeof data.c !== 'number') continue;
-      const { key, label } = INDEXES[sym];
-      out[key] = {
-        label,
-        price:     data.c,
-        change:    data.d  ?? null,
-        changePct: data.dp ?? null,
-        prevClose: data.pc ?? null,
-        high:      data.h  ?? null,
-        low:       data.l  ?? null,
+    if (!r.ok) {
+      const t = await r.text();
+      return {
+        statusCode: r.status,
+        headers: { ...cors, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: t }),
       };
     }
+    const snaps = await r.json();
+
+    const out = {};
+    Object.entries(ETF_MAP).forEach(([key, { symbol, label, note }]) => {
+      const snap = snaps[symbol];
+      if (!snap) return;
+      const price     = snap.latestTrade?.p || snap.latestQuote?.ap || 0;
+      const prevClose = snap.dailyBar?.o    || snap.prevDailyBar?.c  || price;
+      const change    = price - prevClose;
+      const changePct = prevClose ? (change / prevClose) * 100 : 0;
+      out[key] = { price, change, changePct, label, note };
+    });
 
     return {
       statusCode: 200,
@@ -72,11 +84,11 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify(out),
     };
-  } catch (err) {
+  } catch (e) {
     return {
       statusCode: 500,
       headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: err.message }),
+      body: JSON.stringify({ error: e.message }),
     };
   }
 };
