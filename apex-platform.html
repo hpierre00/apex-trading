@@ -5867,11 +5867,18 @@ async function bootApp() {
   const mobileRetry = () => {
     if (window.innerWidth <= 768) {
       const tryRender = () => {
-        const sym = state.symbol || (typeof TICKERS !== 'undefined' && TICKERS[0]);
+        const sym = state.symbol
+          || (typeof TICKERS !== 'undefined' && TICKERS[0])
+          || Object.keys(state.candles || {})[0];
         resizeCanvas();
-        if (sym && state.candles?.[sym]?.length > 0 && state.panes?.length > 0) {
+        const candles = state.candles?.[sym];
+        console.log('[mobile-render] sym:', sym,
+          'candles:', candles ? candles.length : 'null',
+          'panes:', state.panes?.length,
+          'candle keys:', Object.keys(state.candles || {}).join(','));
+        if (candles?.length > 0 && state.panes?.length > 0) {
           renderChart();
-          console.log('[mobile] chart rendered');
+          console.log('[mobile] chart rendered ✓');
         }
       };
       [500, 1500, 3000, 5000, 8000].forEach(ms => setTimeout(tryRender, ms));
