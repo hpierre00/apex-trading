@@ -1377,17 +1377,20 @@ const ctx = canvas.getContext('2d');
 let cw = 0, ch = 0, dpr = window.devicePixelRatio || 1;
 
 function resizeCanvas() {
+  if (!state || !state.panes || !state.panes.length) return;
+  const isMobile = window.innerWidth <= 768;
   const ca = document.querySelector('.chart-area');
-  if (window.innerWidth <= 768 && ca) {
+  if (isMobile && ca) {
+    ca.style.width = '100vw';
     ca.style.height = '42vh';
     ca.style.maxHeight = '42vh';
   }
   const rect = canvas.parentElement.getBoundingClientRect();
   cw = rect.width;
   ch = rect.height;
-  const isMobile = window.innerWidth <= 768;
   if (isMobile) {
-    ch = Math.min(ch, Math.floor(window.innerHeight * 0.42));
+    if (cw <= 0) cw = window.innerWidth;
+    ch = Math.min(ch || Infinity, Math.floor(window.innerHeight * 0.42));
     if (ch <= 10) {
       ch = Math.floor(window.innerHeight * 0.42);
       console.log('[mobile] forced ch:', ch);

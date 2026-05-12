@@ -70,7 +70,10 @@ exports.handler = async (event) => {
     Object.entries(ETF_MAP).forEach(([key, { symbol, label, note }]) => {
       const snap = snaps[symbol];
       if (!snap) return;
+      if (symbol === 'IWM') console.log('[index-data] IWM snap keys:', Object.keys(snap));
       const price     = snap.latestTrade?.p
+        || snap.latestQuote?.ap
+        || snap.latestQuote?.bp
         || snap.minuteBar?.c
         || snap.dailyBar?.c
         || snap.prevDailyBar?.c
