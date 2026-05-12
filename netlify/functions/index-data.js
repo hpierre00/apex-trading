@@ -70,7 +70,23 @@ exports.handler = async (event) => {
     Object.entries(ETF_MAP).forEach(([key, { symbol, label, note }]) => {
       const snap = snaps[symbol];
       if (!snap) return;
-      if (symbol === 'IWM') console.log('[index-data] IWM snap keys:', Object.keys(snap));
+      if (symbol === 'IWM') console.log('[index-data] IWM values:', JSON.stringify({
+        latestTrade_p:  snap.latestTrade?.p,
+        latestQuote_ap: snap.latestQuote?.ap,
+        latestQuote_bp: snap.latestQuote?.bp,
+        minuteBar_c:    snap.minuteBar?.c,
+        dailyBar_c:     snap.dailyBar?.c,
+        prevDailyBar_c: snap.prevDailyBar?.c,
+      }));
+      if (symbol === 'VIXY') {
+        const vixSnap = snap;
+        console.log('[index-data] VIXY values:', JSON.stringify({
+          latestTrade_p: vixSnap.latestTrade?.p,
+          minuteBar_c:   vixSnap.minuteBar?.c,
+          dailyBar_c:    vixSnap.dailyBar?.c,
+          prevDailyBar_c: vixSnap.prevDailyBar?.c,
+        }));
+      }
       const price     = snap.latestTrade?.p
         || snap.latestQuote?.ap
         || snap.latestQuote?.bp

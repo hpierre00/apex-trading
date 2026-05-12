@@ -1396,6 +1396,11 @@ function resizeCanvas() {
       console.log('[mobile] forced ch:', ch);
     }
   }
+  if (isMobile && (cw <= 0 || ch <= 0)) {
+    const parent = document.getElementById('chart')?.parentElement;
+    console.log('[mobile] canvas parent rect:', JSON.stringify(parent?.getBoundingClientRect()));
+    console.log('[mobile] window:', window.innerWidth, window.innerHeight);
+  }
   if (cw <= 0 || ch <= 0) return;
   canvas.width = cw * dpr;
   canvas.height = ch * dpr;
@@ -5841,14 +5846,23 @@ async function bootApp() {
   const { data: { session } } = await _supabase.auth.getSession();
   const mobileRetry = () => {
     if (window.innerWidth <= 768) {
-      [200, 500, 1000, 2000].forEach(ms =>
-        setTimeout(() => {
-          const ca = document.querySelector('.chart-area');
-          if (ca) ca.style.height = '42vh';
-          resizeCanvas();
-          if (state.panes && state.panes[state.activePane]) renderChart();
-        }, ms)
-      );
+      let attempts = 0;
+      const mobileChartRetry = setInterval(() => {
+        attempts++;
+        const ca = document.querySelector('.chart-area');
+        if (ca) { ca.style.width = '100vw'; ca.style.height = '42vh'; }
+        resizeCanvas();
+        const sym = state.symbol || (typeof TICKERS !== 'undefined' && TICKERS[0]);
+        const hasCandles = sym && state.candles && state.candles[sym] && state.candles[sym].length > 0;
+        if (hasCandles && state.panes && state.panes[state.activePane]) {
+          renderChart();
+          console.log('[mobile] chart rendered on attempt', attempts);
+          clearInterval(mobileChartRetry);
+        } else {
+          console.log('[mobile] waiting for candles, attempt', attempts, 'hasCandles:', hasCandles);
+          if (attempts >= 15) clearInterval(mobileChartRetry);
+        }
+      }, 1000);
     }
   };
 
