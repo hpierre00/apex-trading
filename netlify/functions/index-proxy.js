@@ -12,13 +12,22 @@ const INDEXES = {
   '^W5000': { key: 'W5000',   label: 'WILSHIRE 5K' },
 };
 
-exports.handler = async () => {
+exports.handler = async (event) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 
   const KEY = process.env.FINNHUB_API_KEY;
+
+  if ((event.queryStringParameters || {}).test === '1') {
+    return {
+      statusCode: 200,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'ok', key_present: !!KEY, key_prefix: KEY ? KEY.substring(0, 4) : 'none' }),
+    };
+  }
+
   if (!KEY) {
     return {
       statusCode: 500,

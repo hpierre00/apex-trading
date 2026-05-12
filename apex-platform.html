@@ -1384,6 +1384,7 @@ function resizeCanvas() {
   if (isMobile) {
     ch = Math.min(ch, Math.floor(window.innerHeight * 0.42));
   }
+  if (cw <= 0 || ch <= 0) return;
   canvas.width = cw * dpr;
   canvas.height = ch * dpr;
   canvas.style.width = cw + 'px';
@@ -5090,6 +5091,7 @@ function requestInstantAssessment(paneIndex) {
   openModal('assessAckModal');
 }
 window.requestInstantAssessment = requestInstantAssessment;
+window.runInstantAssessment = runInstantAssessment;
 
 document.getElementById('assessAckCancel').addEventListener('click', () => {
   closeModal('assessAckModal');
@@ -5500,6 +5502,10 @@ function init() {
   updateMktStatus();
   startClock();
   resizeCanvas();
+  if (window.innerWidth <= 768) {
+    setTimeout(() => { resizeCanvas(); renderChart(); }, 300);
+    setTimeout(() => { resizeCanvas(); renderChart(); }, 800);
+  }
   runAgents();
   // auto-connect to Alpaca via server-side credentials
   connectAlpaca();
@@ -5736,6 +5742,41 @@ function applyPlanGating() {
 // Day 1: "Welcome to Tradolux — here's how to get started"
 // Day 7: "You're halfway through your trial — have you tried Instant Assessment?"
 // Day 13: "Your trial ends tomorrow — upgrade to keep access"
+async function sendMobileChat() {
+  const mobInput = document.getElementById('mob-input');
+  if (!mobInput) return;
+  const q = mobInput.value.trim();
+  if (!q) return;
+
+  const mainInput = document.getElementById('chatInput');
+  if (mainInput) mainInput.value = q;
+  mobInput.value = '';
+
+  const msgs = document.getElementById('mob-msgs');
+  if (msgs) {
+    msgs.insertAdjacentHTML('beforeend', `<div style="color:#e8eaf0;margin:6px 0;padding:4px 0;border-bottom:1px solid #0e1830;"><span style="color:#1a7a6e;font-weight:700;">&gt;</span> ${q}</div>`);
+    msgs.insertAdjacentHTML('beforeend', `<div id="mob-ai-response" style="color:#5a6678;font-style:italic;margin:6px 0;">Thinking…</div>`);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  await sendChat();
+
+  setTimeout(() => {
+    const mainMsgs = document.getElementById('chatMessages');
+    if (!mainMsgs) return;
+    const aiMsgs = mainMsgs.querySelectorAll('.msg.ai');
+    const last = aiMsgs[aiMsgs.length - 1];
+    const resp = document.getElementById('mob-ai-response');
+    if (last && resp) {
+      resp.textContent = last.textContent;
+      resp.style.color = '#c8cedd';
+      resp.style.fontStyle = 'normal';
+      resp.removeAttribute('id');
+    }
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  }, 5000);
+}
+
 function showMobilePanel(panel) {
   if (window.innerWidth > 768) return;
   document.querySelectorAll('.mob-panel-btn').forEach(b => b.classList.remove('active'));
@@ -5748,6 +5789,7 @@ function showMobilePanel(panel) {
   if (panel === 'agents') {
     const rp = document.querySelector('.right-panel');
     mp.innerHTML = '<div style="padding:8px;">' + (rp ? rp.innerHTML : '') + '</div>';
+    setTimeout(() => { resizeCanvas(); renderChart(); }, 100);
 
   } else if (panel === 'chat') {
     mp.innerHTML = `
@@ -5760,8 +5802,8 @@ function showMobilePanel(panel) {
         <div style="display:flex;gap:6px;">
           <input id="mob-input" placeholder="Ask Tradolux..."
             style="flex:1;background:#0e1830;border:1px solid #1a2748;color:#e8eaf0;font-family:monospace;font-size:12px;padding:10px 8px;border-radius:3px;outline:none;"
-            onkeydown="if(event.key==='Enter'){document.getElementById('chatInput').value=this.value;sendChat();this.value='';}">
-          <button onclick="document.getElementById('chatInput').value=document.getElementById('mob-input').value;sendChat();document.getElementById('mob-input').value='';"
+            onkeydown="if(event.key==='Enter') sendMobileChat();">
+          <button onclick="sendMobileChat();"
             style="background:#1a7a6e;color:#e8f5f2;border:none;padding:10px 14px;font-family:monospace;font-weight:700;font-size:14px;cursor:pointer;border-radius:3px;">▶</button>
         </div>
       </div>`;
