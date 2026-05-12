@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix\\(market-preview\\): show approximate index values, not ETF prices *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "PowerShell(Get-Item \"C:\\\\Users\\\\herol\\\\code\\\\apex-trading\\\\tradolux-extension.zip\" | Select-Object Name, @{N='Size \\(KB\\)';E={[math]::Round\\($_.Length/1KB,1\\)}}, LastWriteTime)",
+      "Bash(python3 *)",
+      "Bash(node *)",
+      "PowerShell(node --check \"C:\\\\Users\\\\herol\\\\code\\\\apex-trading\\\\netlify\\\\functions\\\\mini-analysis.js\" 2>&1)",
+      "PowerShell(node --check \"C:\\\\Users\\\\herol\\\\code\\\\apex-trading\\\\netlify\\\\functions\\\\stripe-webhook.js\" 2>&1)",
+      "mcp__claude_ai_Netlify__netlify-deploy-services-reader",
+      "mcp__claude_ai_Netlify__netlify-project-services-reader",
+      "Bash(echo \"Exit: $?\")"
+    ]
+  }
+}

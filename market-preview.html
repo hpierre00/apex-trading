@@ -861,17 +861,17 @@ function fmtIndexVal(v) {
 
 async function fetchIndexData() {
   try {
-    const r = await fetch('/.netlify/functions/index-proxy');
-    console.log('[index-proxy] status:', r.status);
+    const r = await fetch('/.netlify/functions/index-data');
+    console.log('[index-data] status:', r.status);
     const text = await r.text();
-    console.log('[index-proxy] raw response:', text.substring(0, 300));
+    console.log('[index-data] raw response:', text.substring(0, 300));
     if (!r.ok) return;
     const data = JSON.parse(text);
     if (data.error) return;
     renderIndexRow(data);
     const barTs = document.getElementById('barTs');
     if (barTs) barTs.textContent = 'Live · ' + ts();
-  } catch (e) { console.warn('[index-proxy] error:', e); }
+  } catch (e) { console.warn('[index-data] error:', e); }
 }
 
 function renderIndexRow(data) {
