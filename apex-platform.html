@@ -1378,29 +1378,49 @@ let cw = 0, ch = 0, dpr = window.devicePixelRatio || 1;
 
 function resizeCanvas() {
   if (!state || !state.panes || !state.panes.length) return;
+
   const isMobile = window.innerWidth <= 768;
-  const ca = document.querySelector('.chart-area');
-  if (isMobile && ca) {
-    ca.style.width = '100vw';
-    ca.style.height = '42vh';
-    ca.style.maxHeight = '42vh';
+
+  if (isMobile) {
+    // Bypass flex layout — compute pixel values directly from window dimensions
+    const topbarH    = document.querySelector('.topbar')?.offsetHeight  || 44;
+    const toolbarH   = document.querySelector('.toolbar')?.offsetHeight || 36;
+    const statusH    = document.querySelector('.statusbar')?.offsetHeight || 0;
+    const panelNavH  = 44; // #mobilePanelBar is position:fixed at bottom
+    const disclaimerH = document.getElementById('sessionDisclaimer')?.offsetHeight || 0;
+
+    const availableH = window.innerHeight - topbarH - toolbarH - statusH - panelNavH - disclaimerH;
+    const chartH = Math.max(200, Math.floor(availableH * 0.55));
+    const chartW = window.innerWidth;
+
+    // Force chart-area container
+    const ca = document.querySelector('.chart-area');
+    if (ca) ca.style.cssText = `width:${chartW}px !important; height:${chartH}px !important; flex:none !important; display:block !important;`;
+
+    // Size pane 0 canvas and its wrap directly
+    const pane0 = state.panes[0];
+    const cv0   = (pane0 && pane0.canvas) || canvas;
+    const wrap  = cv0.parentElement;
+    if (wrap) wrap.style.cssText = `width:${chartW}px; height:${chartH}px; display:block; overflow:hidden;`;
+
+    cv0.width        = chartW * dpr;
+    cv0.height       = chartH * dpr;
+    cv0.style.width  = chartW + 'px';
+    cv0.style.height = chartH + 'px';
+
+    // Update module-level globals used by renderChart
+    cw = chartW;
+    ch = chartH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    if (state.panes[state.activePane]) renderChart();
+    return; // skip desktop path
   }
+
+  // ── Desktop path — unchanged ──────────────────────────────────────────────
   const rect = canvas.parentElement.getBoundingClientRect();
   cw = rect.width;
   ch = rect.height;
-  if (isMobile) {
-    if (cw <= 0) cw = window.innerWidth;
-    ch = Math.min(ch || Infinity, Math.floor(window.innerHeight * 0.42));
-    if (ch <= 10) {
-      ch = Math.floor(window.innerHeight * 0.42);
-      console.log('[mobile] forced ch:', ch);
-    }
-  }
-  if (isMobile && (cw <= 0 || ch <= 0)) {
-    const parent = document.getElementById('chart')?.parentElement;
-    console.log('[mobile] canvas parent rect:', JSON.stringify(parent?.getBoundingClientRect()));
-    console.log('[mobile] window:', window.innerWidth, window.innerHeight);
-  }
   if (cw <= 0 || ch <= 0) return;
   canvas.width = cw * dpr;
   canvas.height = ch * dpr;
@@ -1408,15 +1428,15 @@ function resizeCanvas() {
   canvas.style.height = ch + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (state.panes && state.panes.length > 0) renderChart();
-  // Resize all additional panes
+  // Resize additional panes (multi-pane layout)
   state.panes.forEach((pane, i) => {
-    if (i === 0) return; // pane 0 handled by existing logic above
+    if (i === 0) return;
     if (!pane.canvas) return;
-    const rect = pane.canvas.parentElement?.getBoundingClientRect();
-    if (!rect || !rect.width || !rect.height) return;
+    const r = pane.canvas.parentElement?.getBoundingClientRect();
+    if (!r || !r.width || !r.height) return;
     const d = window.devicePixelRatio || 1;
-    pane.canvas.width = rect.width * d;
-    pane.canvas.height = rect.height * d;
+    pane.canvas.width = r.width * d;
+    pane.canvas.height = r.height * d;
     pane.canvas.getContext('2d').setTransform(d, 0, 0, d, 0, 0);
     renderChartForPane(pane, state.candles[pane.symbol] || []);
   });
@@ -5846,23 +5866,15 @@ async function bootApp() {
   const { data: { session } } = await _supabase.auth.getSession();
   const mobileRetry = () => {
     if (window.innerWidth <= 768) {
-      let attempts = 0;
-      const mobileChartRetry = setInterval(() => {
-        attempts++;
-        const ca = document.querySelector('.chart-area');
-        if (ca) { ca.style.width = '100vw'; ca.style.height = '42vh'; }
-        resizeCanvas();
+      const tryRender = () => {
         const sym = state.symbol || (typeof TICKERS !== 'undefined' && TICKERS[0]);
-        const hasCandles = sym && state.candles && state.candles[sym] && state.candles[sym].length > 0;
-        if (hasCandles && state.panes && state.panes[state.activePane]) {
+        resizeCanvas();
+        if (sym && state.candles?.[sym]?.length > 0 && state.panes?.length > 0) {
           renderChart();
-          console.log('[mobile] chart rendered on attempt', attempts);
-          clearInterval(mobileChartRetry);
-        } else {
-          console.log('[mobile] waiting for candles, attempt', attempts, 'hasCandles:', hasCandles);
-          if (attempts >= 15) clearInterval(mobileChartRetry);
+          console.log('[mobile] chart rendered');
         }
-      }, 1000);
+      };
+      [500, 1500, 3000, 5000, 8000].forEach(ms => setTimeout(tryRender, ms));
     }
   };
 
