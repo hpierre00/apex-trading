@@ -7,11 +7,10 @@ const ALPACA_KEY_ID     = process.env.ALPACA_KEY_ID;
 const ALPACA_SECRET_KEY = process.env.ALPACA_SECRET_KEY;
 
 const ETF_MAP = {
-  SP500:   { symbol: 'SPY',  label: 'S&P 500',    note: 'via SPY'  },
-  DOW:     { symbol: 'DIA',  label: 'DOW JONES',  note: 'via DIA'  },
-  NASDAQ:  { symbol: 'QQQ',  label: 'NASDAQ 100', note: 'via QQQ'  },
-  RUSSELL: { symbol: 'IWM',  label: 'RUSSELL 2K', note: 'via IWM'  },
-  VIX:     { symbol: 'VIXY', label: 'VIX',        note: 'via VIXY' },
+  SP500:  { symbol: 'SPY',  label: 'S&P 500',    note: 'via SPY'  },
+  DOW:    { symbol: 'DIA',  label: 'DOW JONES',  note: 'via DIA'  },
+  NASDAQ: { symbol: 'QQQ',  label: 'NASDAQ 100', note: 'via QQQ'  },
+  VIX:    { symbol: 'VIXY', label: 'VIX',        note: 'via VIXY' },
 };
 
 exports.handler = async (event) => {

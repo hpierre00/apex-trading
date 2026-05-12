@@ -496,7 +496,6 @@ a:hover { color: #22a090; }
   <div class="idx-pill"><span class="ix-sym">S&amp;P 500</span><span class="ix-price" id="idx-SP500-px">—</span><span class="ix-chg flat" id="idx-SP500-chg">—</span></div>
   <div class="idx-pill"><span class="ix-sym">DJIA</span><span class="ix-price" id="idx-DOW-px">—</span><span class="ix-chg flat" id="idx-DOW-chg">—</span></div>
   <div class="idx-pill"><span class="ix-sym">NASDAQ</span><span class="ix-price" id="idx-NASDAQ-px">—</span><span class="ix-chg flat" id="idx-NASDAQ-chg">—</span></div>
-  <div class="idx-pill"><span class="ix-sym">RUSSELL 2K</span><span class="ix-price" id="idx-RUT-px">—</span><span class="ix-chg flat" id="idx-RUT-chg">—</span></div>
   <span class="strip-label">LIVE INDEXES</span>
 </div>
 
@@ -510,7 +509,7 @@ a:hover { color: #22a090; }
   <span class="strip-label">LIVE ETFs</span>
 </div>
 <p style="text-align:center;font-size:10px;color:#4a5470;padding:2px 14px 4px;margin:0;font-family:monospace;">
-  Index prices via ETFs: SPY (S&amp;P 500), QQQ (Nasdaq 100), DIA (Dow Jones), IWM (Russell 2000)
+  Approximate index values via ETFs: SPY (S&amp;P 500 ×10), QQQ (Nasdaq ×37.5), DIA (Dow ×100)
   · <span id="barTs" style="color:#1a7a6e;"></span>
 </p>
 
@@ -871,12 +870,21 @@ async function fetchIndexData() {
   } catch (e) { console.warn('[index-data] error:', e); }
 }
 
+const MULTIPLIERS = {
+  SP500:  10,     // SPY ~$738 × 10 ≈ S&P 500 ~7,380
+  DOW:    100,    // DIA ~$497 × 100 ≈ Dow ~49,700
+  NASDAQ: 37.5,   // QQQ ~$712 × 37.5 ≈ Nasdaq ~26,700
+  VIX:    1,      // VIXY ≈ VIX level directly
+};
+
 function renderIndexRow(data) {
   for (const [key, item] of Object.entries(data)) {
     const pxEl  = document.getElementById(`idx-${key}-px`);
     const chgEl = document.getElementById(`idx-${key}-chg`);
     if (!pxEl || !chgEl) continue;
-    pxEl.textContent = item.price != null ? fmtIndexVal(item.price) : '—';
+    const mult = MULTIPLIERS[key] || 1;
+    const displayPrice = item.price != null ? item.price * mult : null;
+    pxEl.textContent = displayPrice != null ? fmtIndexVal(displayPrice) : '—';
     const dp = item.changePct;
     const cc = dp == null ? 'flat' : dp >= 0 ? 'bull' : 'bear';
     chgEl.textContent = dp != null ? (dp >= 0 ? '+' : '') + dp.toFixed(2) + '%' : '—';

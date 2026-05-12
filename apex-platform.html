@@ -5876,16 +5876,7 @@ async function bootApp() {
           'candles:', candles ? candles.length : 'null',
           'panes:', state.panes?.length,
           'candle keys:', Object.keys(state.candles || {}).join(','));
-        if (window.innerWidth <= 768) {
-          let dbg = document.getElementById('mobile-debug');
-          if (!dbg) {
-            dbg = document.createElement('div');
-            dbg.id = 'mobile-debug';
-            dbg.style.cssText = 'position:fixed;top:50px;left:0;right:0;background:rgba(0,0,0,0.85);color:#1a7a6e;font-family:monospace;font-size:11px;padding:8px;z-index:9999;';
-            document.body.appendChild(dbg);
-          }
-          dbg.textContent = `sym:${sym} candles:${candles?.length||0} panes:${state.panes?.length||0} keys:${Object.keys(state.candles||{}).slice(0,3).join(',')}`;
-        }
+
         if (candles?.length > 0 && state.panes?.length > 0) {
           renderChart();
           console.log('[mobile] chart rendered ✓');
