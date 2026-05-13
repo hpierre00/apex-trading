@@ -6486,5 +6486,35 @@ bootApp();
     <button id="disclaimerGateBtn" style="width:100%;background:#1a7a6e;color:#e8f5f2;border:none;padding:14px;border-radius:4px;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:1.5px;cursor:pointer;">I UNDERSTAND — CONTINUE TO TRADOLUX</button>
   </div>
 </div>
+
+<!-- ── DEBUG LOG OVERLAY (mobile only, remove after debugging) ── -->
+<div id="debugLog" style="display:none;position:fixed;bottom:48px;left:0;right:0;background:rgba(0,0,0,0.85);color:#0ecb81;font-family:monospace;font-size:9px;padding:4px 6px;z-index:9999;max-height:80px;overflow:hidden;line-height:1.5;white-space:pre-wrap;word-break:break-all;"></div>
+<script>
+(function(){
+  if (window.innerWidth > 768) return;
+  var el = document.getElementById('debugLog');
+  if (!el) return;
+  el.style.display = 'block';
+  var lines = [];
+  var _orig = console.log.bind(console);
+  console.log = function() {
+    _orig.apply(console, arguments);
+    var msg = Array.from(arguments).map(function(a){ return typeof a === 'object' ? JSON.stringify(a) : String(a); }).join(' ');
+    if (msg.indexOf('[ASSESS]') === -1) return;
+    lines.push(msg);
+    if (lines.length > 5) lines.shift();
+    el.textContent = lines.join('\n');
+  };
+  var _origErr = console.error.bind(console);
+  console.error = function() {
+    _origErr.apply(console, arguments);
+    var msg = '[ERR] ' + Array.from(arguments).map(function(a){ return typeof a === 'object' ? JSON.stringify(a) : String(a); }).join(' ');
+    if (msg.indexOf('ASSESS') === -1) return;
+    lines.push(msg);
+    if (lines.length > 5) lines.shift();
+    el.textContent = lines.join('\n');
+  };
+})();
+</script>
 </body>
 </html>
