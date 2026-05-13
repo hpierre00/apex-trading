@@ -4295,17 +4295,20 @@ ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
       _session?.access_token || ''
     );
     if (!r || !r.ok) throw new Error(r ? 'HTTP ' + r.status : 'No response');
-    const data = await r.json();
-    const text = data.content?.[0]?.text || 'Assessment failed.';
     const el = document.getElementById(loadingId);
-    if (el) {
-      el.querySelector('.assess-body').textContent = text;
-      // Append per-output disclaimer. Same pattern as chat responses; always
-      // present under Instant Assessment output so the analytical framing is
-      // inseparable from the content. Not dismissible.
-      el.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer" style="margin-top:8px">⚠ AI-generated analysis. May contain errors or hallucinations. Not financial advice. Verify independently before acting.</div>`);
-    }
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    const assessBody = el?.querySelector('.assess-body');
+    if (assessBody) assessBody.textContent = '';
+    await readClaudeStream(
+      r,
+      (_delta, acc) => {
+        if (assessBody) assessBody.textContent = acc;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      },
+      () => {
+        if (el) el.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer" style="margin-top:8px">⚠ AI-generated analysis. May contain errors or hallucinations. Not financial advice. Verify independently before acting.</div>`);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    );
   } catch(e) {
     const el = document.getElementById(loadingId);
     if (el) el.querySelector('.assess-body').textContent = 'Error: ' + String(e);
@@ -5579,6 +5582,41 @@ async function fetchClaude(body, token, retries = 2) {
   }
 }
 
+// Reads an Anthropic SSE stream and calls onToken(delta, accumulated) for
+// each text chunk, then onDone(fullText) when the stream closes.
+// Returns the full accumulated text.
+async function readClaudeStream(response, onToken, onDone) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullText = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw || raw === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(raw);
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            fullText += evt.delta.text;
+            onToken?.(evt.delta.text, fullText);
+          }
+        } catch { /* malformed SSE line — skip */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  onDone?.(fullText);
+  return fullText;
+}
+
 async function sendChat() {
   const input = document.getElementById('chatInput');
   const q = input.value.trim();
@@ -5621,20 +5659,24 @@ ${buildChartContext(state.activePane)}`,
       max_tokens: 1000,
     }, _session?.access_token || '');
     if (!res || !res.ok) throw new Error(res ? 'HTTP ' + res.status : 'No response');
-    const data = await res.json();
-    const text = data.content?.[0]?.text || data.completion || 'No response.';
-    thinkingEl.textContent = text;
-    // Append per-response disclaimer below the AI text. Small muted italic,
-    // always present so users cannot later claim they were unaware responses
-    // could be inaccurate. Attached to the same .msg.ai container as a sibling.
-    thinkingEl.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer">AI responses may be inaccurate. Verify before acting.</div>`);
-    if (text && text !== 'No response.') {
-      state.chatHistory.push({ role: 'assistant', content: text });
-      if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
-    }
+    thinkingEl.textContent = '';
+    await readClaudeStream(
+      res,
+      (_delta, acc) => {
+        thinkingEl.textContent = acc;
+        msgs.scrollTop = msgs.scrollHeight;
+      },
+      (text) => {
+        thinkingEl.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer">AI responses may be inaccurate. Verify before acting.</div>`);
+        if (text) {
+          state.chatHistory.push({ role: 'assistant', content: text });
+          if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
+        }
+        msgs.scrollTop = msgs.scrollHeight;
+      }
+    );
   } catch (e) {
     thinkingEl.textContent = '⚠ AI service temporarily unavailable. Please try again in a moment.';
-    // Roll back the user message from history so a failed turn doesn't corrupt context
     state.chatHistory.pop();
   }
   msgs.scrollTop = msgs.scrollHeight;
