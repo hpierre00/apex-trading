@@ -3767,9 +3767,10 @@ function updateMobileAiStrip() {
     </div>` : `<div style="color:var(--text-faint);font-size:10px;font-family:monospace;padding-top:6px">⚡ Scanning for setups...</div>`;
 
   strip.innerHTML = `
+    <button data-action="assess" style="width:100%;background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:11px;font-weight:700;padding:10px;border:none;cursor:pointer;border-radius:3px;letter-spacing:0.06em;margin-bottom:8px;">⚡ INSTANT ASSESSMENT</button>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
       <span style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);font-weight:600">AI AGENTS</span>
-      <button id="mobileAssessBtn" style="background:var(--gold,#f5a623);color:#0a0f16;font-weight:700;font-size:9px;letter-spacing:1px;padding:3px 8px;border:none;cursor:pointer;font-family:monospace">⚡ ASSESS</button>
+      <button id="mobileAssessBtn" data-action="assess" style="background:var(--gold,#f5a623);color:#0a0f16;font-weight:700;font-size:9px;letter-spacing:1px;padding:3px 8px;border:none;cursor:pointer;font-family:monospace">⚡ ASSESS</button>
     </div>
     ${agentRows}
     ${sigHtml}`;
@@ -5546,11 +5547,16 @@ document.getElementById('assessBtn').addEventListener('click', () => requestInst
   });
 })();
 
-// Event delegation for #mobileAssessBtn — survives innerHTML re-renders.
+// Event delegation for assessment buttons — catches any button regardless of ID.
 document.addEventListener('click', e => {
-  console.log('[ASSESS] click event — target:', e.target.id || e.target.tagName, '| closest #mobileAssessBtn:', e.target.closest('#mobileAssessBtn'));
-  if (e.target.closest('#mobileAssessBtn')) {
-    console.log('[ASSESS] button matched — calling requestInstantAssessment, activePane:', state.activePane);
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const isAssess = btn.id === 'mobileAssessBtn'
+    || btn.id === 'instantAssessBtn'
+    || btn.dataset.action === 'assess'
+    || btn.textContent.includes('ASSESS');
+  if (isAssess) {
+    console.log('[ASSESS] button matched — id:', btn.id, 'text:', btn.textContent.trim().slice(0, 40));
     requestInstantAssessment(state.activePane);
   }
 });
@@ -6334,7 +6340,7 @@ function showMobilePanel(panel) {
   } else if (panel === 'chat') {
     strip.innerHTML = `
       <div style="display:flex;flex-direction:column;padding:8px;gap:6px;">
-        <button onclick="requestInstantAssessment(state.activePane)"
+        <button data-action="assess"
           style="background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:11px;font-weight:700;padding:10px;border:none;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
           ⚡ INSTANT ASSESSMENT
         </button>
@@ -6487,34 +6493,5 @@ bootApp();
   </div>
 </div>
 
-<!-- ── DEBUG LOG OVERLAY (mobile only, remove after debugging) ── -->
-<div id="debugLog" style="display:none;position:fixed;bottom:48px;left:0;right:0;background:rgba(0,0,0,0.85);color:#0ecb81;font-family:monospace;font-size:9px;padding:4px 6px;z-index:9999;max-height:80px;overflow:hidden;line-height:1.5;white-space:pre-wrap;word-break:break-all;"></div>
-<script>
-(function(){
-  if (window.innerWidth > 768) return;
-  var el = document.getElementById('debugLog');
-  if (!el) return;
-  el.style.display = 'block';
-  var lines = [];
-  var _orig = console.log.bind(console);
-  console.log = function() {
-    _orig.apply(console, arguments);
-    var msg = Array.from(arguments).map(function(a){ return typeof a === 'object' ? JSON.stringify(a) : String(a); }).join(' ');
-    if (msg.indexOf('[ASSESS]') === -1) return;
-    lines.push(msg);
-    if (lines.length > 5) lines.shift();
-    el.textContent = lines.join('\n');
-  };
-  var _origErr = console.error.bind(console);
-  console.error = function() {
-    _origErr.apply(console, arguments);
-    var msg = '[ERR] ' + Array.from(arguments).map(function(a){ return typeof a === 'object' ? JSON.stringify(a) : String(a); }).join(' ');
-    if (msg.indexOf('ASSESS') === -1) return;
-    lines.push(msg);
-    if (lines.length > 5) lines.shift();
-    el.textContent = lines.join('\n');
-  };
-})();
-</script>
 </body>
 </html>
