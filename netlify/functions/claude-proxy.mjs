@@ -1,8 +1,8 @@
 // Netlify Function v2 (ESM) — Claude API streaming proxy.
-// Uses SSE pass-through so long assessments don't hit the 10-second
-// synchronous timeout on the free tier. Auth via Supabase JWT.
+// TransformStream + pipeTo keeps the pipe active so Netlify flushes SSE chunks
+// to the client immediately rather than buffering the full response.
 
-const SUPABASE_URL     = 'https://soghksmuocrgtttmnete.supabase.co';
+const SUPABASE_URL      = 'https://soghksmuocrgtttmnete.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZ2hrc211b2NyZ3R0dG1uZXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTg4MTEsImV4cCI6MjA5MjY5NDgxMX0.FWRiSZG5yGsJdZvntD5LrqmV07NFEjZWjisJSK95b7A';
 
 const cors = {
@@ -16,7 +16,7 @@ export default async (req) => {
     return new Response('', { status: 200, headers: cors });
   }
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────
   const authHeader = req.headers.get('authorization') || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
   if (!token) {
@@ -48,7 +48,7 @@ export default async (req) => {
     });
   }
 
-  // ── Parse request ──────────────────────────────────────────────────────────
+  // ── Parse body ─────────────────────────────────────────────────────────────
   let body;
   try { body = await req.json(); }
   catch { return new Response('Invalid JSON', { status: 400, headers: cors }); }
@@ -61,14 +61,16 @@ export default async (req) => {
   };
   if (body.system) payload.system = body.system;
 
-  // ── Forward to Anthropic with SSE stream ───────────────────────────────────
+  // ── Fetch from Anthropic ───────────────────────────────────────────────────
+  const anthropicHeaders = {
+    'x-api-key':         apiKey,
+    'anthropic-version': '2023-06-01',
+    'content-type':      'application/json',
+  };
+
   let anthropicResp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'x-api-key':         apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type':      'application/json',
-    },
+    headers: anthropicHeaders,
     body: JSON.stringify(payload),
   });
 
@@ -77,11 +79,7 @@ export default async (req) => {
     await new Promise(r => setTimeout(r, 2000));
     anthropicResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'x-api-key':         apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type':      'application/json',
-      },
+      headers: anthropicHeaders,
       body: JSON.stringify(payload),
     });
   }
@@ -94,13 +92,19 @@ export default async (req) => {
     });
   }
 
-  // Pipe Anthropic's SSE body straight to the client
-  return new Response(anthropicResp.body, {
+  // ── Stream back to client ──────────────────────────────────────────────────
+  // pipeTo (fire-and-forget) keeps the pipe active, forcing Netlify / CDN
+  // to flush SSE chunks as they arrive rather than buffering the whole body.
+  const { readable, writable } = new TransformStream();
+  anthropicResp.body.pipeTo(writable);
+
+  return new Response(readable, {
     status: 200,
     headers: {
       ...cors,
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
+      'X-Accel-Buffering': 'no',   // tells nginx / Netlify CDN not to buffer
     },
   });
 };

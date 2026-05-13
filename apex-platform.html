@@ -5586,10 +5586,17 @@ async function fetchClaude(body, token, retries = 2) {
 // each text chunk, then onDone(fullText) when the stream closes.
 // Returns the full accumulated text.
 async function readClaudeStream(response, onToken, onDone) {
+  if (!response.body) { onDone?.(''); return ''; }
+
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let fullText = '';
+
+  // Cancel the reader after 28 s so a buffered / stalled connection never
+  // leaves the UI stuck at "Analyzing...".
+  const cancelTimer = setTimeout(() => reader.cancel('stream-timeout').catch(() => {}), 28000);
+
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -5610,10 +5617,15 @@ async function readClaudeStream(response, onToken, onDone) {
         } catch { /* malformed SSE line — skip */ }
       }
     }
+  } catch (e) {
+    // stream-timeout cancel is expected — propagate all other errors
+    if (!String(e).includes('stream-timeout')) throw e;
   } finally {
+    clearTimeout(cancelTimer);
     reader.releaseLock();
   }
-  onDone?.(fullText);
+
+  onDone?.(fullText || '');
   return fullText;
 }
 
