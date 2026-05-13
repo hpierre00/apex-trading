@@ -142,10 +142,10 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 .ticker-chg.up { color: var(--bull); }
 .ticker-chg.down { color: var(--bear); }
 
-/* ====== MAIN GRID ====== */
+/* ====== MAIN GRID — D2: right panel 28% ====== */
 .main-grid {
   display: grid;
-  grid-template-columns: 240px 1fr 300px;
+  grid-template-columns: 240px 1fr 28%;
   height: 100%; min-height: 0;
 }
 .panel {
@@ -194,28 +194,32 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
 /* ====== CENTER: CHART ====== */
 .chart-panel { display: flex; flex-direction: column; min-width: 0; }
+/* ====== CHART TOOLBAR — D2: single 36px row, no wrap ====== */
 .chart-toolbar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 6px 12px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px;
+  height: 36px; min-height: 36px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
+  flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
 }
-.sym-badge { display: flex; align-items: center; gap: 10px; }
-.sym-name { font-size: 16px; font-weight: 800; color: var(--text); }
-.sym-px { font-size: 18px; font-weight: 700; }
-.sym-chg { font-size: 12px; padding: 2px 8px; border-radius: 2px; }
+.chart-toolbar::-webkit-scrollbar { display: none; }
+.sym-badge { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.sym-name { font-size: 13px; font-weight: 800; color: var(--text); }
+.sym-px { font-size: 14px; font-weight: 700; }
+.sym-chg { font-size: 11px; padding: 1px 6px; border-radius: 2px; }
 .sym-chg.up { color: var(--bull); background: rgba(14, 203, 129, 0.1); }
 .sym-chg.down { color: var(--bear); background: rgba(246, 70, 93, 0.1); }
-.tf-group { display: flex; border: 1px solid var(--border); }
+.tf-group { display: flex; border: 1px solid var(--border); flex-shrink: 0; }
 .tf-btn {
-  padding: 4px 10px; font-size: 11px; color: var(--text-dim);
+  padding: 3px 8px; font-size: 10px; color: var(--text-dim);
   border-right: 1px solid var(--border);
 }
 .tf-btn:last-child { border-right: none; }
 .tf-btn.active { background: var(--gold); color: var(--bg); font-weight: 700; }
 .tf-btn:hover:not(.active) { color: var(--text); }
-.spacer { flex: 1; }
+.spacer { flex: 1; min-width: 0; }
 
 .chart-container {
   flex: 1; position: relative; background: var(--bg);
@@ -243,9 +247,32 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 }
 .chart-ctrl-btn:hover { border-color: var(--gold); color: var(--gold); }
 
+/* ====== SIGNALS STRIP — D2: always-visible compact signal row ====== */
+.signals-strip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; height: 48px; min-height: 48px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  flex-shrink: 0; border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.signals-strip::-webkit-scrollbar { display: none; }
+.sig-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border: 1px solid var(--border);
+  font-size: 10px; white-space: nowrap; flex-shrink: 0;
+  font-family: monospace; cursor: pointer; transition: border-color 0.1s;
+}
+.sig-pill.buy { border-left: 3px solid var(--bull); }
+.sig-pill.sell { border-left: 3px solid var(--bear); }
+.sig-pill:hover { border-color: var(--gold); }
+.sig-pill-empty { color: var(--text-faint); font-size: 10px; font-family: monospace; letter-spacing: 1px; }
+
+/* ====== MOBILE AI STRIP — M3: always-visible AI panel below chart ====== */
+#mobileAiStrip { display: none; }
+
 /* ====== BOTTOM TABS ====== */
 .bottom-panel {
-  height: 220px; min-height: 220px;
+  height: 172px; min-height: 172px;
   background: var(--panel);
   border-top: 1px solid var(--border);
   display: flex; flex-direction: column;
@@ -809,6 +836,60 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   @media (prefers-reduced-motion: reduce) {
     .mob-panel-btn, #intradayGroup .tf-btn, #periodGroup .tf-btn { transition: none !important; }
   }
+  .mob-panel-btn {
+    flex: 1;
+    padding: 10px 4px 8px;
+    font-family: monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #4a5470;
+    background: none;
+    border: none;
+    border-top: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .mob-panel-btn.active { color: #1a7a6e; border-top-color: #1a7a6e; }
+
+  /* Mobile panel — slides up above the nav bar */
+  #mobilePanel {
+    display: block !important;
+    position: fixed;
+    bottom: 44px; left: 0; right: 0;
+    height: 50vh;
+    overflow-y: auto;
+    background: #070d1f;
+    border-top: 1px solid #1a2748;
+    z-index: 199;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* M3: AI strip — always-visible below chart */
+  #mobileAiStrip {
+    display: block !important;
+    background: var(--panel, #070d1f);
+    border-top: 1px solid var(--border, #1a2748);
+    padding: 8px 12px;
+    overflow-y: auto;
+    flex-shrink: 0;
+    -webkit-overflow-scrolling: touch;
+    max-height: 44vh;
+  }
+
+  /* Restore chart-toolbar to natural height on mobile */
+  .chart-toolbar {
+    height: auto !important; min-height: 0 !important;
+    overflow: visible !important; flex-wrap: nowrap !important;
+    overflow-x: auto !important; overflow-y: hidden !important;
+    padding: 4px 6px !important; gap: 6px !important;
+  }
+
+  /* Signals strip hidden on mobile — info lives in #mobileAiStrip */
+  .signals-strip { display: none !important; }
+
+  /* Pad chart so fixed panel bar doesn't cover bottom */
+  .app { padding-bottom: 44px; }
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -933,8 +1014,12 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         <div id="emptyMsg" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-dim);font-size:12px;text-align:center;max-width:340px;line-height:1.6">No bars for this timeframe × range.<br>Try a coarser timeframe or longer range.</div>
       </div>
 
-      <!-- BOTTOM TABS -->
+      <!-- M3: AI strip — always visible below chart on mobile -->
+      <div id="mobileAiStrip"></div>
+
+      <!-- BOTTOM TABS — D2: signals strip always visible above tab bar -->
       <div class="bottom-panel">
+        <div id="signalsStrip" class="signals-strip"><span class="sig-pill-empty">⚡ SCANNING FOR SIGNALS...</span></div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="signals">⚡ SIGNALS <span class="tab-badge" id="sigBadge">0</span></button>
           <button class="tab-btn" data-tab="alerts">🔔 ALERTS <span class="tab-badge" id="alertBadge" style="display:none">0</span></button>
@@ -1618,13 +1703,15 @@ function resizeCanvas() {
   if (isMobile) {
     // Bypass flex layout — compute pixel values directly from window dimensions
     const topbarH    = document.querySelector('.topbar')?.offsetHeight  || 44;
-    const toolbarH   = document.querySelector('.toolbar')?.offsetHeight || 36;
+    const toolbarH   = document.querySelector('.chart-toolbar')?.offsetHeight || 36;
     const statusH    = document.querySelector('.statusbar')?.offsetHeight || 0;
     const panelNavH  = 44; // #mobilePanelBar is position:fixed at bottom
     const disclaimerH = document.getElementById('sessionDisclaimer')?.offsetHeight || 0;
 
-    // Mobile: full viewport minus topbar (44px) and bottom nav (48px); 72px toolbar overlays chart
-    const chartH = Math.max(250, window.innerHeight - 44 - 48);
+    const aiStripH   = document.getElementById('mobileAiStrip')?.offsetHeight || 0;
+    const availableH = window.innerHeight - topbarH - toolbarH - statusH - panelNavH - disclaimerH - aiStripH;
+    // M3: chart = 48vh, capped to available space
+    const chartH = Math.max(200, Math.min(Math.floor(window.innerHeight * 0.48), availableH));
     const chartW = window.innerWidth;
 
     // Force chart-area container
@@ -3076,6 +3163,7 @@ async function runAgents() {
     if (v) v.insertAdjacentHTML('beforeend',
       `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">⚠️ Downweighted to 0x on ${state.timeframe} — irrelevant intraday</div>`);
   }
+  updateMobileAiStrip();
 }
 
 /* ============================================================
@@ -3581,6 +3669,8 @@ function generateSignal(verdicts) {
   document.getElementById('sigBadge').textContent = state.signals.length;
   if (state.activeTab === 'signals') renderSignalsTab();
   if (state.activeTab === 'performance') renderPerformanceTab();
+  updateSignalsStrip();
+  updateMobileAiStrip();
 
   if (state.notif.notifyOnSignal) {
     notify({
@@ -3590,6 +3680,69 @@ function generateSignal(verdicts) {
       toastKind: signal.action === 'BUY' ? 'bull' : 'bear',
     });
   }
+}
+
+function updateSignalsStrip() {
+  const strip = document.getElementById('signalsStrip');
+  if (!strip) return;
+  const signals = state.signals || [];
+  if (!signals.length) {
+    strip.innerHTML = '<span class="sig-pill-empty">⚡ NO OPEN SIGNALS — AI SCANNING...</span>';
+    return;
+  }
+  strip.innerHTML = signals.slice(0, 8).map(s => {
+    const cls = s.action === 'BUY' ? 'buy' : 'sell';
+    const color = s.action === 'BUY' ? 'var(--bull)' : 'var(--bear)';
+    return `<div class="sig-pill ${cls}">
+      <span style="color:${color};font-weight:700">${s.action}</span>
+      <span style="font-weight:600">${s.sym}</span>
+      <span style="color:var(--text-dim)">@ ${s.entry.toFixed(2)}</span>
+      <span style="color:var(--bear)">SL ${s.stop.toFixed(2)}</span>
+      <span style="color:var(--bull)">TP ${s.tp1.toFixed(2)}</span>
+      <span style="color:var(--text-faint)">${Math.round(s.confidence)}%</span>
+    </div>`;
+  }).join('');
+}
+
+function updateMobileAiStrip() {
+  const strip = document.getElementById('mobileAiStrip');
+  if (!strip || window.innerWidth > 768) return; // desktop: not needed
+  const signals = state.signals || [];
+  const latestSig = signals[0];
+
+  const agentRows = AGENTS.map(a => {
+    const el = document.getElementById(`agent-${a.id}`);
+    const label = el?.querySelector('.agent-status')?.textContent?.trim() || 'IDLE';
+    const color = el?.querySelector('.agent-status')?.style?.color || 'var(--text-dim)';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;font-size:10px">
+      <span style="color:var(--text-faint)">${a.name}</span>
+      <span style="color:${color};font-size:9px;font-family:monospace">${label}</span>
+    </div>`;
+  }).join('');
+
+  const sigHtml = latestSig ? `
+    <div style="background:var(--panel-2,#0d1b2e);border:1px solid var(--border,#1a2748);border-left:3px solid ${latestSig.action==='BUY'?'var(--bull)':'var(--bear)'};padding:7px 10px;margin-top:8px;font-family:monospace">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="color:${latestSig.action==='BUY'?'var(--bull)':'var(--bear)'};font-weight:700;font-size:12px">${latestSig.action} ${latestSig.sym}</span>
+        <span style="color:var(--text-faint);font-size:9px">${Math.round(latestSig.confidence)}% · RR ${latestSig.rr}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:10px">
+        <div><div style="color:var(--text-faint);font-size:8px;letter-spacing:1px">ENTRY</div><div style="font-weight:600">${latestSig.entry.toFixed(2)}</div></div>
+        <div><div style="color:var(--text-faint);font-size:8px;letter-spacing:1px">STOP</div><div style="color:var(--bear)">${latestSig.stop.toFixed(2)}</div></div>
+        <div><div style="color:var(--text-faint);font-size:8px;letter-spacing:1px">TP1</div><div style="color:var(--bull)">${latestSig.tp1.toFixed(2)}</div></div>
+      </div>
+    </div>` : `<div style="color:var(--text-faint);font-size:10px;font-family:monospace;padding-top:6px">⚡ Scanning for setups...</div>`;
+
+  strip.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <span style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);font-weight:600">AI AGENTS</span>
+      <button onclick="requestInstantAssessment(state.activePane)" style="background:var(--gold,#f5a623);color:#0a0f16;font-weight:700;font-size:9px;letter-spacing:1px;padding:3px 8px;border:none;cursor:pointer;font-family:monospace">⚡ ASSESS</button>
+    </div>
+    ${agentRows}
+    ${sigHtml}`;
+
+  // Re-run resizeCanvas so chart height adjusts to strip's actual height
+  if (window.innerWidth <= 768) resizeCanvas();
 }
 
 function saveSignals() {
@@ -5786,6 +5939,9 @@ function init() {
   // Initialize in-memory open signals from persisted history
   state.signals = state.signalHistory.filter(s => s.status === 'OPEN');
   document.getElementById('sigBadge').textContent = state.signals.length;
+  updateSignalsStrip();
+  // Defer mobile AI strip until after first agent run populates agent elements
+  setTimeout(updateMobileAiStrip, 2000);
   // ticks
   setInterval(simTick, 1200);
   // re-run agents every 30s on current symbol
