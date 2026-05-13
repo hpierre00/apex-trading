@@ -607,12 +607,11 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   }
   .chart-canvas-wrap { height: 100% !important; }
 
-  /* ── Disclaimer: one-line overlay, auto-dismissed feel ── */
+  /* ── Disclaimer: static flow — never blocks touch events ── */
   .session-disclaimer {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; right: 0 !important;
-    z-index: 10 !important;
-    background: rgba(6,12,26,0.92) !important;
+    position: static !important;
+    z-index: auto !important;
+    background: rgba(6,12,26,0.96) !important;
     padding: 4px 10px !important;
     font-family: var(--mob-font) !important;
     font-size: 9px !important;
@@ -622,6 +621,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
+    flex-shrink: 0 !important;
   }
   .session-disclaimer strong { color: rgba(255,160,60,0.8) !important; font-size: 9px !important; }
   .session-disclaimer .dismiss-btn {
@@ -639,23 +639,28 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     white-space: nowrap !important;
   }
 
-  /* ── Toolbar: floating two-row overlay ── */
+  /* ── Toolbar: static single-row, horizontal scroll ── */
   .chart-toolbar {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; right: 0 !important;
-    z-index: 20 !important;
-    background: rgba(6,12,26,0.88) !important;
+    position: static !important;
+    z-index: auto !important;
+    background: var(--mob-surface) !important;
     border-bottom: 1px solid var(--mob-border) !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
     flex-wrap: nowrap !important;
-    align-items: flex-start !important;
-    gap: 2px !important;
-    padding: 5px 8px 4px !important;
-    height: 72px !important;
-    overflow: hidden !important;
+    align-items: center !important;
+    gap: 3px !important;
+    padding: 4px 8px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
     scrollbar-width: none !important;
+    flex-shrink: 0 !important;
   }
   .chart-toolbar::-webkit-scrollbar { display: none; }
+  /* Hide price row in toolbar — already in topbar */
+  .chart-toolbar .sym-badge { display: none !important; }
 
   /* Price row */
   .sym-badge {
@@ -852,38 +857,30 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   }
   .mob-panel-btn.active { color: #1a7a6e; border-top-color: #1a7a6e; }
 
-  /* Mobile panel — slides up above the nav bar */
+  /* M3: old sliding panel hidden — AI strip replaces it */
   #mobilePanel {
-    display: block !important;
-    position: fixed;
-    bottom: 44px; left: 0; right: 0;
-    height: 50vh;
-    overflow-y: auto;
-    background: #070d1f;
-    border-top: 1px solid #1a2748;
-    z-index: 199;
-    -webkit-overflow-scrolling: touch;
+    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: static !important;
+    z-index: auto !important;
   }
 
-  /* M3: AI strip — always-visible below chart */
+  /* M3: AI strip — static flow, fills space between chart and nav */
   #mobileAiStrip {
     display: block !important;
-    background: var(--panel, #070d1f);
-    border-top: 1px solid var(--border, #1a2748);
-    padding: 8px 12px;
-    overflow-y: auto;
-    flex-shrink: 0;
+    position: static !important;
+    z-index: auto !important;
+    background: #070d1f;
+    border-top: 1px solid rgba(14,203,129,0.15);
+    padding: 8px 12px 60px !important;
+    overflow-y: auto !important;
+    flex: 1 !important;
+    min-height: 0 !important;
     -webkit-overflow-scrolling: touch;
-    max-height: 44vh;
   }
 
-  /* Restore chart-toolbar to natural height on mobile */
-  .chart-toolbar {
-    height: auto !important; min-height: 0 !important;
-    overflow: visible !important; flex-wrap: nowrap !important;
-    overflow-x: auto !important; overflow-y: hidden !important;
-    padding: 4px 6px !important; gap: 6px !important;
-  }
+  /* chart-toolbar single-row already set above — no override needed */
 
   /* Signals strip hidden on mobile — info lives in #mobileAiStrip */
   .signals-strip { display: none !important; }
