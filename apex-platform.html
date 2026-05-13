@@ -556,7 +556,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   .left-panel, .right-panel { display: none !important; }
   .main-grid > aside { display: none !important; }
   .main-grid { grid-template-columns: 1fr !important; display: block !important; background: var(--mob-bg) !important; }
-  .chart-panel { width: 100vw !important; min-width: 0 !important; overflow: visible !important; position: relative !important; background: var(--mob-bg) !important; }
+  .chart-panel { width: 100vw !important; min-width: 0 !important; overflow: visible !important; position: relative !important; background: var(--mob-bg) !important; display: flex !important; flex-direction: column !important; }
   .bottom-panel { display: none !important; }
 
   /* ── Topbar: 44px compact strip ── */
@@ -893,6 +893,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   }
 
   /* chart-toolbar single-row already set above — no override needed */
+  #tfGroupsRow { flex-shrink: 0 !important; }
 
   /* Signals strip hidden on mobile — info lives in #mobileAiStrip */
   .signals-strip { display: none !important; }
@@ -957,16 +958,8 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div class="ticker-track" id="tickerTrack"></div>
   </div>
 
-  <!-- SESSION DISCLAIMER (Phase 1a: per-session, dismissible) -->
-  <div class="session-disclaimer" id="sessionDisclaimer">
-    <div>
-      <strong>⚠ NOT FINANCIAL ADVICE.</strong>
-      Tradolux provides AI-generated market analysis that may contain errors or hallucinations.
-      This is not a trading recommendation. Every trading decision is your own.
-      Verify all information independently before acting.
-    </div>
-    <button class="dismiss-btn" id="dismissDisclaimer" type="button">I UNDERSTAND</button>
-  </div>
+  <!-- SESSION DISCLAIMER — hidden; replaced by #disclaimerGate fullscreen modal -->
+  <div class="session-disclaimer" id="sessionDisclaimer" style="display:none"></div>
 
   <!-- MAIN GRID -->
   <div class="main-grid">
@@ -999,6 +992,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <div style="font-size:10px;color:var(--bear);font-family:monospace" id="symLo" title="100-bar low"></div>
         </div>
         <div class="spacer"></div>
+        <div id="tfGroupsRow" style="display:flex;flex-shrink:0;gap:4px;align-items:center;">
         <div class="tf-group" id="intradayGroup">
           <!-- Intraday bar sizes. Each picks a sensible short range to match. -->
           <button class="tf-btn" data-period="1m_1D"    data-tf="1m"  data-range="1D"  title="1 minute — scalp">1m</button>
@@ -1009,7 +1003,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <button class="tf-btn" data-period="1h_1M"    data-tf="1h"  data-range="1M"  title="1 hour — swing">1h</button>
           <button class="tf-btn" data-period="4h_3M"    data-tf="4h"  data-range="3M"  title="4 hour — swing">4h</button>
         </div>
-        <div class="tf-group" id="periodGroup" style="margin-left:4px">
+        <div class="tf-group" id="periodGroup">
           <!-- Period buttons for swing/position perspectives -->
           <button class="tf-btn" data-period="1D_5m"    data-tf="5m"  data-range="1D"  title="1 day — position">1D</button>
           <button class="tf-btn" data-period="5D_15m"   data-tf="15m" data-range="5D"  title="5 day">5D</button>
@@ -1021,6 +1015,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
           <button class="tf-btn" data-period="5Y_1w"    data-tf="1w"  data-range="5Y"  title="5 years">5Y</button>
           <button class="tf-btn" data-period="ALL_1mo"  data-tf="1mo" data-range="ALL" title="All available data">ALL</button>
         </div>
+        </div><!-- /tfGroupsRow -->
         <button class="icon-btn" id="advancedPeriodBtn" title="Custom timeframe × range" style="padding:4px 10px">⋯</button>
         <button class="icon-btn" id="alertBtn" title="Set price alert for active symbol">🔔 ALERT</button>
         <button class="icon-btn" id="indBtn" title="Toggle indicators">INDICATORS</button>
@@ -1635,7 +1630,7 @@ function initLayout(count) {
 
     // Mini toolbar — symbol input + TF buttons
     const miniBar = document.createElement('div');
-    miniBar.style.cssText = 'position:absolute;top:20px;left:0;right:0;z-index:10;display:flex;gap:2px;padding:2px 4px;background:rgba(11,18,33,0.85);';
+    miniBar.style.cssText = 'position:absolute;top:20px;left:0;right:0;z-index:10;display:flex;gap:2px;padding:2px 4px;background:rgba(6,12,26,0.82);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);';
 
     const symInput = document.createElement('input');
     symInput.value = pane.symbol;
@@ -3744,6 +3739,7 @@ function updateSignalsStrip() {
 function updateMobileAiStrip() {
   const strip = document.getElementById('mobileAiStrip');
   if (!strip || window.innerWidth > 768) return; // desktop: not needed
+  if (strip.dataset.panel && strip.dataset.panel !== 'agents') return; // preserve non-agents views
   const signals = state.signals || [];
   const latestSig = signals[0];
 
@@ -3773,13 +3769,13 @@ function updateMobileAiStrip() {
   strip.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
       <span style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);font-weight:600">AI AGENTS</span>
-      <button onclick="requestInstantAssessment(state.activePane)" style="background:var(--gold,#f5a623);color:#0a0f16;font-weight:700;font-size:9px;letter-spacing:1px;padding:3px 8px;border:none;cursor:pointer;font-family:monospace">⚡ ASSESS</button>
+      <button id="mobileAssessBtn" style="background:var(--gold,#f5a623);color:#0a0f16;font-weight:700;font-size:9px;letter-spacing:1px;padding:3px 8px;border:none;cursor:pointer;font-family:monospace">⚡ ASSESS</button>
     </div>
     ${agentRows}
     ${sigHtml}`;
 
-  // Re-run resizeCanvas so chart height adjusts to strip's actual height
-  if (window.innerWidth <= 768) resizeCanvas();
+  // Re-run resizeCanvas + renderChart after strip settles so cw/ch are correct.
+  if (window.innerWidth <= 768) requestAnimationFrame(() => { resizeCanvas(); renderChart(); });
 }
 
 function saveSignals() {
@@ -5517,21 +5513,24 @@ document.getElementById('assessBtn').addEventListener('click', () => requestInst
    rendering inline disclaimers on signal cards and AI responses.
    ============================================================ */
 
-// Session banner: dismiss for current browser session only.
-// Using sessionStorage (not localStorage) is intentional — a fresh
-// browser session should see the banner again for liability reasons.
+// Disclaimer gate — fullscreen modal shown once per device (localStorage).
+// Once accepted it never appears again.
 (function initSessionDisclaimer() {
-  const el = document.getElementById('sessionDisclaimer');
-  if (!el) return;
-  if (sessionStorage.getItem('apex_disclaimer_dismissed') === '1') {
-    el.style.display = 'none';
-  }
-  const btn = document.getElementById('dismissDisclaimer');
+  const gate = document.getElementById('disclaimerGate');
+  if (!gate) return;
+  if (localStorage.getItem('tradolux_disclaimer_accepted') === '1') return;
+  gate.style.display = 'flex';
+  const btn = document.getElementById('disclaimerGateBtn');
   if (btn) btn.addEventListener('click', () => {
-    sessionStorage.setItem('apex_disclaimer_dismissed', '1');
-    el.style.display = 'none';
+    localStorage.setItem('tradolux_disclaimer_accepted', '1');
+    gate.style.display = 'none';
   });
 })();
+
+// Event delegation for #mobileAssessBtn — survives innerHTML re-renders.
+document.addEventListener('click', e => {
+  if (e.target.closest('#mobileAssessBtn')) requestInstantAssessment(state.activePane);
+});
 
 // Instant Assessment acknowledgment gate.
 // Wraps the real runInstantAssessment call behind a one-per-session
@@ -6249,35 +6248,36 @@ function showMobilePanel(panel) {
   const btn = [...document.querySelectorAll('.mob-panel-btn')]
     .find(b => b.getAttribute('onclick')?.includes("'" + panel + "'"));
   if (btn) btn.classList.add('active');
-  const mp = document.getElementById('mobilePanel');
-  if (!mp) return;
+
+  const strip = document.getElementById('mobileAiStrip');
+  if (!strip) return;
+  strip.dataset.panel = panel;
 
   if (panel === 'agents') {
-    const rp = document.querySelector('.right-panel');
-    mp.innerHTML = '<div style="padding:8px;">' + (rp ? rp.innerHTML : '') + '</div>';
-    setTimeout(() => { resizeCanvas(); renderChart(); }, 100);
+    updateMobileAiStrip();
 
   } else if (panel === 'chat') {
-    mp.innerHTML = `
-      <div style="display:flex;flex-direction:column;height:100%;padding:8px;gap:6px;">
+    strip.innerHTML = `
+      <div style="display:flex;flex-direction:column;padding:8px;gap:6px;">
         <button onclick="requestInstantAssessment(state.activePane)"
           style="background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:11px;font-weight:700;padding:10px;border:none;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
           ⚡ INSTANT ASSESSMENT
         </button>
-        <div id="mob-msgs" style="flex:1;overflow-y:auto;font-family:monospace;font-size:11px;color:#c8cedd;min-height:80px;"></div>
+        <div id="mob-msgs" style="min-height:80px;max-height:160px;overflow-y:auto;font-family:monospace;font-size:11px;color:#c8cedd;"></div>
         <div style="display:flex;gap:6px;">
           <input id="mob-input" placeholder="Ask Tradolux..."
-            style="flex:1;background:#0e1830;border:1px solid #1a2748;color:#e8eaf0;font-family:monospace;font-size:12px;padding:10px 8px;border-radius:3px;outline:none;"
+            style="flex:1;background:#0e1830;border:1px solid #1a2748;color:#e8eaf0;font-family:monospace;font-size:16px;padding:10px 8px;border-radius:3px;outline:none;"
             onkeydown="if(event.key==='Enter') sendMobileChat();">
           <button onclick="sendMobileChat();"
             style="background:#1a7a6e;color:#e8f5f2;border:none;padding:10px 14px;font-family:monospace;font-weight:700;font-size:14px;cursor:pointer;border-radius:3px;">▶</button>
         </div>
       </div>`;
+    setTimeout(() => document.getElementById('mob-input')?.focus(), 50);
 
   } else if (panel === 'watchlist') {
     const wl = document.querySelector('.left-panel');
-    mp.innerHTML = '<div style="padding:8px;">' + (wl ? wl.innerHTML : '') + '</div>';
-    mp.querySelectorAll('.watch-row').forEach(row => {
+    strip.innerHTML = '<div style="padding:8px;">' + (wl ? wl.innerHTML : '') + '</div>';
+    strip.querySelectorAll('.watch-row').forEach(row => {
       row.onclick = () => {
         const sym = row.querySelector('.watch-sym')?.textContent?.trim();
         if (sym) { selectSymbol(sym); showMobilePanel('agents'); }
@@ -6287,7 +6287,7 @@ function showMobilePanel(panel) {
   } else if (panel === 'signals') {
     renderTabContent();
     const tc = document.getElementById('tabContent');
-    mp.innerHTML = '<div style="padding:8px;">' + (tc ? tc.innerHTML : '') + '</div>';
+    strip.innerHTML = '<div style="padding:8px;">' + (tc ? tc.innerHTML : '') + '</div>';
   }
 }
 
@@ -6396,6 +6396,19 @@ bootApp();
       <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.38 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-3.88-13.45-9.41l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       CONTINUE WITH GOOGLE
     </button>
+  </div>
+</div>
+
+<!-- DISCLAIMER GATE — fullscreen, shown on first visit, dismissed permanently via localStorage -->
+<div id="disclaimerGate" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(4,8,18,0.97);align-items:center;justify-content:center;padding:24px;box-sizing:border-box;">
+  <div style="max-width:480px;width:100%;background:#0b1221;border:1px solid rgba(245,166,35,0.35);border-radius:6px;padding:32px 28px;font-family:'SF Mono','Fira Code','Courier New',monospace;">
+    <div style="font-size:13px;font-weight:900;letter-spacing:2.5px;color:#f5a623;margin-bottom:18px;text-align:center;">⚠ IMPORTANT NOTICE</div>
+    <div style="font-size:11px;color:rgba(200,215,240,0.75);line-height:1.75;margin-bottom:24px;">
+      <strong style="color:#f5a623;">NOT FINANCIAL ADVICE.</strong> Tradolux provides AI-generated market analysis for informational purposes only. AI outputs may contain errors, hallucinations, or outdated information.<br><br>
+      This platform is <strong style="color:#e8eaf0;">not a broker, investment adviser, or trading system</strong>. Nothing on this platform constitutes a recommendation to buy or sell any security.<br><br>
+      <strong style="color:#e8eaf0;">All trading decisions are solely your own.</strong> You accept full responsibility for any action taken based on information provided here. Past performance does not guarantee future results. You may lose money.
+    </div>
+    <button id="disclaimerGateBtn" style="width:100%;background:#1a7a6e;color:#e8f5f2;border:none;padding:14px;border-radius:4px;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:1.5px;cursor:pointer;">I UNDERSTAND — CONTINUE TO TRADOLUX</button>
   </div>
 </div>
 </body>
