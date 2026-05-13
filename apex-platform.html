@@ -505,18 +505,23 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   margin-bottom: 6px;
 }
 
-/* ═══ MOBILE — Terminal Dark ═══ */
-/* Design: full-bleed chart, monospace, #0ecb81 green accent, overlay toolbar */
+/* ══════════════════════════════════════════════════════════════
+   MOBILE  — Smart Panel (M3)
+   Layout: Topbar 44px | Price+TF strip 40px | Chart 48dvh | AI Panel flex | Nav 48px
+   Fix: AI intelligence visible without any tap. Entry/SL always on screen.
+   ══════════════════════════════════════════════════════════════ */
 
 :root {
-  --mob-bg: #060c1a;
-  --mob-surface: #070e20;
-  --mob-border: rgba(14,203,129,0.12);
-  --mob-green: #0ecb81;
-  --mob-green-dim: rgba(14,203,129,0.15);
-  --mob-text: #e8edf8;
-  --mob-text-dim: rgba(200,215,240,0.45);
-  --mob-font: 'SF Mono','Fira Code','Courier New',monospace;
+  --mob-bg:        #060c1a;
+  --mob-surface:   #070e20;
+  --mob-border:    rgba(14,203,129,0.12);
+  --mob-green:     #0ecb81;
+  --mob-green-dim: rgba(14,203,129,0.12);
+  --mob-gold:      #c9a84c;
+  --mob-red:       #f6465d;
+  --mob-text:      #e8edf8;
+  --mob-text-dim:  rgba(200,215,240,0.45);
+  --mob-font:      'SF Mono','Fira Code','Courier New',monospace;
 }
 
 #mobilePanelBar { display: none; }
@@ -524,281 +529,171 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
 @media (max-width: 768px) {
 
-  /* ── Reset layout ── */
-  .app-body { flex-direction: column !important; height: auto !important; background: var(--mob-bg) !important; }
+  /* ── App shell: full-height flex column ── */
+  html, body { height: 100dvh !important; overflow: hidden !important; }
+  .app { height: 100dvh !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+  .app-body { flex: 1 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; background: var(--mob-bg) !important; }
+
+  /* ── Hide desktop-only panels ── */
   .left-panel, .right-panel { display: none !important; }
   .main-grid > aside { display: none !important; }
-  .main-grid { grid-template-columns: 1fr !important; display: block !important; background: var(--mob-bg) !important; }
-  .chart-panel { width: 100vw !important; min-width: 0 !important; overflow: visible !important; position: relative !important; background: var(--mob-bg) !important; }
+  .main-grid { grid-template-columns: 1fr !important; display: flex !important; flex-direction: column !important; flex: 1 !important; overflow: hidden !important; background: var(--mob-bg) !important; }
+  .chart-panel { display: flex !important; flex-direction: column !important; overflow: hidden !important; flex: 1 !important; background: var(--mob-bg) !important; }
   .bottom-panel { display: none !important; }
 
-  /* ── Topbar: 44px compact strip ── */
+  /* ── Topbar: 44px ── */
   .topbar {
     height: 44px !important;
     min-height: 44px !important;
     padding: 0 10px !important;
     flex-wrap: nowrap !important;
     gap: 8px !important;
+    flex-shrink: 0 !important;
     background: var(--mob-surface) !important;
     border-bottom: 1px solid var(--mob-border) !important;
   }
-  .topbar .brand { font-family: var(--mob-font) !important; font-size: 14px !important; font-weight: 700 !important; color: var(--mob-green) !important; letter-spacing: 0.04em !important; }
+  .topbar .brand { font-family: var(--mob-font) !important; font-size: 13px !important; font-weight: 700 !important; color: var(--mob-green) !important; letter-spacing: 0.06em !important; }
   .brand-sub { display: none !important; }
   .ticker-strip { display: none !important; }
   #planBadge { display: none !important; }
-  #connPill {
-    font-family: var(--mob-font) !important;
-    font-size: 9px !important;
-    padding: 2px 6px !important;
-    border-radius: 2px !important;
-    border: 1px solid var(--mob-green) !important;
-    color: var(--mob-green) !important;
-    background: var(--mob-green-dim) !important;
-    letter-spacing: 0.05em !important;
-  }
-  .topbar .search { flex: 1 !important; max-width: 150px !important; }
-  .search input {
-    width: 100% !important;
-    font-family: var(--mob-font) !important;
-    font-size: 11px !important;
-    padding: 5px 8px !important;
-    background: rgba(255,255,255,0.04) !important;
-    border: 1px solid rgba(255,255,255,0.08) !important;
-    color: var(--mob-text) !important;
-    border-radius: 3px !important;
-  }
+  #connPill { font-family: var(--mob-font) !important; font-size: 8px !important; padding: 2px 5px !important; border-radius: 2px !important; border: 1px solid rgba(14,203,129,0.3) !important; color: var(--mob-green) !important; background: var(--mob-green-dim) !important; letter-spacing: 0.05em !important; }
+  .topbar .search { flex: 1 !important; max-width: 140px !important; }
+  .search input { width: 100% !important; font-family: var(--mob-font) !important; font-size: 10px !important; padding: 4px 8px !important; background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.08) !important; color: var(--mob-text) !important; border-radius: 3px !important; }
   .search input::placeholder { color: rgba(255,255,255,0.2) !important; }
 
-  /* ── Chart: full viewport ── */
-  #chartContainer {
-    width: 100vw !important;
-    height: calc(100dvh - 44px - 48px) !important;
-    flex: none !important;
-    position: relative !important;
-    overflow: hidden !important;
-    background: var(--mob-bg) !important;
-  }
-  .chart-canvas-wrap { height: 100% !important; }
-
-  /* ── Disclaimer: one-line overlay, auto-dismissed feel ── */
+  /* ── Disclaimer: one-line compact strip ── */
   .session-disclaimer {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; right: 0 !important;
-    z-index: 10 !important;
-    background: rgba(6,12,26,0.92) !important;
-    padding: 4px 10px !important;
-    font-family: var(--mob-font) !important;
-    font-size: 9px !important;
-    color: rgba(255,255,255,0.35) !important;
-    line-height: 1.3 !important;
-    border-bottom: 1px solid rgba(14,203,129,0.1) !important;
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
-  }
-  .session-disclaimer strong { color: rgba(255,160,60,0.8) !important; font-size: 9px !important; }
-  .session-disclaimer .dismiss-btn {
-    flex-shrink: 0 !important;
-    margin-left: auto !important;
-    padding: 2px 8px !important;
+    padding: 3px 10px !important;
     font-family: var(--mob-font) !important;
     font-size: 8px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.06em !important;
-    color: var(--mob-green) !important;
-    background: var(--mob-green-dim) !important;
-    border: 1px solid rgba(14,203,129,0.3) !important;
-    border-radius: 2px !important;
-    white-space: nowrap !important;
+    color: rgba(255,255,255,0.25) !important;
+    background: rgba(6,12,26,0.95) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+    flex-shrink: 0 !important;
+    line-height: 1.2 !important;
+    position: static !important;
   }
+  .session-disclaimer strong { color: rgba(255,160,60,0.7) !important; font-size: 8px !important; }
+  .session-disclaimer .dismiss-btn { margin-left: auto !important; padding: 1px 7px !important; font-family: var(--mob-font) !important; font-size: 7px !important; font-weight: 700 !important; letter-spacing: 0.06em !important; color: var(--mob-green) !important; background: var(--mob-green-dim) !important; border: 1px solid rgba(14,203,129,0.25) !important; border-radius: 2px !important; flex-shrink: 0 !important; }
 
-  /* ── Toolbar: floating two-row overlay ── */
+  /* ── Toolbar: STATIC compact price+TF strip (M3: sits above chart, not overlay) ── */
   .chart-toolbar {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; right: 0 !important;
-    z-index: 20 !important;
-    background: rgba(6,12,26,0.88) !important;
-    border-bottom: 1px solid var(--mob-border) !important;
+    position: static !important;
+    display: flex !important;
     flex-direction: column !important;
     flex-wrap: nowrap !important;
     align-items: flex-start !important;
-    gap: 2px !important;
-    padding: 5px 8px 4px !important;
-    height: 72px !important;
+    gap: 3px !important;
+    padding: 4px 8px 3px !important;
+    height: auto !important;
+    min-height: 60px !important;
+    max-height: 64px !important;
+    background: var(--mob-surface) !important;
+    border-bottom: 1px solid var(--mob-border) !important;
     overflow: hidden !important;
-    scrollbar-width: none !important;
-  }
-  .chart-toolbar::-webkit-scrollbar { display: none; }
-
-  /* Price row */
-  .sym-badge {
-    display: flex !important;
-    align-items: baseline !important;
-    gap: 8px !important;
-    flex-shrink: 0 !important;
-    white-space: nowrap !important;
-  }
-  .sym-name {
-    font-family: var(--mob-font) !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.08em !important;
-    color: rgba(255,255,255,0.6) !important;
-  }
-  .sym-px {
-    font-family: var(--mob-font) !important;
-    font-size: 22px !important;
-    font-weight: 700 !important;
-    color: var(--mob-text) !important;
-    letter-spacing: -0.5px !important;
-    line-height: 1 !important;
-  }
-  .sym-chg {
-    font-family: var(--mob-font) !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    padding: 2px 6px !important;
-    border-radius: 2px !important;
-  }
-  .sym-chg.up   { color: var(--mob-green) !important; background: var(--mob-green-dim) !important; }
-  .sym-chg.down { color: #f6465d !important; background: rgba(246,70,93,0.1) !important; }
-  #symHi, #symLo { display: none !important; }
-
-  /* TF button row */
-  #intradayGroup, #periodGroup {
-    display: inline-flex !important;
-    border: none !important;
-    gap: 2px !important;
     flex-shrink: 0 !important;
   }
-  #intradayGroup .tf-btn, #periodGroup .tf-btn {
-    font-family: var(--mob-font) !important;
-    font-size: 10px !important;
-    font-weight: 600 !important;
-    padding: 2px 7px !important;
-    border: 1px solid rgba(255,255,255,0.07) !important;
-    border-radius: 2px !important;
-    background: rgba(255,255,255,0.03) !important;
-    color: rgba(255,255,255,0.3) !important;
-    white-space: nowrap !important;
-    letter-spacing: 0.02em !important;
-    transition: color 0.1s, background 0.1s !important;
-  }
-  #intradayGroup .tf-btn.active, #periodGroup .tf-btn.active {
-    background: var(--mob-green) !important;
-    color: #060c1a !important;
-    border-color: var(--mob-green) !important;
-    font-weight: 700 !important;
-  }
-  #intradayGroup .tf-btn:active, #periodGroup .tf-btn:active {
-    transform: scale(0.96) !important;
-  }
-
-  /* TF row wrapper — inline flex row */
-  .chart-toolbar > .spacer { display: none !important; }
-  #themeGroup, #layout1, #layout2, #layout4, #resetView, #advancedPeriodBtn { display: none !important; }
-  #alertBtn {
-    font-family: var(--mob-font) !important;
-    font-size: 9px !important;
-    font-weight: 700 !important;
-    padding: 2px 8px !important;
-    border-radius: 2px !important;
-    letter-spacing: 0.05em !important;
-    border: 1px solid rgba(255,255,255,0.07) !important;
-    color: rgba(255,255,255,0.35) !important;
-    background: rgba(255,255,255,0.03) !important;
-    flex-shrink: 0 !important;
-  }
-  #indBtn {
-    font-family: var(--mob-font) !important;
-    font-size: 9px !important;
-    font-weight: 700 !important;
-    padding: 2px 8px !important;
-    border-radius: 2px !important;
-    letter-spacing: 0.05em !important;
-    border: 1px solid rgba(255,255,255,0.07) !important;
-    color: rgba(255,255,255,0.35) !important;
-    background: rgba(255,255,255,0.03) !important;
-    flex-shrink: 0 !important;
-  }
-
-  /* Offset chart canvas below toolbar */
-  .chart-canvas { margin-top: 72px !important; }
+  .chart-canvas { margin-top: 0 !important; }
   canvas#chart   { margin-top: 0 !important; }
 
-  /* ── Mobile panel bar — Terminal Dark nav ── */
+  /* Price row */
+  .sym-badge { display: flex !important; align-items: baseline !important; gap: 6px !important; flex-shrink: 0 !important; white-space: nowrap !important; }
+  .sym-name  { font-family: var(--mob-font) !important; font-size: 11px !important; font-weight: 700 !important; letter-spacing: 0.06em !important; color: rgba(255,255,255,0.55) !important; }
+  .sym-px    { font-family: var(--mob-font) !important; font-size: 20px !important; font-weight: 700 !important; color: var(--mob-text) !important; letter-spacing: -0.5px !important; line-height: 1 !important; }
+  .sym-chg   { font-family: var(--mob-font) !important; font-size: 10px !important; font-weight: 700 !important; padding: 1px 5px !important; border-radius: 2px !important; }
+  .sym-chg.up   { color: var(--mob-green) !important; background: var(--mob-green-dim) !important; }
+  .sym-chg.down { color: var(--mob-red) !important; background: rgba(246,70,93,0.1) !important; }
+  #symHi, #symLo { display: none !important; }
+
+  /* TF row: all buttons single horizontal scroll */
+  #intradayGroup, #periodGroup { display: inline-flex !important; border: none !important; gap: 2px !important; flex-shrink: 0 !important; }
+  #intradayGroup .tf-btn, #periodGroup .tf-btn {
+    font-family: var(--mob-font) !important; font-size: 9px !important; font-weight: 600 !important;
+    padding: 2px 6px !important; border: 1px solid rgba(255,255,255,0.07) !important;
+    border-radius: 2px !important; background: rgba(255,255,255,0.03) !important;
+    color: rgba(255,255,255,0.3) !important; white-space: nowrap !important; letter-spacing: 0.02em !important;
+  }
+  #intradayGroup .tf-btn.active, #periodGroup .tf-btn.active {
+    background: var(--mob-gold) !important; color: #060c1a !important;
+    border-color: var(--mob-gold) !important; font-weight: 700 !important;
+  }
+  .chart-toolbar > .spacer { display: none !important; }
+  #themeGroup, #layout1, #layout2, #layout4, #resetView, #advancedPeriodBtn { display: none !important; }
+  #alertBtn, #indBtn { font-family: var(--mob-font) !important; font-size: 8px !important; font-weight: 700 !important; padding: 1px 6px !important; border-radius: 2px !important; letter-spacing: 0.04em !important; border: 1px solid rgba(255,255,255,0.06) !important; color: rgba(255,255,255,0.3) !important; background: rgba(255,255,255,0.02) !important; flex-shrink: 0 !important; }
+
+  /* ── Chart: 48dvh — the key ratio that makes Smart Panel work ── */
+  #chartContainer {
+    width: 100vw !important;
+    height: 48dvh !important;
+    flex: none !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    background: var(--mob-bg) !important;
+    display: block !important;
+  }
+  .chart-canvas-wrap { height: 100% !important; }
+
+  /* ── Mobile nav bar — fixed at bottom ── */
   #mobilePanelBar {
     display: flex !important;
     position: fixed !important;
     bottom: 0 !important; left: 0 !important; right: 0 !important;
     height: 48px !important;
-    background: var(--mob-surface) !important;
+    background: #040810 !important;
     border-top: 1px solid var(--mob-border) !important;
     z-index: 200 !important;
     justify-content: space-around !important;
     align-items: center !important;
   }
   .mob-panel-btn {
-    flex: 1 !important;
-    padding: 10px 4px 8px !important;
-    font-family: var(--mob-font) !important;
-    font-size: 9px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.07em !important;
-    text-transform: uppercase !important;
-    color: rgba(255,255,255,0.2) !important;
-    background: none !important;
-    border: none !important;
-    border-top: 2px solid transparent !important;
-    cursor: pointer !important;
-    white-space: nowrap !important;
-    transition: color 0.12s, border-color 0.12s !important;
+    flex: 1 !important; padding: 10px 4px 8px !important;
+    font-family: var(--mob-font) !important; font-size: 8px !important; font-weight: 700 !important;
+    letter-spacing: 0.07em !important; text-transform: uppercase !important;
+    color: rgba(255,255,255,0.2) !important; background: none !important; border: none !important;
+    border-top: 2px solid transparent !important; cursor: pointer !important; white-space: nowrap !important;
+    transition: color 0.1s, border-color 0.1s !important;
   }
-  .mob-panel-btn.active {
-    color: var(--mob-green) !important;
-    border-top-color: var(--mob-green) !important;
-  }
+  .mob-panel-btn.active { color: var(--mob-green) !important; border-top-color: var(--mob-green) !important; }
   .mob-panel-btn:active { transform: scale(0.95) !important; }
 
-  /* ── Mobile panel content: Terminal Dark agents ── */
+  /* ── Smart Panel: STATIC position, flows below chart, fills remaining space ── */
   #mobilePanel {
-    display: block !important;
-    position: fixed !important;
-    bottom: 48px !important; left: 0 !important; right: 0 !important;
-    height: 48vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: static !important;
+    flex: 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
     overflow-y: auto !important;
-    background: var(--mob-surface) !important;
+    background: rgba(5,9,20,0.99) !important;
     border-top: 1px solid var(--mob-border) !important;
-    z-index: 199 !important;
     -webkit-overflow-scrolling: touch !important;
     font-family: var(--mob-font) !important;
+    padding-bottom: 48px !important;
   }
 
-  /* Agent panel rows */
+  /* Agent rows in smart panel */
   #mobilePanel .agent-row,
-  #mobilePanel .panel-section { border-bottom: 1px solid rgba(255,255,255,0.04) !important; padding: 8px 12px !important; }
+  #mobilePanel .panel-section { border-bottom: 1px solid rgba(255,255,255,0.04) !important; padding: 7px 12px !important; }
   #mobilePanel .agent-name,
   #mobilePanel h3, #mobilePanel h4 {
-    font-family: var(--mob-font) !important;
-    font-size: 9px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
-    color: var(--mob-green) !important;
-    margin-bottom: 2px !important;
+    font-family: var(--mob-font) !important; font-size: 8px !important; font-weight: 700 !important;
+    letter-spacing: 0.08em !important; text-transform: uppercase !important;
+    color: var(--mob-green) !important; margin-bottom: 2px !important;
   }
   #mobilePanel p, #mobilePanel .agent-summary {
-    font-family: var(--mob-font) !important;
-    font-size: 11px !important;
-    color: rgba(200,215,240,0.6) !important;
-    line-height: 1.5 !important;
+    font-family: var(--mob-font) !important; font-size: 10px !important;
+    color: rgba(200,215,240,0.6) !important; line-height: 1.5 !important;
   }
 
-  /* Misc overrides */
+  /* Misc */
   .toolbar { overflow-x: auto !important; white-space: nowrap !important; scrollbar-width: none !important; padding: 4px 6px !important; }
   .toolbar::-webkit-scrollbar { display: none; }
-  .icon-btn { font-size: 10px !important; padding: 5px 8px !important; }
-  .tf-btn { font-size: 10px !important; padding: 5px 6px !important; }
+  .icon-btn { font-size: 10px !important; padding: 4px 7px !important; }
+  .tf-btn { font-size: 10px !important; padding: 4px 6px !important; }
   .tab-bar { display: none !important; }
   #tabContent { display: none !important; }
   .layout-2col, .layout-grid { grid-template-columns: 1fr !important; }
@@ -810,7 +705,77 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     .mob-panel-btn, #intradayGroup .tf-btn, #periodGroup .tf-btn { transition: none !important; }
   }
 }
-</style>
+
+/* ══════════════════════════════════════════════════════════════
+   DESKTOP — Focus (D2)
+   Layout: Topbar 44px | [Chart 72% | AI sidebar 28%] | Signals strip 36px
+   Fix: Chart maximized, AI always visible, single 30px TF row.
+   ══════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) {
+
+  /* ── Collapse main-grid from 3-col to 2-col (chart + AI) ── */
+  .main-grid { display: flex !important; flex-direction: row !important; flex: 1 !important; overflow: hidden !important; }
+
+  /* Hide left watchlist — accessed via SIGNALS tab in bottom strip */
+  .main-grid > aside:first-child,
+  .main-grid > section.panel:not(.chart-panel):first-of-type { display: none !important; }
+
+  /* ── Chart panel: 72% width ── */
+  .chart-panel {
+    flex: 0 0 72% !important;
+    width: 72% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  /* ── Right AI panel: always visible at 28% ── */
+  .main-grid > aside:last-child,
+  .main-grid > section.panel:not(.chart-panel):last-of-type {
+    display: flex !important;
+    flex: 0 0 28% !important;
+    width: 28% !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    border-left: 0.5px solid rgba(255,255,255,0.06) !important;
+  }
+
+  /* ── Single compact TF row — 30px instead of the current 2-row system ── */
+  .chart-toolbar {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 8px !important;
+    gap: 3px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    flex-shrink: 0 !important;
+  }
+  .chart-toolbar::-webkit-scrollbar { display: none; }
+  .chart-toolbar .sym-badge { display: none !important; }
+  #intradayGroup .tf-btn, #periodGroup .tf-btn { font-size: 9px !important; padding: 2px 6px !important; }
+  #alertBtn, #indBtn, #resetView { font-size: 9px !important; padding: 2px 7px !important; }
+  #themeGroup { display: none !important; }
+  #layout1, #layout2, #layout4 { display: none !important; }
+
+  /* ── Signals strip: always visible at bottom of chart column ── */
+  .bottom-panel {
+    display: flex !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    align-items: center !important;
+    padding: 0 10px !important;
+    gap: 10px !important;
+    background: rgba(3,7,18,0.99) !important;
+    border-top: 0.5px solid rgba(255,255,255,0.07) !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+  }
+}
+</style></style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="visibility:hidden">
@@ -1623,8 +1588,12 @@ function resizeCanvas() {
     const panelNavH  = 44; // #mobilePanelBar is position:fixed at bottom
     const disclaimerH = document.getElementById('sessionDisclaimer')?.offsetHeight || 0;
 
-    // Mobile: full viewport minus topbar (44px) and bottom nav (48px); 72px toolbar overlays chart
-    const chartH = Math.max(250, window.innerHeight - 44 - 48);
+    // M3 Smart Panel: chart is 48dvh; toolbar is static 64px above chart (not overlay)
+    const toolbarEl = document.querySelector('.chart-toolbar');
+    const toolbarH  = toolbarEl ? toolbarEl.offsetHeight : 64;
+    const disclaimerEl = document.getElementById('sessionDisclaimer');
+    const disclaimerH  = (disclaimerEl && disclaimerEl.style.display !== 'none') ? disclaimerEl.offsetHeight : 0;
+    const chartH = Math.max(200, Math.floor(window.innerHeight * 0.48));
     const chartW = window.innerWidth;
 
     // Force chart-area container
@@ -5822,7 +5791,7 @@ function init() {
     updateSymHeader();
   }, 60000);
   window.addEventListener('resize', resizeCanvas);
-  if (window.innerWidth <= 768) setTimeout(() => showMobilePanel('agents'), 800);
+  if (window.innerWidth <= 768) setTimeout(() => showMobilePanel('agents'), 100); // M3: panel visible immediately
 }
 
 function showAuthModal() {
