@@ -549,7 +549,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 #mobilePanelBar { display: none; }
 #mobilePanel    { display: none; }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
 
   /* ── Reset layout ── */
   .app-body { flex-direction: column !important; height: auto !important; background: var(--mob-bg) !important; }
@@ -900,6 +900,34 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   /* Pad chart so fixed panel bar doesn't cover bottom */
   .app { padding-bottom: 44px; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   DESKTOP — D2 Focus (min-width: 1025px)
+   Chart 72% · AI sidebar 28% · Single 30px TF row · Signals strip 36px
+   ══════════════════════════════════════════════════════════════ */
+@media (min-width: 1025px) {
+
+  /* 2-col layout: chart 72% + AI sidebar 28% */
+  .main-grid { display: flex !important; flex-direction: row !important; flex: 1 !important; overflow: hidden !important; }
+
+  /* Hide left watchlist — info in signals strip at bottom */
+  .main-grid > aside:first-child { display: none !important; }
+
+  /* Chart panel: 72% */
+  .chart-panel { flex: 0 0 72% !important; width: 72% !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+
+  /* AI sidebar: 28% always visible */
+  .main-grid > aside:last-child { display: flex !important; flex: 0 0 28% !important; width: 28% !important; flex-direction: column !important; overflow: hidden !important; border-left: 0.5px solid rgba(255,255,255,0.06) !important; }
+
+  /* Single 30px TF row */
+  .chart-toolbar { flex-direction: row !important; flex-wrap: nowrap !important; align-items: center !important; height: 30px !important; min-height: 30px !important; padding: 0 8px !important; gap: 3px !important; overflow-x: auto !important; scrollbar-width: none !important; flex-shrink: 0 !important; }
+  .chart-toolbar::-webkit-scrollbar { display: none; }
+  .chart-toolbar .sym-badge { display: none !important; }
+
+  /* Signals strip: always-on 36px bottom of chart column */
+  .bottom-panel { display: flex !important; height: 36px !important; min-height: 36px !important; align-items: center !important; padding: 0 10px !important; gap: 10px !important; background: rgba(3,7,18,0.99) !important; border-top: 0.5px solid rgba(255,255,255,0.07) !important; flex-shrink: 0 !important; overflow: hidden !important; }
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -5685,7 +5713,7 @@ function buildChartContext(paneIndex) {
     ? `AUTO-BALANCED (based on ${state.learnedWeights._meta.basedOnSignals} signals)`
     : 'using default weights (insufficient history)';
 
-  return `=== VECTA TRADE LIVE CONTEXT ===
+  return `=== TRADOLUX LIVE CONTEXT ===
 Symbol: ${sym} | Price: ${last.c.toFixed(2)} | Chg: ${p.chgPct >= 0 ? '+' : ''}${(p.chgPct || 0).toFixed(2)}%
 Timeframe: ${tf} | Range: ${range}
 ATR(14): ${atr ? atr.toFixed(2) : 'n/a'} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)}
@@ -6340,7 +6368,7 @@ bootApp();
 <div id="authModal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;">
   <div style="background:#0f1729;border:1px solid #1e2d45;border-radius:8px;padding:32px;width:100%;max-width:400px;font-family:monospace;">
     <div style="text-align:center;margin-bottom:24px;">
-      <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#1a7a6e;">VECTA TRADE</div>
+      <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#0ecb81;">Tradolux</div>
       <div style="font-size:11px;color:#5a6678;margin-top:4px;letter-spacing:1px;">AI TRADING TERMINAL</div>
     </div>
     <div id="authTabs" style="display:flex;margin-bottom:20px;border-bottom:1px solid #1e2d45;">
