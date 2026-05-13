@@ -598,13 +598,13 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   }
   .search input::placeholder { color: rgba(255,255,255,0.2) !important; }
 
-  /* ── Chart: full viewport ── */
+  /* ── Chart: fixed 48dvh so strip always visible on load ── */
   #chartContainer {
     width: 100vw !important;
-    height: calc(100dvh - 44px - 48px) !important;
+    height: 48dvh !important;
     flex: none !important;
     position: relative !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     background: var(--mob-bg) !important;
   }
   .chart-canvas-wrap { height: 100% !important; }
@@ -1740,10 +1740,8 @@ function resizeCanvas() {
     const panelNavH  = 44; // #mobilePanelBar is position:fixed at bottom
     const disclaimerH = document.getElementById('sessionDisclaimer')?.offsetHeight || 0;
 
-    const aiStripH   = document.getElementById('mobileAiStrip')?.offsetHeight || 0;
-    const availableH = window.innerHeight - topbarH - toolbarH - statusH - panelNavH - disclaimerH - aiStripH;
-    // M3: chart = 48vh, capped to available space
-    const chartH = Math.max(200, Math.min(Math.floor(window.innerHeight * 0.48), availableH));
+    // M3: chart always 48vh — never cap to availableH (strip fills the rest)
+    const chartH = Math.max(200, Math.floor(window.innerHeight * 0.48));
     const chartW = window.innerWidth;
 
     // Force chart-area container
@@ -1754,7 +1752,7 @@ function resizeCanvas() {
     const pane0 = state.panes[0];
     const cv0   = (pane0 && pane0.canvas) || canvas;
     const wrap  = cv0.parentElement;
-    if (wrap) wrap.style.cssText = `width:${chartW}px; height:${chartH}px; display:block; overflow:hidden;`;
+    if (wrap) wrap.style.cssText = `width:${chartW}px; height:${chartH}px; display:block; overflow:visible;`;
 
     cv0.width        = chartW * dpr;
     cv0.height       = chartH * dpr;
@@ -1959,6 +1957,7 @@ function renderChartForPane(pane, candles) {
   const TIME_H = 22;
   const VOL_H = indOn('volume', pane.chartState) ? 50 : 0;
   const SUB_H = pane.chartState.subPanel !== 'none' ? 80 : 0;
+  const topPad = 28; // headroom so candle wicks aren't clipped at the top
   const chartW = cw - AXIS_W;
   const chartH = ch - TIME_H - VOL_H - SUB_H;
 
@@ -1985,7 +1984,8 @@ function renderChartForPane(pane, candles) {
   minP += vshift; maxP += vshift;
 
   const candleW = chartW / pane.chartState.visibleCount;
-  const y = (p) => chartH * (1 - (p - minP) / (maxP - minP));
+  const drawH = chartH - topPad;
+  const y = (p) => topPad + drawH * (1 - (p - minP) / (maxP - minP));
   const xAt = (i) => (i - pane.chartState.visibleStart) * candleW + candleW / 2;
 
   // --- clear
@@ -4298,18 +4298,29 @@ ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
     const el = document.getElementById(loadingId);
     const assessBody = el?.querySelector('.assess-body');
     if (assessBody) assessBody.textContent = '';
-    await readClaudeStream(
-      r,
-      (_delta, acc) => {
-        if (assessBody) assessBody.textContent = acc;
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-      },
-      () => {
-        if (el) el.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer" style="margin-top:8px">⚠ AI-generated analysis. May contain errors or hallucinations. Not financial advice. Verify independently before acting.</div>`);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-      }
-    );
+    const disclaimer = `<div class="ai-response-disclaimer" style="margin-top:8px">⚠ AI-generated analysis. May contain errors or hallucinations. Not financial advice. Verify independently before acting.</div>`;
+    if (!r.body) {
+      // No ReadableStream (rare on some environments) — fall back to blocking JSON
+      const data = await r.json();
+      const text = data?.content?.[0]?.text || 'No content returned';
+      if (assessBody) assessBody.textContent = text;
+      if (el) el.insertAdjacentHTML('beforeend', disclaimer);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    } else {
+      await readClaudeStream(
+        r,
+        (_delta, acc) => {
+          if (assessBody) assessBody.textContent = acc;
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        },
+        () => {
+          if (el) el.insertAdjacentHTML('beforeend', disclaimer);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      );
+    }
   } catch(e) {
+    console.error('[INSTANT ASSESSMENT]', e);
     const el = document.getElementById(loadingId);
     if (el) el.querySelector('.assess-body').textContent = 'Error: ' + String(e);
   }
@@ -6023,8 +6034,8 @@ function init() {
     setTimeout(() => { resizeCanvas(); renderChart(); }, 800);
   }
   runAgents();
-  // auto-connect to Alpaca via server-side credentials
-  connectAlpaca();
+  // auto-connect to Alpaca — delayed 1500ms so mobile browsers complete initial render
+  setTimeout(connectAlpaca, 1500);
   // Notification permission requested only when user opts in via Settings
   // Initialize in-memory open signals from persisted history
   state.signals = state.signalHistory.filter(s => s.status === 'OPEN');
