@@ -3774,6 +3774,8 @@ function updateMobileAiStrip() {
     ${agentRows}
     ${sigHtml}`;
 
+  console.log('[ASSESS] strip rendered — mobileAssessBtn in DOM:', document.getElementById('mobileAssessBtn'));
+
   // Re-run resizeCanvas + renderChart after strip settles so cw/ch are correct.
   if (window.innerWidth <= 768) requestAnimationFrame(() => { resizeCanvas(); renderChart(); });
 }
@@ -4245,6 +4247,7 @@ function relativeTime(d) {
 }
 
 async function runInstantAssessment(paneIndex) {
+  console.log('[ASSESS] runInstantAssessment entered — pane:', paneIndex, 'session:', !!_session?.access_token);
   const _pi = paneIndex ?? state.activePane;
   const _p  = state.panes[_pi];
   const sym = _p?.symbol    || state.symbol;
@@ -4290,10 +4293,12 @@ ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
   chatMessages.innerHTML += `<div id="${loadingId}" class="msg ai" style="border-left:2px solid var(--gold);padding-left:8px;margin-bottom:10px"><div style="color:var(--gold);font-size:10px;letter-spacing:1px;margin-bottom:4px">⚡ INSTANT ASSESSMENT — ${sym} ${tf}</div><div class="assess-body" style="white-space:pre-wrap;line-height:1.6;font-size:11px">Analyzing...</div></div>`;
   chatMessages.scrollTop = chatMessages.scrollHeight;
   try {
+    console.log('[ASSESS] calling fetchClaude — token present:', !!(_session?.access_token), 'sym:', sym, 'tf:', tf);
     const r = await fetchClaude(
       { system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 800 },
       _session?.access_token || ''
     );
+    console.log('[ASSESS] fetchClaude returned — ok:', r?.ok, 'status:', r?.status, 'body:', !!r?.body);
     if (!r || !r.ok) throw new Error(r ? 'HTTP ' + r.status : 'No response');
     const el = document.getElementById(loadingId);
     const assessBody = el?.querySelector('.assess-body');
@@ -5543,7 +5548,11 @@ document.getElementById('assessBtn').addEventListener('click', () => requestInst
 
 // Event delegation for #mobileAssessBtn — survives innerHTML re-renders.
 document.addEventListener('click', e => {
-  if (e.target.closest('#mobileAssessBtn')) requestInstantAssessment(state.activePane);
+  console.log('[ASSESS] click event — target:', e.target.id || e.target.tagName, '| closest #mobileAssessBtn:', e.target.closest('#mobileAssessBtn'));
+  if (e.target.closest('#mobileAssessBtn')) {
+    console.log('[ASSESS] button matched — calling requestInstantAssessment, activePane:', state.activePane);
+    requestInstantAssessment(state.activePane);
+  }
 });
 
 // Instant Assessment acknowledgment gate.
@@ -5555,6 +5564,7 @@ function requestInstantAssessment(paneIndex) {
   paneIndex = paneIndex ?? state.activePane;
   const sym = state.panes?.[paneIndex]?.symbol || state.symbol;
   const candles = state.candles[sym];
+  console.log('[ASSESS] requestInstantAssessment — pane:', paneIndex, 'sym:', sym, 'candles:', candles?.length, 'acked:', sessionStorage.getItem('apex_assess_acked'));
   if (!candles || candles.length < 20) {
     toast('No chart data yet', 'bear');
     return;
