@@ -6390,6 +6390,28 @@ function showMobilePanel(panel) {
     renderTabContent();
     const tc = document.getElementById('tabContent');
     strip.innerHTML = '<div style="padding:8px;">' + (tc ? tc.innerHTML : '') + '</div>';
+
+  } else if (panel === 'settings') {
+    const email = _session?.user?.email || '—';
+    const plan = (typeof _userPlan !== 'undefined' ? _userPlan : 'free').toUpperCase();
+    const planBg = plan === 'ELITE' ? '#c9a84c' : plan === 'PRO' ? '#1a7a6e' : '#1a2748';
+    strip.innerHTML = `
+      <div style="padding:12px 8px;display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);font-weight:600;">ACCOUNT</div>
+        <div style="font-size:10px;color:rgba(200,215,240,0.6);font-family:monospace;word-break:break-all;">${email}</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:3px;font-family:monospace;color:#e8f5f2;background:${planBg};align-self:flex-start;">${plan}</div>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;display:flex;flex-direction:column;gap:6px;">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);font-weight:600;margin-bottom:2px;">UPGRADE PLAN</div>
+          <button onclick="startCheckout('price_1TU4wlRAfobZUNrFPmVgeONk')"
+            style="width:100%;background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:11px;font-weight:700;padding:10px;border:none;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
+            Pro — $79/mo
+          </button>
+          <button onclick="startCheckout('price_1TU4wuRAfobZUNrF7AhIbytY')"
+            style="width:100%;background:#0e1830;border:1px solid #1a7a6e;color:#1a7a6e;font-family:monospace;font-size:11px;font-weight:700;padding:10px;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
+            Elite — $149/mo
+          </button>
+        </div>
+      </div>`;
   }
 }
 
@@ -6464,6 +6486,7 @@ bootApp();
   <button class="mob-panel-btn" onclick="showMobilePanel('chat')">💬 CHAT</button>
   <button class="mob-panel-btn" onclick="showMobilePanel('watchlist')">📋 WATCHLIST</button>
   <button class="mob-panel-btn" onclick="showMobilePanel('signals')">📊 SIGNALS</button>
+  <button class="mob-panel-btn" onclick="showMobilePanel('settings')">⚙ MORE</button>
 </div>
 <div id="mobilePanel"></div>
 
