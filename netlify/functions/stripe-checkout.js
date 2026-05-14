@@ -1,8 +1,4 @@
-// netlify/functions/stripe-checkout.js
-// Creates a Stripe Checkout session with 14-day free trial.
-// Requires: STRIPE_SECRET_KEY, SUPABASE_ANON_KEY in Netlify env vars.
-
-const Stripe = require('stripe');
+// stripe-checkout.js — uses Stripe REST API directly, no npm dependency needed
 
 const SUPABASE_URL      = 'https://soghksmuocrgtttmnete.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ||
@@ -23,59 +19,62 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-function errResponse(msg, statusCode = 400) {
-  return {
-    statusCode,
-    headers: { ...cors, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ error: msg }),
-  };
+function err(msg, code = 400) {
+  return { statusCode: code, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: msg }) };
 }
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
-  if (event.httpMethod !== 'POST') return errResponse('Method not allowed', 405);
+  if (event.httpMethod !== 'POST') return err('Method not allowed', 405);
 
   // Verify Supabase JWT
-  const authHeader = event.headers['authorization'] || event.headers['Authorization'] || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!token) return errResponse('Unauthorized', 401);
+  const token = (event.headers['authorization'] || event.headers['Authorization'] || '').replace('Bearer ', '').trim();
+  if (!token) return err('Unauthorized', 401);
 
   const authCheck = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
   });
-  if (!authCheck.ok) return errResponse('Unauthorized', 401);
-
+  if (!authCheck.ok) return err('Unauthorized', 401);
   const user = await authCheck.json();
 
-  // Parse and validate request body
+  // Validate body
   let body;
-  try { body = JSON.parse(event.body || '{}'); }
-  catch (e) { return errResponse('Invalid JSON'); }
-
+  try { body = JSON.parse(event.body || '{}'); } catch { return err('Invalid JSON'); }
   const { priceId } = body;
-  if (!priceId || !VALID_PRICE_IDS.has(priceId)) return errResponse('Invalid price');
+  if (!priceId || !VALID_PRICE_IDS.has(priceId)) return err('Invalid price');
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey) return errResponse('Stripe not configured', 500);
+  if (!stripeKey) return err('Stripe not configured', 500);
 
-  try {
-    const stripe = new Stripe(stripeKey);
+  // Call Stripe REST API directly — no npm package needed
+  const params = new URLSearchParams();
+  params.append('mode', 'subscription');
+  params.append('line_items[0][price]', priceId);
+  params.append('line_items[0][quantity]', '1');
+  params.append('subscription_data[trial_period_days]', '14');
+  params.append('customer_email', user.email || '');
+  params.append('success_url', 'https://tradolux.com/app?upgraded=1');
+  params.append('cancel_url', 'https://tradolux.com/app');
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
-      subscription_data: { trial_period_days: 14 },
-      customer_email: user.email,
-      success_url: 'https://tradolux.com/app?upgraded=1',
-      cancel_url:  'https://tradolux.com/app',
-    });
+  const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${stripeKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params.toString(),
+  });
 
-    return {
-      statusCode: 200,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: session.url }),
-    };
-  } catch (e) {
-    return errResponse('Stripe error: ' + e.message, 502);
+  const session = await stripeRes.json();
+
+  if (!stripeRes.ok || !session.url) {
+    console.error('[stripe-checkout] Stripe error:', JSON.stringify(session));
+    return err('Stripe error: ' + (session.error?.message || 'Unknown'), 502);
   }
+
+  return {
+    statusCode: 200,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: session.url }),
+  };
 };
