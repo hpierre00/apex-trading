@@ -5557,7 +5557,17 @@ document.addEventListener('click', e => {
     || btn.textContent.includes('ASSESS');
   if (isAssess) {
     console.log('[ASSESS] button matched — id:', btn.id, 'text:', btn.textContent.trim().slice(0, 40));
-    requestInstantAssessment(state.activePane);
+    const origText = btn.textContent;
+    btn.textContent = '⚡ Analyzing...';
+    btn.style.opacity = '0.5';
+    btn.style.pointerEvents = 'none';
+    const reset = () => { btn.textContent = origText; btn.style.opacity = ''; btn.style.pointerEvents = ''; };
+    if (window.innerWidth <= 1024) {
+      runInstantAssessment(state.activePane).finally(reset);
+    } else {
+      requestInstantAssessment(state.activePane);
+      reset();
+    }
   }
 });
 
