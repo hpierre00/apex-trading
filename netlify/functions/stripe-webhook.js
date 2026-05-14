@@ -62,20 +62,49 @@ async function updateUserPlan(email, plan, status, customerId, subscriptionId, t
   else console.log(`[webhook] ${email} → ${plan}/${status}`);
 }
 
-// ── Resend email sender ───────────────────────────────────────────────────
+// ── SendGrid email sender ────────────────────────────────────────────────
+// scheduled_at: ISO string — if set, email is queued for later send
 async function sendEmail({ to, subject, html, scheduled_at }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) { console.warn('[email] RESEND_API_KEY not set — skipping'); return; }
-  const body = { from: 'Tradolux <hello@tradolux.com>', to: [to], subject, html };
-  if (scheduled_at) body.scheduled_at = scheduled_at;
-  const r = await fetch('https://api.resend.com/emails', {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) { console.warn('[email] SENDGRID_API_KEY not set — skipping'); return; }
+
+  const body = {
+    personalizations: [{ to: [{ email: to }] }],
+    from: { email: 'hello@tradolux.com', name: 'Tradolux' },
+    subject,
+    content: [{ type: 'text/html', value: html }],
+  };
+
+  // SendGrid supports send_at (unix timestamp) for scheduled emails
+  if (scheduled_at) {
+    const ts = Math.floor(new Date(scheduled_at).getTime() / 1000);
+    // SendGrid requires send_at to be within 72 hours — use batch scheduling for longer delays
+    body.send_at = ts;
+    body.batch_id = await createBatch(apiKey);
+  }
+
+  const r = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
+
+  if (!r.ok) {
+    const err = await r.text();
+    console.error('[email] SendGrid error:', err);
+  } else {
+    console.log(`[email] Sent to ${to} — ${scheduled_at ? 'scheduled '+scheduled_at : 'immediate'}`);
+  }
+}
+
+// Create a SendGrid batch ID for scheduled sends
+async function createBatch(apiKey) {
+  const r = await fetch('https://api.sendgrid.com/v3/mail/batch', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
+  });
   const d = await r.json();
-  if (!r.ok) console.error('[email] Resend error:', d);
-  else console.log(`[email] Sent to ${to} — ${scheduled_at ? 'scheduled '+scheduled_at : 'immediate'}`);
+  return d.batch_id || null;
 }
 
 // ── Email templates ───────────────────────────────────────────────────────
