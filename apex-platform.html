@@ -5563,7 +5563,8 @@ document.addEventListener('click', e => {
     btn.style.pointerEvents = 'none';
     const reset = () => { btn.textContent = origText; btn.style.opacity = ''; btn.style.pointerEvents = ''; };
     if (window.innerWidth <= 1024) {
-      runInstantAssessment(state.activePane).finally(reset);
+      showMobilePanel('chat');
+      setTimeout(() => runInstantAssessment(state.activePane).finally(reset), 80);
     } else {
       requestInstantAssessment(state.activePane);
       reset();
