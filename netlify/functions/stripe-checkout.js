@@ -43,7 +43,7 @@ exports.handler = async (event) => {
   const { priceId } = body;
   if (!priceId || !VALID_PRICE_IDS.has(priceId)) return err('Invalid price');
 
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  const stripeKey = process.env.STRIPE_SECRET;
   if (!stripeKey) return err('Stripe not configured', 500);
 
   // Call Stripe REST API directly — no npm package needed
