@@ -4247,8 +4247,8 @@ function relativeTime(d) {
   return Math.floor(sec / 86400) + 'd ago';
 }
 
-async function runInstantAssessment(paneIndex) {
-  console.log('[ASSESS] runInstantAssessment entered — pane:', paneIndex, 'session:', !!_session?.access_token);
+async function runInstantAssessment(paneIndex, targetEl) {
+  console.log('[ASSESS] runInstantAssessment entered — pane:', paneIndex, 'session:', !!_session?.access_token, 'targetEl:', targetEl?.id || targetEl?.className || null);
   const _pi = paneIndex ?? state.activePane;
   const _p  = state.panes[_pi];
   const sym = _p?.symbol    || state.symbol;
@@ -4289,10 +4289,20 @@ Format EXACTLY:
 
 ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
   const userMsg = `${sym} | Price: ${last.c.toFixed(2)} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)} | SMA20: ${sma20.toFixed(2)} (${trend}) | Structure: ${structure} | ATR: ${atr.toFixed(2)} | TF: ${tf}\nGive full structured assessment now.`;
-  const chatMessages = document.getElementById('chatMessages');
-  const loadingId = 'assess_' + Date.now();
-  chatMessages.innerHTML += `<div id="${loadingId}" class="msg ai" style="border-left:2px solid var(--gold);padding-left:8px;margin-bottom:10px"><div style="color:var(--gold);font-size:10px;letter-spacing:1px;margin-bottom:4px">⚡ INSTANT ASSESSMENT — ${sym} ${tf}</div><div class="assess-body" style="white-space:pre-wrap;line-height:1.6;font-size:11px">Analyzing...</div></div>`;
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  // On mobile targetEl is the live #mob-msgs container; on desktop fall back to #chatMessages
+  const container = targetEl || document.getElementById('chatMessages');
+  console.log('[ASSESS] container:', container?.id, 'in DOM:', document.contains(container));
+
+  const msgEl = document.createElement('div');
+  msgEl.style.cssText = 'border-left:2px solid var(--gold);padding-left:8px;margin-bottom:10px';
+  msgEl.innerHTML = `<div style="color:var(--gold);font-size:10px;letter-spacing:1px;margin-bottom:4px">⚡ INSTANT ASSESSMENT — ${sym} ${tf}</div><div class="assess-body" style="white-space:pre-wrap;line-height:1.6;font-size:11px">Analyzing...</div>`;
+  container.appendChild(msgEl);
+  container.scrollTop = container.scrollHeight;
+
+  const assessBody = msgEl.querySelector('.assess-body');
+  const disclaimer = `<div class="ai-response-disclaimer" style="margin-top:8px">⚠ AI-generated analysis. May contain errors or hallucinations. Not financial advice. Verify independently before acting.</div>`;
+
   try {
     console.log('[ASSESS] calling fetchClaude — token present:', !!(_session?.access_token), 'sym:', sym, 'tf:', tf);
     const r = await fetchClaude(
@@ -4301,34 +4311,30 @@ ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
     );
     console.log('[ASSESS] fetchClaude returned — ok:', r?.ok, 'status:', r?.status, 'body:', !!r?.body);
     if (!r || !r.ok) throw new Error(r ? 'HTTP ' + r.status : 'No response');
-    const el = document.getElementById(loadingId);
-    const assessBody = el?.querySelector('.assess-body');
-    if (assessBody) assessBody.textContent = '';
-    const disclaimer = `<div class="ai-response-disclaimer" style="margin-top:8px">⚠ AI-generated analysis. May contain errors or hallucinations. Not financial advice. Verify independently before acting.</div>`;
+    assessBody.textContent = '';
     if (!r.body) {
-      // No ReadableStream (rare on some environments) — fall back to blocking JSON
+      // No ReadableStream — fall back to blocking JSON
       const data = await r.json();
-      const text = data?.content?.[0]?.text || 'No content returned';
-      if (assessBody) assessBody.textContent = text;
-      if (el) el.insertAdjacentHTML('beforeend', disclaimer);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+      assessBody.textContent = data?.content?.[0]?.text || 'No content returned';
+      msgEl.insertAdjacentHTML('beforeend', disclaimer);
+      container.scrollTop = container.scrollHeight;
     } else {
       await readClaudeStream(
         r,
         (_delta, acc) => {
-          if (assessBody) assessBody.textContent = acc;
-          chatMessages.scrollTop = chatMessages.scrollHeight;
+          console.log('[ASSESS] token — inDOM:', document.contains(assessBody), 'len:', acc.length);
+          assessBody.textContent = acc;
+          container.scrollTop = container.scrollHeight;
         },
         () => {
-          if (el) el.insertAdjacentHTML('beforeend', disclaimer);
-          chatMessages.scrollTop = chatMessages.scrollHeight;
+          msgEl.insertAdjacentHTML('beforeend', disclaimer);
+          container.scrollTop = container.scrollHeight;
         }
       );
     }
   } catch(e) {
     console.error('[INSTANT ASSESSMENT]', e);
-    const el = document.getElementById(loadingId);
-    if (el) el.querySelector('.assess-body').textContent = 'Error: ' + String(e);
+    assessBody.textContent = 'Error: ' + String(e);
   }
 }
 
@@ -5564,7 +5570,11 @@ document.addEventListener('click', e => {
     const reset = () => { btn.textContent = origText; btn.style.opacity = ''; btn.style.pointerEvents = ''; };
     if (window.innerWidth <= 1024) {
       showMobilePanel('chat');
-      setTimeout(() => runInstantAssessment(state.activePane).finally(reset), 80);
+      setTimeout(() => {
+        const mobMsgs = document.getElementById('mob-msgs');
+        console.log('[ASSESS] mob-msgs in DOM:', document.contains(mobMsgs));
+        runInstantAssessment(state.activePane, mobMsgs).finally(reset);
+      }, 80);
     } else {
       requestInstantAssessment(state.activePane);
       reset();
