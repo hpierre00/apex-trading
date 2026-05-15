@@ -3202,17 +3202,25 @@ async function runAgents() {
    DATA SOURCE HELPERS — Finnhub + FRED via Netlify proxies
    ============================================================ */
 
-async function finnhub(path, params = {}) {
+async function finnhub(path, params = {}, _attempt = 0) {
   const cacheKey = path + JSON.stringify(params);
   const cached = state.finnhubCache.get(cacheKey);
   if (cached && Date.now() - cached.loadedAt < state.finnhubTTL) return cached.data;
+  const MAX_RETRIES = 3;
+  const BACKOFF_MS  = [0, 800, 2400]; // immediate, 0.8s, 2.4s
   try {
+    if (_attempt > 0) await new Promise(r => setTimeout(r, BACKOFF_MS[_attempt]));
     const r = await fetch('/.netlify/functions/finnhub-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({ path, params }),
     });
-    if (!r.ok) return null;
+    // Retry on 429 rate-limit or 5xx server errors
+    if ((r.status === 429 || r.status >= 500) && _attempt < MAX_RETRIES - 1) {
+      console.warn(`[finnhub] ${r.status} on ${path} — retry ${_attempt + 1}/${MAX_RETRIES - 1}`);
+      return finnhub(path, params, _attempt + 1);
+    }
+    if (!r.ok) { console.warn(`[finnhub] ${r.status} on ${path} — no retry`); return null; }
     const data = await r.json();
     state.finnhubCache.set(cacheKey, { data, loadedAt: Date.now() });
     if (state.finnhubCache.size > 200) {
@@ -3220,7 +3228,14 @@ async function finnhub(path, params = {}) {
       state.finnhubCache.delete(first);
     }
     return data;
-  } catch { return null; }
+  } catch (e) {
+    if (_attempt < MAX_RETRIES - 1) {
+      console.warn(`[finnhub] Network error on ${path} — retry ${_attempt + 1}:`, e.message);
+      return finnhub(path, params, _attempt + 1);
+    }
+    console.error(`[finnhub] Failed after ${MAX_RETRIES} attempts on ${path}:`, e.message);
+    return null;
+  }
 }
 
 async function fred(seriesId, limit = 30) {
@@ -3657,12 +3672,31 @@ function generateSignal(verdicts) {
     if (barsSince < tier.dedupBars || priceDrift < atr * 0.3) return;
   }
 
+  // Build explainable confidence breakdown — shows WHY, not just what %
+  const confDrivers = AGENTS
+    .map(a => {
+      const v = verdicts[a.id]; if (!v) return null;
+      const w = weightFor(a.id); const contribution = (v.score * w);
+      return { id: a.id, name: a.name, score: v.score, label: v.label, weight: w, contribution, reason: v.reason || '' };
+    })
+    .filter(Boolean)
+    .filter(d => Math.abs(d.contribution) > 0.01)
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+
+  const confExplanation = confDrivers.slice(0, 3).map(d => {
+    const direction = d.contribution > 0 ? '▲' : '▼';
+    const pct = Math.round(Math.abs(d.contribution) / (weightSum || 1) * 100);
+    return `${direction} ${d.name}: ${d.label} (${pct}% weight)`;
+  }).join(' · ');
+
   const signal = {
     id: 'sig_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
     sym: state.symbol,
     action, entry, stop, tp1, tp2, atr,
     timeframe: state.timeframe,
     confidence: parseFloat(confidence.toFixed(1)),
+    confExplanation,   // Human-readable: why this confidence, not just the number
+    confDrivers,       // Structured: agent-by-agent breakdown
     rr: parseFloat(((Math.abs(tp1 - entry)) / Math.abs(entry - stop)).toFixed(2)),
     timestamp: Date.now(),
     timestampStr: new Date().toLocaleString(),
@@ -4049,6 +4083,7 @@ function renderSignalsTab() {
       <div>
         <button class="signal-btn" onclick="copyIBKR('${s.id}')">COPY IBKR</button>
         <div class="signal-conf" style="margin-top:4px">CONF <span class="pct">${Math.round(s.confidence)}%</span> · RR ${s.rr}</div>
+        ${s.confExplanation ? `<div style="font-size:9px;color:var(--text-faint);margin-top:3px;line-height:1.4;font-family:monospace;">${s.confExplanation}</div>` : ''}
         ${s.status !== 'OPEN' ? `<div style="font-size:9px;color:var(--text-faint);margin-top:3px">MFE ${s.maxFavorable.toFixed(2)}R · MAE ${s.maxAdverse.toFixed(2)}R</div>` : ''}
       </div>
       <div class="signal-disclaimer">⚠ AI-generated analysis. Not a trade recommendation. Reference levels are analytical, not orders. Verify independently.</div>
@@ -4245,6 +4280,26 @@ function relativeTime(d) {
   if (sec < 3600) return Math.floor(sec / 60) + 'm ago';
   if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
   return Math.floor(sec / 86400) + 'd ago';
+}
+
+
+// ── Claude API helper — prefers edge function (no cold start), falls back to serverless ──
+async function fetchClaude(payload, token) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + (token || _session?.access_token || '')
+  };
+  // Try edge function first (zero cold start, global PoP)
+  try {
+    const r = await fetch('/api/claude-edge', { method: 'POST', headers, body: JSON.stringify(payload) });
+    if (r.ok || r.status === 401 || r.status === 400) return r; // Don't retry auth/bad request errors
+    // Edge function failed — fall through to serverless
+    console.warn('[fetchClaude] Edge function returned', r.status, '— falling back to serverless');
+  } catch (e) {
+    console.warn('[fetchClaude] Edge function unreachable:', e.message, '— falling back to serverless');
+  }
+  // Fallback: standard Netlify function
+  return fetch('/.netlify/functions/claude-proxy', { method: 'POST', headers, body: JSON.stringify(payload) });
 }
 
 async function runInstantAssessment(paneIndex, targetEl) {
@@ -6061,6 +6116,16 @@ function init() {
   renderWatchlist();
   renderPositions();
   renderTicker();
+  // Keep serverless functions warm — fire a lightweight HEAD ping every 8 minutes
+  // Edge function needs no warmup; serverless fallback benefits from this
+  (function warmFunctions() {
+    const warm = () => {
+      fetch('/.netlify/functions/claude-proxy', { method: 'OPTIONS' }).catch(() => {});
+      fetch('/.netlify/functions/finnhub-proxy', { method: 'OPTIONS' }).catch(() => {});
+    };
+    setTimeout(warm, 5000);                      // initial warm after 5s
+    setInterval(warm, 8 * 60 * 1000);            // re-warm every 8 minutes
+  })();
   updateSymHeader();
   renderTabs();
   updateMktStatus();
