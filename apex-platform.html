@@ -1382,6 +1382,7 @@ const TICKERS = ['AAPL','TSLA','NVDA','MSFT','GOOGL','AMZN','META','AMD','SPY','
 const state = {
   symbol: 'AAPL',
   timeframe: '1d',
+  macroBrief: null,
   range: '1Y',
   period: '1Y_1d', // tracks merged period selection
   customRange: { start: null, end: null },
@@ -3786,12 +3787,15 @@ function generateSignal(verdicts) {
     return `${direction} ${d.name}: ${d.label} (${pct}% weight)`;
   }).join(' · ');
 
+  const macroAdj = state.macroBrief?.signal_confidence_adjustment ?? 0;
+  const adjustedConfidence = Math.max(5, Math.min(99, confidence + macroAdj));
+
   const signal = {
     id: 'sig_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
     sym: state.symbol,
     action, entry, stop, tp1, tp2, atr,
     timeframe: state.timeframe,
-    confidence: parseFloat(confidence.toFixed(1)),
+    confidence: parseFloat(adjustedConfidence.toFixed(1)),
     confExplanation,   // Human-readable: why this confidence, not just the number
     confDrivers,       // Structured: agent-by-agent breakdown
     rr: parseFloat(((Math.abs(tp1 - entry)) / Math.abs(entry - stop)).toFixed(2)),
@@ -3922,6 +3926,15 @@ function updateMobileAiStrip() {
         <div><div style="color:var(--text-faint);font-size:8px;letter-spacing:1px">STOP</div><div style="color:var(--bear)">${latestSig.stop.toFixed(2)}</div></div>
         <div><div style="color:var(--text-faint);font-size:8px;letter-spacing:1px">TP1</div><div style="color:var(--bull)">${latestSig.tp1.toFixed(2)}</div></div>
       </div>
+      ${(() => {
+        const adj = state.macroBrief?.signal_confidence_adjustment;
+        const headline = state.macroBrief?.macro_headline;
+        if (!adj) return '';
+        const color = adj > 0 ? '#0ecb81' : '#f6465d';
+        const sign = adj > 0 ? '+' : '';
+        const hl = headline ? ' — ' + headline.slice(0, 60) : '';
+        return `<div style="color:${color};font-size:9px;margin-top:4px;font-family:monospace">Macro: ${sign}${adj}%${hl}</div>`;
+      })()}
     </div>` : `<div style="color:var(--text-faint);font-size:10px;font-family:monospace;padding-top:6px">⚡ Scanning for setups...</div>`;
 
   strip.innerHTML = `
@@ -4177,6 +4190,16 @@ function renderSignalsTab() {
           <div style="margin-top:4px;height:2px;background:var(--border)">
             <div style="height:2px;width:${pct}%;background:${color}"></div>
           </div>
+          ${(() => {
+            const adj = state.macroBrief?.signal_confidence_adjustment;
+            const headline = state.macroBrief?.macro_headline;
+            if (!adj && adj !== 0) return '';
+            if (adj === 0) return '';
+            const color = adj > 0 ? '#0ecb81' : '#f6465d';
+            const sign = adj > 0 ? '+' : '';
+            const hl = headline ? ' — ' + headline.slice(0, 60) + (headline.length > 60 ? '…' : '') : '';
+            return `<div style="color:${color};font-size:9px;margin-top:3px;font-family:monospace">Macro adjustment: ${sign}${adj}%${hl}</div>`;
+          })()}
         </div>`;
       }).join('') +
       ((_userPlan === 'free' && state.smartSignalHistory.length > _smartMax)
@@ -6700,6 +6723,18 @@ async function fetchUserPlan() {
   }
 }
 
+async function loadMacroBrief() {
+  try {
+    const { data, error } = await _supabase
+      .from('macro_daily_brief')
+      .select('*')
+      .order('date', { ascending: false })
+      .limit(1)
+      .single();
+    if (!error && data) state.macroBrief = data;
+  } catch {}
+}
+
 function applyPlanGating() {
   // ── Badge ──
   const badge = document.getElementById('planBadge');
@@ -7028,6 +7063,7 @@ async function bootApp() {
     hideAuthModal();
     init();
     await fetchUserPlan();
+    await loadMacroBrief();
     mobileRetry();
   } else {
     showAuthModal();
@@ -7038,6 +7074,7 @@ async function bootApp() {
         unsub.data.subscription.unsubscribe();
         init();
         await fetchUserPlan();
+        await loadMacroBrief();
         mobileRetry();
       }
     });
