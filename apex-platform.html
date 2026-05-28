@@ -3876,6 +3876,9 @@ function generateSignal(verdicts) {
         spread_quality: quality.label,
         time_bucket: bucket,
         macro_regime_score: state.macroBrief?.macro_regime_score ?? null,
+        macro_adjustment: state.macroBrief?.signal_confidence_adjustment ?? null,
+        book_imbalance_ratio: state.hftShield?.imbalanceRatio ?? null,
+        hft_shield_score: state.hftShield?.shieldScore ?? null,
       });
     } catch {}
   })();
