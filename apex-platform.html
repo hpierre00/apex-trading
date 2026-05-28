@@ -1449,6 +1449,7 @@ const state = {
   timeOfDaySpreadProfile: [],  // [{time:'09:30', avgSpreadPct, label}] — 78 5-min buckets
   hftShield: null,             // latest HFT shield result for current symbol
   hftShieldTimer: null,        // setInterval handle for polling
+  learnedWeightsDB: [],        // server-fetched approved weights [{condition_key, weight_multiplier}]
 };
 
 /* ============================================================
@@ -3814,7 +3815,16 @@ function generateSignal(verdicts) {
   }).join(' · ');
 
   const macroAdj = state.macroBrief?.signal_confidence_adjustment ?? 0;
-  const adjustedConfidence = Math.max(5, Math.min(99, confidence + macroAdj));
+  let adjustedConfidence = Math.max(5, Math.min(99, confidence + macroAdj));
+
+  // Apply server-fetched learned weight for current condition
+  const regimeScore = state.macroBrief?.macro_regime_score ?? 50;
+  const macroBucket = regimeScore >= 75 ? 'HIGH' : regimeScore >= 50 ? 'ELEVATED' : regimeScore >= 25 ? 'NEUTRAL' : 'LOW';
+  const currentRawSpread = (state.lastAsk[state.symbol] || 0) - (state.lastBid[state.symbol] || 0);
+  const spreadLabelForKey = currentRawSpread > 0 ? spreadQuality(state.symbol, currentRawSpread).label : 'NORMAL';
+  const conditionKey = `${macroBucket}_${spreadLabelForKey}_${getSpreadBucket()}`;
+  const learnedWeight = state.learnedWeightsDB?.find(w => w.condition_key === conditionKey)?.weight_multiplier ?? 1.0;
+  adjustedConfidence = Math.max(5, Math.min(99, Math.round(adjustedConfidence * learnedWeight)));
 
   const signal = {
     id: 'sig_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -6766,11 +6776,21 @@ async function loadMacroBrief() {
     const { data, error } = await _supabase
       .from('macro_daily_brief')
       .select('*')
-      .order('date', { ascending: false })
+      .order('trading_date', { ascending: false })
       .limit(1)
       .single();
     if (!error && data) state.macroBrief = data;
   } catch {}
+  // Load approved learned weights
+  try {
+    const { data: weights } = await _supabase
+      .from('learned_weights')
+      .select('condition_key, weight_multiplier')
+      .eq('approved', true);
+    state.learnedWeightsDB = Array.isArray(weights) ? weights : [];
+  } catch {
+    state.learnedWeightsDB = [];
+  }
 }
 
 function applyPlanGating() {
@@ -7236,7 +7256,7 @@ async function renderAdminDashboard() {
   let brief = state.macroBrief;
   if (!brief) {
     try {
-      const { data } = await _supabase.from('macro_daily_brief').select('*').order('date', { ascending: false }).limit(1).single();
+      const { data } = await _supabase.from('macro_daily_brief').select('*').order('trading_date', { ascending: false }).limit(1).single();
       if (data) { brief = data; state.macroBrief = data; }
     } catch {}
   }
@@ -7594,7 +7614,7 @@ async function adminRefreshBrief() {
         'Authorization': 'Bearer ' + (_session?.access_token || ''),
       },
     });
-    const { data } = await _supabase.from('macro_daily_brief').select('*').order('date', { ascending: false }).limit(1).single();
+    const { data } = await _supabase.from('macro_daily_brief').select('*').order('trading_date', { ascending: false }).limit(1).single();
     if (data) state.macroBrief = data;
     await renderAdminDashboard();
   } catch (e) {
