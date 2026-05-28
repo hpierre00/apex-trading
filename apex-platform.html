@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -908,17 +908,17 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
    ══════════════════════════════════════════════════════════════ */
 @media (min-width: 1025px) {
 
-  /* 2-col layout: chart 72% + AI sidebar 28% */
+  /* 3-col layout: watchlist 160px · chart fills middle · AI sidebar 260px */
   .main-grid { display: flex !important; flex-direction: row !important; flex: 1 !important; overflow: hidden !important; }
 
-  /* Hide left watchlist — info in signals strip at bottom */
-  .main-grid > aside:first-child { display: none !important; }
+  /* Watchlist: narrow persistent left panel */
+  .main-grid > aside:first-child { display: flex !important; flex: 0 0 160px !important; width: 160px !important; flex-direction: column !important; overflow: hidden !important; border-right: 0.5px solid rgba(255,255,255,0.06) !important; }
 
-  /* Chart panel: 72% */
-  .chart-panel { flex: 0 0 72% !important; width: 72% !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+  /* Chart panel: fills remaining space */
+  .chart-panel { flex: 1 !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
 
-  /* AI sidebar: 28% always visible */
-  .main-grid > aside:last-child { display: flex !important; flex: 0 0 28% !important; width: 28% !important; flex-direction: column !important; overflow: hidden !important; border-left: 0.5px solid rgba(255,255,255,0.06) !important; }
+  /* AI sidebar: fixed 260px */
+  .main-grid > aside:last-child { display: flex !important; flex: 0 0 260px !important; width: 260px !important; flex-direction: column !important; overflow: hidden !important; border-left: 0.5px solid rgba(255,255,255,0.06) !important; }
 
   /* Single 30px TF row */
   .chart-toolbar { flex-direction: row !important; flex-wrap: nowrap !important; align-items: center !important; height: 30px !important; min-height: 30px !important; padding: 0 8px !important; gap: 3px !important; overflow-x: auto !important; scrollbar-width: none !important; flex-shrink: 0 !important; }
@@ -931,6 +931,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/analytics.js"></script>
 </head>
 <body style="visibility:hidden">
 
@@ -1327,7 +1328,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         <input type="checkbox" id="notifOnSignal"> when new signals fire
       </label>
       <label style="display:flex;gap:10px;align-items:center;cursor:pointer;padding-left:20px">
-        <input type="checkbox" id="notifOnSmartSignal"> smart signals (power inflow, ORB, divergence, etc.)
+        <input type="checkbox" id="notifOnSmartSignal"> scenarios (power inflow, ORB, divergence, etc.)
       </label>
       <div style="display:flex;gap:10px;align-items:center">
         <label style="font-size:10px;color:var(--text-dim);min-width:50px">VOLUME</label>
@@ -1415,7 +1416,7 @@ const state = {
   alpaca: {
     ws: null,
     connected: false,
-    feed: 'iex',
+    feed: 'sip',
     reconnectAttempts: 0,
     reconnectTimer: null,
     state: 'disconnected', // 'disconnected' | 'connecting' | 'live' | 'degraded'
@@ -1435,6 +1436,8 @@ const state = {
   // UI theme. 'dark' is fully styled; 'light' and 'arctic' have CSS variable
   // definitions but still need hex sweep (v5.15b) to look correct.
   theme: localStorage.getItem('apex.theme') || 'dark',
+  userPlan: 'free',
+  yAxisLocked: false,  // true during tick updates; prevents Y-axis rescale on every price tick
 };
 
 /* ============================================================
@@ -1967,15 +1970,43 @@ function renderChartForPane(pane, candles) {
   const visible = candles.slice(start, end);
   if (!visible.length) return;
 
-  // --- price range
-  let minP = Infinity, maxP = -Infinity, maxV = 0;
-  for (const c of visible) {
-    if (c.l < minP) minP = c.l;
-    if (c.h > maxP) maxP = c.h;
-    if (c.v > maxV) maxV = c.v;
+  // --- price range (Y-axis lock + indicator-aware)
+  let minP_raw, maxP_raw, maxV = 0;
+  for (const c of visible) if (c.v > maxV) maxV = c.v;
+
+  if (state.yAxisLocked && pane._lockedMinP != null) {
+    // Tick update path: reuse last computed range so the Y-axis doesn't jump
+    minP_raw = pane._lockedMinP;
+    maxP_raw = pane._lockedMaxP;
+  } else {
+    // Full recompute: bar close, symbol change, zoom/pan
+    minP_raw = Infinity; maxP_raw = -Infinity;
+    for (const c of visible) {
+      if (c.l < minP_raw) minP_raw = c.l;
+      if (c.h > maxP_raw) maxP_raw = c.h;
+    }
+    // Expand to include VWAP band extremes so upper band is never clipped
+    if (indOn('vwapBands', pane.chartState) && visible.length) {
+      let _cTPV = 0, _cV = 0;
+      for (const c of visible) {
+        _cTPV += ((c.h + c.l + c.c) / 3) * c.v;
+        _cV   += c.v;
+        if (_cV > 0) {
+          const _vwap = _cTPV / _cV;
+          maxP_raw = Math.max(maxP_raw, _vwap * 1.035);
+          minP_raw = Math.min(minP_raw, _vwap * 0.965);
+        }
+      }
+    }
+    // 8% headroom above/below after indicator expansion
+    const pad = (maxP_raw - minP_raw) * 0.08 || 1;
+    minP_raw -= pad; maxP_raw += pad;
+    // Cache so the next tick-locked render reuses this range
+    pane._lockedMinP = minP_raw;
+    pane._lockedMaxP = maxP_raw;
   }
-  const pad = (maxP - minP) * 0.08 || 1;
-  minP -= pad; maxP += pad;
+
+  let minP = minP_raw, maxP = maxP_raw;
   const mid = (minP + maxP) / 2;
   const halfRange = (maxP - minP) / 2 / pane.chartState.priceScale;
   minP = mid - halfRange;
@@ -2785,6 +2816,7 @@ function attachPaneHandlers(paneIndex) {
       const barsPerPx = cs().visibleCount / lw;
       cs().visibleStart = d.startVS - dx * barsPerPx;
       cs().userHasPanned = true;
+      state.yAxisLocked = false;
     }
     renderChartForPane(pane, state.candles[pane.symbol] || []);
   });
@@ -2810,6 +2842,7 @@ function attachPaneHandlers(paneIndex) {
     cs().visibleStart += (cs().visibleCount - newCount) * frac;
     cs().visibleCount = newCount;
     cs().userHasPanned = true;
+    state.yAxisLocked = false;
     renderChartForPane(pane, state.candles[pane.symbol] || []);
   }, { passive: false });
 
@@ -2820,6 +2853,8 @@ function attachPaneHandlers(paneIndex) {
     cs().priceOffsetRatio = 0;
     cs().priceScale = 1;
     cs().userHasPanned = false;
+    state.yAxisLocked = false;
+    state.panes.forEach(p => { p._lockedMinP = null; p._lockedMaxP = null; });
     renderChartForPane(pane, cdls);
   });
 
@@ -3100,6 +3135,8 @@ async function selectSymbol(s) {
   const total = (state.candles[s] || []).length;
   chartState.visibleStart = Math.max(0, total - chartState.visibleCount);
   chartState.priceOffsetRatio = 0;
+  state.yAxisLocked = false;
+  state.panes.forEach(p => { p._lockedMinP = null; p._lockedMaxP = null; });
   updateSymHeader();
   renderWatchlist();
   renderChart();
@@ -3178,6 +3215,10 @@ async function runAgents() {
     el.querySelector('.agent-bar-fill').style.background = v.score > 0 ? 'var(--bull)' : 'var(--bear)';
     const verdictEl = el.querySelector('.agent-verdict');
     verdictEl.innerHTML = `${v.reason}${v.source ? `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">source: ${v.source}</div>` : ''}`;
+    if (_userPlan === 'free') {
+      verdictEl.style.cssText += ';filter:blur(4px);user-select:none;cursor:pointer;';
+      verdictEl.onclick = () => showUpgradeModal('AI Agent Detail', 'Starter');
+    }
   }
   if ((state.panes[state.activePane]?.symbol || state.symbol) !== sym) return;
   rebalanceAgentWeights();
@@ -3647,7 +3688,29 @@ function generateSignal(verdicts) {
   const weightSum = AGENTS.reduce((s, a) => s + Math.abs(weightFor(a.id)), 0) || 1;
   const total = AGENTS.reduce((s, a) => s + (verdicts[a.id]?.score || 0) * weightFor(a.id), 0);
   const confidence = (Math.abs(total) / weightSum) * 100;
-  if (confidence < tier.confThreshold) return;
+  if (confidence < tier.confThreshold) {
+    const sym = state.symbol;
+    const tf = state.timeframe;
+    const neutralKey = `${sym}:NEUTRAL`;
+    const prevNeutral = state.lastSignalPerSym[neutralKey];
+    const _nc = state.candles[sym];
+    if (_nc && (!prevNeutral || _nc.length - prevNeutral.candleIdx >= tier.dedupBars * 3)) {
+      state.lastSignalPerSym[neutralKey] = { candleIdx: _nc.length };
+      state.smartSignalHistory.unshift({
+        id: 'ss_' + Date.now(),
+        sym, tf,
+        label: '◆ NO CONVICTION',
+        desc: `Agent consensus ${confidence.toFixed(0)}% — below ${tier.confThreshold}% threshold for ${tf}. No directional edge detected.`,
+        kind: 'neutral',
+        strength: confidence / 100,
+        price: _nc.at(-1).c,
+        timestamp: Date.now(),
+      });
+      if (state.smartSignalHistory.length > 200) state.smartSignalHistory.length = 200;
+      if (state.activeTab === 'signals') renderSignalsTab();
+    }
+    return;
+  }
   const candles = state.candles[state.symbol];
   if (!candles || candles.length < 20) return;
 
@@ -3741,7 +3804,7 @@ function generateSignal(verdicts) {
   if (state.notif.notifyOnSignal) {
     notify({
       title: `⚡ ${signal.action} ${signal.sym}`,
-      body: `Entry ${signal.entry.toFixed(2)} · Stop ${signal.stop.toFixed(2)} · Conf ${Math.round(signal.confidence)}% · RR ${signal.rr}`,
+      body: `Entry ${signal.entry.toFixed(2)} · Stop ${signal.stop.toFixed(2)} · ${Math.round(signal.confidence)}% probability · RR ${signal.rr}`,
       kind: signal.action === 'BUY' ? 'signal-buy' : 'signal-sell',
       toastKind: signal.action === 'BUY' ? 'bull' : 'bear',
     });
@@ -3765,7 +3828,7 @@ function updateSignalsStrip() {
       <span style="color:var(--text-dim)">@ ${s.entry.toFixed(2)}</span>
       <span style="color:var(--bear)">SL ${s.stop.toFixed(2)}</span>
       <span style="color:var(--bull)">TP ${s.tp1.toFixed(2)}</span>
-      <span style="color:var(--text-faint)">${Math.round(s.confidence)}%</span>
+      <span style="color:var(--text-faint)">${Math.round(s.confidence)}% prob</span>
     </div>`;
   }).join('');
 }
@@ -3791,7 +3854,7 @@ function updateMobileAiStrip() {
     <div style="background:var(--panel-2,#0d1b2e);border:1px solid var(--border,#1a2748);border-left:3px solid ${latestSig.action==='BUY'?'var(--bull)':'var(--bear)'};padding:7px 10px;margin-top:8px;font-family:monospace">
       <div style="display:flex;justify-content:space-between;margin-bottom:5px">
         <span style="color:${latestSig.action==='BUY'?'var(--bull)':'var(--bear)'};font-weight:700;font-size:12px">${latestSig.action} ${latestSig.sym}</span>
-        <span style="color:var(--text-faint);font-size:9px">${Math.round(latestSig.confidence)}% · RR ${latestSig.rr}</span>
+        <span style="color:var(--text-faint);font-size:9px">${Math.round(latestSig.confidence)}% prob · RR ${latestSig.rr}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:10px">
         <div><div style="color:var(--text-faint);font-size:8px;letter-spacing:1px">ENTRY</div><div style="font-weight:600">${latestSig.entry.toFixed(2)}</div></div>
@@ -4003,8 +4066,8 @@ function renderSignalsTab() {
   if (_userPlan === 'free' || _userPlan === 'starter') {
     const upgradeHtml = `<div style="background:#1a2748;border:1px solid #1a7a6e;border-radius:4px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <div style="color:#e8f5f2;font-size:11px;font-weight:700;margin-bottom:2px;">Smart Signals — Pro Plan</div>
-        <div style="color:#4a5470;font-size:10px;">Upgrade to unlock 9 smart signal detectors, unlimited AI assessments, and all 5 agents.</div>
+        <div style="color:#e8f5f2;font-size:11px;font-weight:700;margin-bottom:2px;">Scenarios — Pro Plan</div>
+        <div style="color:#4a5470;font-size:10px;">Upgrade to unlock 9 scenario detectors, unlimited AI assessments, and all 5 agents.</div>
       </div>
       <a href="https://buy.stripe.com/dRm00l9hH1Q2fCqfbFb7y00" target="_blank"
          style="background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:10px;font-weight:700;padding:6px 14px;border-radius:3px;text-decoration:none;white-space:nowrap;margin-left:12px;">
@@ -4035,23 +4098,33 @@ function renderSignalsTab() {
     </div>
   `;
 
-  const smartSection = state.smartSignalHistory.slice(0, 20).map(s => {
-    const ago = relativeTime(new Date(s.timestamp));
-    const color = s.kind === 'bull' ? 'var(--bull)' : s.kind === 'bear' ? 'var(--bear)' : 'var(--text-dim)';
-    const pct = Math.round(s.strength * 100);
-    return `<div style="padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectSymbol('${s.sym}')">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="color:${color};font-weight:700;font-size:11px">${s.label}</span>
-        <span style="color:var(--text-faint);font-size:9px">${s.sym} · ${s.tf} · ${ago}</span>
-      </div>
-      <div style="color:var(--text-dim);font-size:10px;margin-top:3px;line-height:1.4">${s.desc}</div>
-      <div style="margin-top:4px;height:2px;background:var(--border)">
-        <div style="height:2px;width:${pct}%;background:${color}"></div>
-      </div>
-    </div>`;
-  }).join('') || '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:11px">No smart signals yet.</div>';
+  const _smartMax = (_userPlan === 'free') ? 1 : 20;
+  const smartSection = (state.smartSignalHistory.length === 0
+    ? '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:11px">No scenarios yet.</div>'
+    : state.smartSignalHistory.slice(0, 20).map((s, i) => {
+        const blurred = (_userPlan === 'free') && i >= _smartMax;
+        const ago = relativeTime(new Date(s.timestamp));
+        const color = s.kind === 'bull' ? 'var(--bull)' : s.kind === 'bear' ? 'var(--bear)' : 'var(--text-dim)';
+        const pct = Math.round(s.strength * 100);
+        const blurCss = blurred ? 'filter:blur(5px);user-select:none;pointer-events:none;' : '';
+        return `<div style="padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;${blurCss}" ${blurred ? '' : `onclick="selectSymbol('${s.sym}')"`}>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="color:${color};font-weight:700;font-size:11px">${s.label}</span>
+            <span style="color:var(--text-faint);font-size:9px">${s.sym} · ${s.tf} · ${ago}</span>
+          </div>
+          <div style="color:var(--text-dim);font-size:10px;margin-top:3px;line-height:1.4">${s.desc}</div>
+          <div style="margin-top:4px;height:2px;background:var(--border)">
+            <div style="height:2px;width:${pct}%;background:${color}"></div>
+          </div>
+        </div>`;
+      }).join('') +
+      ((_userPlan === 'free' && state.smartSignalHistory.length > _smartMax)
+        ? `<div onclick="showUpgradeModal('Scenarios','Starter')" style="padding:10px 12px;background:rgba(26,122,110,0.12);border:1px dashed #1a7a6e;cursor:pointer;text-align:center;font-size:10px;font-family:monospace;color:#1a7a6e;letter-spacing:0.5px;">
+             🔒 ${state.smartSignalHistory.length - _smartMax} more scenario${state.smartSignalHistory.length - _smartMax > 1 ? 's' : ''} — Starter plan unlocks all
+           </div>`
+        : ''));
 
-  const smartHeader = `<div style="padding:6px 12px;background:var(--panel-2);border-bottom:1px solid var(--border)"><span style="font-size:9px;letter-spacing:1.5px;color:var(--gold)">SMART SIGNALS</span></div>${smartSection}<div style="padding:6px 12px;background:var(--panel-2);border-bottom:1px solid var(--border)"><span style="font-size:9px;letter-spacing:1.5px;color:var(--gold)">AI SIGNALS</span></div>`;
+  const smartHeader = `<div style="padding:6px 12px;background:var(--panel-2);border-bottom:1px solid var(--border)"><span style="font-size:9px;letter-spacing:1.5px;color:var(--gold)">SCENARIOS</span></div>${smartSection}<div style="padding:6px 12px;background:var(--panel-2);border-bottom:1px solid var(--border)"><span style="font-size:9px;letter-spacing:1.5px;color:var(--gold)">AI SIGNALS</span></div>`;
 
   if (!filtered.length) {
     content.innerHTML = filterBar + smartHeader + `<div class="empty">No ${filter === 'all' ? '' : filter + ' '}signals yet. AI agents publish signals when confidence crosses threshold.</div>`;
@@ -4135,7 +4208,7 @@ Limit Price: ${s.entry.toFixed(2)}
 Stop Loss: ${s.stop.toFixed(2)}
 Take Profit 1: ${s.tp1.toFixed(2)}
 Take Profit 2: ${s.tp2.toFixed(2)}
-ATR: ${s.atr.toFixed(2)}  |  R:R ${s.rr}  |  Conf ${s.confidence}%
+ATR: ${s.atr.toFixed(2)}  |  R:R ${s.rr}  |  ${s.confidence}% probability
 Signal ID: ${s.id}
 Timeframe: ${s.timeframe}`;
   navigator.clipboard.writeText(text).then(() => toast('IBKR order ticket copied', 'bull'));
@@ -4282,7 +4355,6 @@ function relativeTime(d) {
   return Math.floor(sec / 86400) + 'd ago';
 }
 
-
 // ── Claude API helper — prefers edge function (no cold start), falls back to serverless ──
 async function fetchClaude(payload, token) {
   const headers = {
@@ -4302,6 +4374,70 @@ async function fetchClaude(payload, token) {
   return fetch('/.netlify/functions/claude-proxy', { method: 'POST', headers, body: JSON.stringify(payload) });
 }
 
+function renderAssessmentCards(parsed, sym, tf) {
+  const { regime, bullish, bearish, neutral } = parsed;
+  const neutralProb = Math.max(0, 100 - (bullish?.probability || 0) - (bearish?.probability || 0));
+  const scenarios = [
+    {
+      key: 'bullish', data: bullish,
+      label: '▲ BULLISH', border: '#0ecb81',
+      bg: 'rgba(14,203,129,0.07)', probColor: '#0ecb81',
+      prob: bullish?.probability ?? 0,
+    },
+    {
+      key: 'bearish', data: bearish,
+      label: '▼ BEARISH', border: '#f6465d',
+      bg: 'rgba(246,70,93,0.07)', probColor: '#f6465d',
+      prob: bearish?.probability ?? 0,
+    },
+    {
+      key: 'neutral', data: neutral,
+      label: '◆ NEUTRAL', border: '#5a6778',
+      bg: 'rgba(90,103,120,0.07)', probColor: '#8b95a7',
+      prob: neutralProb,
+    },
+  ];
+
+  const cards = scenarios.map(({ key, data, label, border, bg, probColor, prob }) => {
+    if (!data) return '';
+    const isNeutral = key === 'neutral';
+    const triggers = isNeutral
+      ? (data.conditions || [])
+      : (data.triggers || []);
+    const triggersLabel = isNeutral ? 'CONDITIONS TO WATCH' : 'TRIGGERS';
+    const triggerHtml = triggers.length
+      ? `<div style="font-size:9px;letter-spacing:1px;color:var(--text-faint,#5a6778);margin:6px 0 3px">${triggersLabel}</div>
+         <ul style="margin:0;padding-left:14px;font-size:10px;color:var(--text-dim,#8b95a7);line-height:1.55">
+           ${triggers.map(t => `<li>${t}</li>`).join('')}
+         </ul>`
+      : '';
+    const reasonHtml = isNeutral && data.reason
+      ? `<div style="font-size:10px;color:var(--text-dim,#8b95a7);line-height:1.5;margin-bottom:4px">${data.reason}</div>`
+      : '';
+    const invalidHtml = !isNeutral && data.invalidation != null
+      ? `<div style="margin-top:7px;font-size:10px;color:var(--text-faint,#5a6778)">Invalidation: <span style="color:${border};font-weight:700">${(+data.invalidation).toFixed(2)}</span></div>`
+      : '';
+    const probBar = `<div style="margin-top:7px;height:3px;background:var(--border,#1a2748);border-radius:2px">
+      <div style="height:3px;width:${prob}%;background:${border};border-radius:2px;transition:width 0.4s"></div>
+    </div>`;
+
+    return `<div style="background:${bg};border:1px solid ${border};border-radius:4px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+        <span style="color:${border};font-weight:700;font-size:11px;letter-spacing:0.5px">${label}</span>
+        <span style="color:${probColor};font-weight:700;font-size:12px">${prob}% probability</span>
+      </div>
+      ${reasonHtml}${triggerHtml}${invalidHtml}${probBar}
+    </div>`;
+  }).join('');
+
+  const regimeHtml = regime
+    ? `<div style="font-size:10px;color:var(--text-dim,#8b95a7);line-height:1.5;margin-bottom:10px;font-style:italic">${regime}</div>`
+    : '';
+
+  return `<div style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);margin-bottom:8px">⚡ INSTANT ASSESSMENT — ${sym} ${tf}</div>
+${regimeHtml}${cards}`;
+}
+
 async function runInstantAssessment(paneIndex, targetEl) {
   console.log('[ASSESS] runInstantAssessment entered — pane:', paneIndex, 'session:', !!_session?.access_token, 'targetEl:', targetEl?.id || targetEl?.className || null);
   const _pi = paneIndex ?? state.activePane;
@@ -4318,75 +4454,87 @@ async function runInstantAssessment(paneIndex, targetEl) {
   const sma20 = prev20.reduce((s, c) => s + c.c, 0) / 20;
   const trend = last.c > sma20 ? 'above SMA20 (bullish lean)' : 'below SMA20 (bearish lean)';
   const recentHighs = candles.slice(-10).map(c => c.h);
-  const recentLows = candles.slice(-10).map(c => c.l);
+  const recentLows  = candles.slice(-10).map(c => c.l);
   const higherHighs = recentHighs[recentHighs.length-1] > recentHighs[0];
-  const higherLows = recentLows[recentLows.length-1] > recentLows[0];
+  const higherLows  = recentLows[recentLows.length-1]  > recentLows[0];
   let structure = 'consolidating';
   if (higherHighs && higherLows) structure = 'higher highs, higher lows (uptrend)';
   else if (!higherHighs && !higherLows) structure = 'lower highs, lower lows (downtrend)';
-  const systemPrompt = `You are a professional intraday trading analyst for Tradolux terminal. Direct, structured, actionable. No disclaimers.
-Format EXACTLY:
 
-🧠 CURRENT READ
-[2-3 bullets: trend, structure, context]
+  const systemPrompt = `You are a professional trading analyst AI. Output ONLY a valid JSON object — no markdown, no code fences, no commentary before or after.
 
-🔴 BEST SHORT SETUP
-[trigger, entry zone, stop, targets — or "No valid setup — wait"]
+Return exactly this structure:
+{
+  "regime": "<one concise sentence describing overall market state>",
+  "bullish": {
+    "probability": <integer 0-100>,
+    "triggers": ["<specific trigger with price level>", "<trigger 2>", "<trigger 3>"],
+    "invalidation": <price as number>
+  },
+  "bearish": {
+    "probability": <integer 0-100>,
+    "triggers": ["<specific trigger with price level>", "<trigger 2>", "<trigger 3>"],
+    "invalidation": <price as number>
+  },
+  "neutral": {
+    "reason": "<why no clear directional edge>",
+    "conditions": ["<what to watch for 1>", "<what to watch for 2>"]
+  }
+}
 
-🔵 BEST LONG SETUP
-[trigger, entry zone, stop, targets — or "No valid setup — wait"]
+Rules:
+- bullish.probability + bearish.probability must sum to exactly 100
+- invalidation prices must be specific price levels (use ATR=${atr.toFixed(2)} for sizing)
+- triggers must reference actual price levels from the data provided
+- No disclaimers inside the JSON`;
 
-⚠️ WHAT NOT TO DO
-[2-3 specific mistakes to avoid right now]
-
-🗺️ KEY LEVEL MAP
-[4-5 price levels with labels]
-
-ATR=${atr.toFixed(2)}. Use ATR to size stops/targets. Be specific.`;
-  const userMsg = `${sym} | Price: ${last.c.toFixed(2)} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)} | SMA20: ${sma20.toFixed(2)} (${trend}) | Structure: ${structure} | ATR: ${atr.toFixed(2)} | TF: ${tf}\nGive full structured assessment now.`;
+  const userMsg = `${sym} | TF: ${tf} | Price: ${last.c.toFixed(2)} | ATR: ${atr.toFixed(2)} | 20-bar H: ${high20.toFixed(2)} L: ${low20.toFixed(2)} | SMA20: ${sma20.toFixed(2)} (${trend}) | Structure: ${structure}`;
 
   // On mobile targetEl is the live #mob-msgs container; on desktop fall back to #chatMessages
   const container = targetEl || document.getElementById('chatMessages');
   console.log('[ASSESS] container:', container?.id, 'in DOM:', document.contains(container));
 
   const msgEl = document.createElement('div');
-  msgEl.style.cssText = 'border-left:2px solid var(--gold);padding-left:8px;margin-bottom:10px';
-  msgEl.innerHTML = `<div style="color:var(--gold);font-size:10px;letter-spacing:1px;margin-bottom:4px">⚡ INSTANT ASSESSMENT — ${sym} ${tf}</div><div class="assess-body" style="white-space:pre-wrap;line-height:1.6;font-size:11px">Analyzing...</div>`;
+  msgEl.style.cssText = 'margin-bottom:12px';
+  msgEl.innerHTML = `<div style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);margin-bottom:8px">⚡ INSTANT ASSESSMENT — ${sym} ${tf}</div><div class="assess-body" style="font-size:10px;color:var(--text-faint,#5a6778);font-style:italic">Analyzing market structure...</div>`;
   container.appendChild(msgEl);
   container.scrollTop = container.scrollHeight;
 
   const assessBody = msgEl.querySelector('.assess-body');
-  const disclaimer = `<div class="ai-response-disclaimer" style="margin-top:8px">⚠ AI-generated analysis. May contain errors or hallucinations. Not financial advice. Verify independently before acting.</div>`;
+  const disclaimer = `<div class="ai-response-disclaimer" style="margin-top:8px">⚠ AI-generated analysis. Not financial advice. Verify independently before acting.</div>`;
 
   try {
     console.log('[ASSESS] calling fetchClaude — token present:', !!(_session?.access_token), 'sym:', sym, 'tf:', tf);
     const r = await fetchClaude(
-      { system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 800 },
+      { system: systemPrompt, messages: [{ role: 'user', content: userMsg }], max_tokens: 700 },
       _session?.access_token || ''
     );
     console.log('[ASSESS] fetchClaude returned — ok:', r?.ok, 'status:', r?.status, 'body:', !!r?.body);
     if (!r || !r.ok) throw new Error(r ? 'HTTP ' + r.status : 'No response');
-    assessBody.textContent = '';
+
+    let fullText = '';
     if (!r.body) {
-      // No ReadableStream — fall back to blocking JSON
       const data = await r.json();
-      assessBody.textContent = data?.content?.[0]?.text || 'No content returned';
-      msgEl.insertAdjacentHTML('beforeend', disclaimer);
-      container.scrollTop = container.scrollHeight;
+      fullText = data?.content?.[0]?.text || '';
     } else {
-      await readClaudeStream(
-        r,
-        (_delta, acc) => {
-          console.log('[ASSESS] token — inDOM:', document.contains(assessBody), 'len:', acc.length);
-          assessBody.textContent = acc;
-          container.scrollTop = container.scrollHeight;
-        },
-        () => {
-          msgEl.insertAdjacentHTML('beforeend', disclaimer);
-          container.scrollTop = container.scrollHeight;
-        }
+      await readClaudeStream(r,
+        (_delta, acc) => { fullText = acc; container.scrollTop = container.scrollHeight; },
+        () => {}
       );
     }
+
+    // Strip markdown fences the model may add despite instructions
+    const cleaned = fullText.trim()
+      .replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      msgEl.innerHTML = renderAssessmentCards(parsed, sym, tf) + disclaimer;
+    } catch (parseErr) {
+      console.warn('[ASSESS] JSON parse failed, showing raw text', parseErr);
+      assessBody.textContent = fullText;
+      msgEl.insertAdjacentHTML('beforeend', disclaimer);
+    }
+    container.scrollTop = container.scrollHeight;
   } catch(e) {
     console.error('[INSTANT ASSESSMENT]', e);
     assessBody.textContent = 'Error: ' + String(e);
@@ -4855,6 +5003,14 @@ async function addWatchlistFromModal() {
     toast(sym + ' already in watchlist', 'bear');
     return;
   }
+  const _wlLimit = (_userPlan === 'pro' || _userPlan === 'elite') ? Infinity
+                 : _userPlan === 'starter' ? 7 : 3;
+  if (state.watchlist.length >= _wlLimit) {
+    closeModal('addWatchModal');
+    const _nextPlan = _userPlan === 'free' ? 'Starter' : 'Pro';
+    showUpgradeModal(`Watchlist (${_userPlan} limit: ${_wlLimit} symbols)`, _nextPlan);
+    return;
+  }
   state.watchlist.unshift(sym);
   saveWatchlist();
   // If connected, subscribe WS to ticks/bars for this sym
@@ -5122,7 +5278,7 @@ async function runHealthChecks() {
     const r = await fetch('/.netlify/functions/alpaca-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
-      body: JSON.stringify({ path: '/v2/stocks/SPY/bars', params: { timeframe: '1Day', limit: 1, feed: 'iex' } }),
+      body: JSON.stringify({ path: '/v2/stocks/SPY/bars', params: { timeframe: '1Day', limit: 1, feed: 'sip' } }),
     });
     set('stRest', r.ok ? 'OK' : 'ERROR ' + r.status, r.ok ? 'var(--bull)' : 'var(--bear)');
   } catch {
@@ -5320,7 +5476,7 @@ async function fetchExtendedQuotes(symbols) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({
         path: '/v2/stocks/quotes/latest',
-        params: { symbols: symbols.join(','), feed: 'iex' },
+        params: { symbols: symbols.join(','), feed: 'sip' },
       }),
     });
     if (!r.ok) return null;
@@ -5358,7 +5514,7 @@ async function connectAlpaca() {
     return;
   }
 
-  state.alpaca.feed = creds.feed || 'iex';
+  state.alpaca.feed = creds.feed || 'sip';
   state.alpaca.state = 'connecting';
   updateConnPill();
 
@@ -5420,6 +5576,7 @@ async function connectAlpaca() {
         }
         state.alpaca.lastTickAt = Date.now();
         if (m.S === state.symbol) {
+          state.yAxisLocked = true;
           scheduleRender();
           scheduleHeaderUpdate();
         }
@@ -5440,6 +5597,8 @@ async function connectAlpaca() {
             if (arr.length > 5000) arr.shift();
           }
           if (m.S === state.symbol) {
+            state.yAxisLocked = false;
+            state.panes.forEach(p => { p._lockedMinP = null; p._lockedMaxP = null; });
             if (!chartState.userHasPanned && isMarketHours()) {
               const total = (state.candles[state.symbol] || []).length;
               if (total > 0) {
@@ -5563,7 +5722,7 @@ function updateConnPill() {
   if (s === 'live') {
     pill.className = 'conn-pill live';
     if (isUSMarketOpen()) {
-      label.textContent = 'LIVE (' + state.alpaca.feed.toUpperCase() + ')';
+      label.textContent = 'LIVE';
     } else {
       label.textContent = 'LIVE · MARKET CLOSED';
     }
@@ -5594,17 +5753,138 @@ document.getElementById('assessBtn').addEventListener('click', () => requestInst
    rendering inline disclaimers on signal cards and AI responses.
    ============================================================ */
 
+// First-run onboarding walkthrough — fires once after disclaimer accepted.
+// Spotlights key UI areas with a cutout overlay and bottom-anchored tooltip card.
+function initOnboardingWalkthrough() {
+  if (localStorage.getItem('tradolux_onboarded') === '1') return;
+
+  const isMobile = window.innerWidth <= 1024;
+  const steps = [];
+
+  if (isMobile) {
+    steps.push({
+      target: '#mobilePanelBar',
+      title: 'Navigate your terminal',
+      text: 'Use the bottom nav to switch between Agents, Chat, Watchlist, and Signals.',
+    });
+  }
+
+  steps.push(
+    {
+      target: '#chartContainer',
+      title: 'Your live chart',
+      text: 'Tap any timeframe button to switch views. Pan to scroll back in time. Pinch or use +/- to zoom.',
+    },
+    {
+      target: isMobile ? '#mobileAiStrip' : '.right-panel',
+      title: '5 AI agents, always watching',
+      text: 'Chart Intelligence, Sentiment, Fundamental, Risk, and Macro run simultaneously on every symbol you view.',
+    },
+    {
+      target: '#assessBtn, #mobileAssessBtn, [data-action="assess"]',
+      title: 'One tap for a full scenario analysis',
+      text: 'Tap ASSESS to get a bullish, bearish, and neutral scenario with probabilities and invalidation levels.',
+      cta: true,
+    }
+  );
+
+  const BG = 'rgba(0,0,0,0.75)';
+  const PAD = 8;
+
+  function el(css) {
+    const d = document.createElement('div');
+    d.style.cssText = css;
+    document.body.appendChild(d);
+    return d;
+  }
+
+  const oTop    = el(`position:fixed;left:0;right:0;top:0;z-index:99990;pointer-events:all;background:${BG};`);
+  const oBottom = el(`position:fixed;left:0;right:0;bottom:0;z-index:99990;pointer-events:all;background:${BG};`);
+  const oLeft   = el(`position:fixed;z-index:99990;pointer-events:all;background:${BG};`);
+  const oRight  = el(`position:fixed;z-index:99990;pointer-events:all;background:${BG};`);
+  const ring    = el('position:fixed;border:2px solid #1a7a6e;border-radius:4px;z-index:99991;pointer-events:none;box-shadow:0 0 0 3px rgba(26,122,110,0.2),0 0 24px rgba(26,122,110,0.15);');
+  const card    = el('position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:calc(100% - 32px);max-width:480px;background:#0f1729;border:1px solid #1e2d45;border-top-left-radius:8px;border-top-right-radius:8px;padding:20px 20px 28px;z-index:99995;font-family:monospace;box-shadow:0 -8px 32px rgba(0,0,0,0.6);');
+
+  function finish() {
+    localStorage.setItem('tradolux_onboarded', '1');
+    [oTop, oBottom, oLeft, oRight, ring, card].forEach(d => { try { d.remove(); } catch (_) {} });
+  }
+
+  function showStep(idx) {
+    const step = steps[idx];
+    const total = steps.length;
+    const targetEl = document.querySelector(step.target);
+
+    if (!targetEl) {
+      if (idx + 1 < total) { showStep(idx + 1); return; }
+      finish(); return;
+    }
+
+    const r = targetEl.getBoundingClientRect();
+    const t = Math.max(0, r.top - PAD);
+    const l = Math.max(0, r.left - PAD);
+    const w = r.width + PAD * 2;
+    const h = r.height + PAD * 2;
+    const bGap = Math.max(0, window.innerHeight - r.bottom - PAD);
+    const rGap = Math.max(0, window.innerWidth - r.right - PAD);
+
+    oTop.style.height    = t + 'px';
+    oBottom.style.height = bGap + 'px';
+    oLeft.style.cssText  = `position:fixed;top:${t}px;height:${h}px;left:0;width:${l}px;z-index:99990;pointer-events:all;background:${BG};`;
+    oRight.style.cssText = `position:fixed;top:${t}px;height:${h}px;right:0;width:${rGap}px;z-index:99990;pointer-events:all;background:${BG};`;
+    ring.style.cssText   = `position:fixed;top:${t}px;left:${l}px;width:${w}px;height:${h}px;border:2px solid #1a7a6e;border-radius:4px;z-index:99991;pointer-events:none;box-shadow:0 0 0 3px rgba(26,122,110,0.2),0 0 24px rgba(26,122,110,0.15);`;
+
+    const dots = steps.map((_, i) =>
+      `<div style="height:3px;flex:1;border-radius:2px;background:${i <= idx ? '#1a7a6e' : '#1e2d45'};"></div>`
+    ).join('');
+
+    const isLast = idx === total - 1;
+
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <span style="font-size:9px;letter-spacing:2px;color:#1a7a6e;font-weight:700;">${idx + 1} OF ${total}</span>
+        <button id="ob-skip" style="background:none;border:none;color:#5a6778;font-family:monospace;font-size:10px;cursor:pointer;letter-spacing:1px;padding:2px 0;">SKIP</button>
+      </div>
+      <div style="font-size:14px;font-weight:700;color:#e8f5f2;letter-spacing:0.5px;margin-bottom:8px;">${step.title}</div>
+      <div style="font-size:11px;color:#8b95a7;line-height:1.6;margin-bottom:18px;">${step.text}</div>
+      ${step.cta ? `<button id="ob-cta" style="width:100%;background:#1a7a6e;color:#e8f5f2;border:none;padding:12px;border-radius:4px;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;margin-bottom:12px;">Run my first assessment →</button>` : ''}
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="flex:1;display:flex;gap:3px;">${dots}</div>
+        <button id="ob-next" style="background:${isLast && !step.cta ? '#1a7a6e' : 'transparent'};border:${isLast && !step.cta ? 'none' : '1px solid #2a3a54'};color:${isLast && !step.cta ? '#e8f5f2' : '#8b95a7'};padding:8px 16px;border-radius:4px;font-family:monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;white-space:nowrap;">${isLast ? 'DONE' : 'NEXT →'}</button>
+      </div>`;
+
+    document.getElementById('ob-skip').onclick = finish;
+    document.getElementById('ob-next').onclick = () => {
+      if (idx + 1 < total) showStep(idx + 1); else finish();
+    };
+    if (step.cta) {
+      document.getElementById('ob-cta').onclick = () => {
+        finish();
+        if (typeof runInstantAssessment === 'function') runInstantAssessment(state.activePane);
+      };
+    }
+  }
+
+  showStep(0);
+}
+
 // Disclaimer gate — fullscreen modal shown once per device (localStorage).
 // Once accepted it never appears again.
 (function initSessionDisclaimer() {
   const gate = document.getElementById('disclaimerGate');
   if (!gate) return;
-  if (localStorage.getItem('tradolux_disclaimer_accepted') === '1') return;
+  if (localStorage.getItem('tradolux_disclaimer_accepted') === '1') {
+    if (localStorage.getItem('tradolux_onboarded') !== '1') {
+      setTimeout(initOnboardingWalkthrough, 1200);
+    }
+    return;
+  }
   gate.style.display = 'flex';
   const btn = document.getElementById('disclaimerGateBtn');
   if (btn) btn.addEventListener('click', () => {
     localStorage.setItem('tradolux_disclaimer_accepted', '1');
     gate.style.display = 'none';
+    setTimeout(initOnboardingWalkthrough, 800);
   });
 })();
 
@@ -5618,6 +5898,13 @@ document.addEventListener('click', e => {
     || btn.textContent.includes('ASSESS');
   if (isAssess) {
     console.log('[ASSESS] button matched — id:', btn.id, 'text:', btn.textContent.trim().slice(0, 40));
+    if (!canRunAssessment()) {
+      const _limit = _userPlan === 'starter' ? 10 : 3;
+      const _nextPlan = _userPlan === 'free' ? 'Starter' : 'Pro';
+      showUpgradeModal(`Instant Assessment (${_limit}/day limit reached)`, _nextPlan);
+      return;
+    }
+    recordAssessment();
     const origText = btn.textContent;
     btn.textContent = '⚡ Analyzing...';
     btn.style.opacity = '0.5';
@@ -5736,6 +6023,11 @@ async function sendChat() {
   const input = document.getElementById('chatInput');
   const q = input.value.trim();
   if (!q) return;
+  if (_userPlan === 'free' || _userPlan === 'starter') {
+    input.value = '';
+    showUpgradeModal('AI Chat', 'Pro');
+    return;
+  }
   // Word-boundary regex so 'read' doesn't match 'ready/thread/spread/reading'.
   // Multi-word triggers like 'read the tape' are matched as phrases inside \b boundaries.
   const assessTrigger = /\b(assess|read the tape|setup|what do you see|give me a read|levels|read)\b/i;
@@ -5840,7 +6132,7 @@ function buildChartContext(paneIndex) {
   const openSignals = state.signalHistory
     .filter(s => s.sym === sym && s.status === 'OPEN')
     .slice(0, 3)
-    .map(s => `${s.action} @ ${s.entry.toFixed(2)} stop ${s.stop.toFixed(2)} TP1 ${s.tp1.toFixed(2)} conf ${Math.round(s.confidence)}%`)
+    .map(s => `${s.action} @ ${s.entry.toFixed(2)} stop ${s.stop.toFixed(2)} TP1 ${s.tp1.toFixed(2)} ${Math.round(s.confidence)}% probability`)
     .join(' | ') || 'none';
 
   // Most recent agent verdicts from the latest signal that captured them
@@ -6330,6 +6622,7 @@ async function fetchUserPlan() {
         const { plan, subscription_status, trial_end } = data[0];
         const isActive = ['trialing', 'active'].includes(subscription_status);
         _userPlan = isActive ? (plan || 'free') : 'free';
+        state.userPlan = _userPlan;
         console.log('[plan] user plan:', _userPlan, 'status:', subscription_status);
         applyPlanGating();
       }
@@ -6340,32 +6633,121 @@ async function fetchUserPlan() {
 }
 
 function applyPlanGating() {
+  // ── Badge ──
   const badge = document.getElementById('planBadge');
   if (badge) {
     badge.textContent = _userPlan.toUpperCase();
-    badge.style.display = 'inline-block';
-    badge.style.background = _userPlan === 'elite' ? '#c9a84c'
-      : _userPlan === 'pro' ? '#1a7a6e'
-      : '#1a2748';
-  }
-
-  if (_userPlan === 'free' || _userPlan === 'starter') {
-    const signalsToggle = document.getElementById('signalsToggle');
-    if (signalsToggle) {
-      signalsToggle.title = 'Smart signals — Pro plan required';
+    badge.style.display = _userPlan !== 'free' ? 'inline-block' : 'none';
+    if (_userPlan === 'elite') {
+      badge.style.background = 'linear-gradient(90deg,#1a7a6e,#c9a84c)';
+      badge.style.color = '#fff';
+    } else if (_userPlan === 'pro') {
+      badge.style.background = '#1a7a6e';
+      badge.style.color = '#e8f5f2';
+    } else if (_userPlan === 'starter') {
+      badge.style.background = '#1a3a6e';
+      badge.style.color = '#e8f5f2';
     }
   }
 
-  if (_userPlan === 'free' || _userPlan === 'starter') {
-    document.querySelectorAll('.layout-btn[data-layout="2col"], .layout-btn[data-layout="grid"]').forEach(btn => {
+  // ── Multi-pane: free users only ──
+  if (_userPlan === 'free') {
+    ['layout2', 'layout4'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
       btn.title = 'Multi-pane — Pro plan required';
-      btn.style.opacity = '0.4';
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        alert('Multi-pane charts require a Pro or Elite plan. Upgrade at tradolux.com');
-      };
+      btn.style.opacity = '0.35';
+      btn.onclick = e => { e.stopPropagation(); showUpgradeModal('Multi-Pane Charts', 'Pro'); };
     });
   }
+
+  // ── AI Chat placeholder for free/starter ──
+  const chatInput = document.getElementById('chatInput');
+  if (chatInput && (_userPlan === 'free' || _userPlan === 'starter')) {
+    chatInput.placeholder = '💬 AI Chat — Pro plan required';
+  }
+
+  // ── Scenarios toggle hint ──
+  const signalsToggle = document.getElementById('signalsToggle');
+  if (signalsToggle && (_userPlan === 'free' || _userPlan === 'starter')) {
+    signalsToggle.title = 'Scenarios — Pro plan required';
+  }
+
+  // ── Drawing tools: gate for free users (feature not yet implemented; uncomment when toolbar is added) ──
+  // document.querySelectorAll('.draw-tool-btn').forEach(btn => {
+  //   if (_userPlan === 'free') {
+  //     btn.style.opacity = '0.35';
+  //     btn.onclick = e => { e.stopPropagation(); showUpgradeModal('Drawing Tools', 'Starter'); };
+  //   }
+  // });
+
+  // ── Smart Alerts: gate for free + starter ──
+  const alertBtnEl = document.getElementById('alertBtn');
+  if (alertBtnEl && (_userPlan === 'free' || _userPlan === 'starter')) {
+    alertBtnEl.title = 'Smart Alerts — Pro plan required';
+    alertBtnEl.style.opacity = '0.45';
+    alertBtnEl.onclick = e => { e.stopPropagation(); showUpgradeModal('Smart Alerts', 'Pro'); };
+  }
+}
+
+// ─── Plan gate helpers ───────────────────────────────────────────────────────
+
+function getAssessUsage() {
+  const today = new Date().toISOString().slice(0, 10);
+  const s = JSON.parse(localStorage.getItem('apex.assessUsage') || '{}');
+  return s.date === today ? s : { count: 0, date: today };
+}
+
+function canRunAssessment() {
+  if (_userPlan === 'pro' || _userPlan === 'elite') return true;
+  const limit = _userPlan === 'starter' ? 10 : 3;
+  return getAssessUsage().count < limit;
+}
+
+function recordAssessment() {
+  const today = new Date().toISOString().slice(0, 10);
+  const s = getAssessUsage();
+  s.count++;
+  s.date = today;
+  localStorage.setItem('apex.assessUsage', JSON.stringify(s));
+}
+
+function showUpgradeModal(featureName, requiredPlan) {
+  const planKey = (requiredPlan || 'pro').toLowerCase();
+  const planLabel = planKey.charAt(0).toUpperCase() + planKey.slice(1);
+  const existing = document.getElementById('upgradeGateModal');
+  if (existing) existing.remove();
+
+  const btnStyle = (bg, border, color) =>
+    `width:100%;background:${bg};border:${border};color:${color};font-family:monospace;font-size:11px;font-weight:700;padding:10px;cursor:pointer;border-radius:3px;letter-spacing:0.06em;margin-bottom:6px;`;
+
+  const starterBtn = `<button onclick="document.getElementById('upgradeGateModal').remove();startCheckout('price_1TUAErRAfobZUNrF4Wj4cOgy')"
+    style="${btnStyle('#1a3a6e','none','#e8f5f2')}">Starter — upgrade</button>`;
+  const proBtn = `<button onclick="document.getElementById('upgradeGateModal').remove();startCheckout('price_1TU4wlRAfobZUNrFPmVgeONk')"
+    style="${btnStyle('#1a7a6e','none','#e8f5f2')}">Pro — $79/mo</button>`;
+  const eliteBtn = `<button onclick="document.getElementById('upgradeGateModal').remove();startCheckout('price_1TU4wuRAfobZUNrF7AhIbytY')"
+    style="${btnStyle('#0e1830','1px solid #c9a84c','#c9a84c')}">Elite — $149/mo</button>`;
+
+  let upgradeButtons = eliteBtn;
+  if (planKey === 'pro') upgradeButtons = proBtn + eliteBtn;
+  else if (planKey === 'starter') upgradeButtons = starterBtn + proBtn + eliteBtn;
+
+  const el = document.createElement('div');
+  el.id = 'upgradeGateModal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99990;display:flex;align-items:center;justify-content:center;padding:16px;';
+  el.innerHTML = `
+    <div style="background:#0f1729;border:1px solid #1a7a6e;border-radius:6px;padding:28px 24px;width:100%;max-width:360px;font-family:monospace;position:relative;">
+      <button onclick="document.getElementById('upgradeGateModal').remove()"
+        style="position:absolute;top:12px;right:14px;background:none;border:none;color:#4a5470;font-size:16px;cursor:pointer;line-height:1;">✕</button>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--gold,#f5a623);margin-bottom:10px;">PLAN REQUIRED</div>
+      <div style="font-size:15px;font-weight:700;color:#e8f5f2;margin-bottom:6px;">${featureName}</div>
+      <div style="font-size:11px;color:rgba(200,215,240,0.6);line-height:1.5;margin-bottom:18px;">
+        Requires the <span style="color:#0ecb81;font-weight:700;">${planLabel}</span> plan or higher.
+      </div>
+      <div>${upgradeButtons}</div>
+    </div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });
 }
 
 // TODO: Configure Day 1/7/13 trial reminder emails in
@@ -6424,29 +6806,63 @@ function showMobilePanel(panel) {
     updateMobileAiStrip();
 
   } else if (panel === 'chat') {
+    const _chatLocked = _userPlan === 'free' || _userPlan === 'starter';
+    const _assessCount = getAssessUsage().count;
+    const _assessLimit = _userPlan === 'starter' ? 10 : 3;
+    const _assessRemain = (_userPlan === 'pro' || _userPlan === 'elite') ? null : Math.max(0, _assessLimit - _assessCount);
+    const assessBtnLabel = _assessRemain === 0 ? '⚡ ASSESSMENT LIMIT REACHED' : '⚡ INSTANT ASSESSMENT';
+    const assessBtnStyle = _assessRemain === 0
+      ? 'background:#1a2748;color:#4a5470;cursor:not-allowed;'
+      : 'background:#1a7a6e;color:#e8f5f2;cursor:pointer;';
+    const chatLockHtml = _chatLocked ? `
+      <div onclick="showUpgradeModal('AI Chat','Pro')"
+        style="background:rgba(26,122,110,0.1);border:1px dashed #1a7a6e;border-radius:3px;padding:10px 12px;cursor:pointer;text-align:center;">
+        <div style="font-size:10px;font-weight:700;color:#1a7a6e;letter-spacing:0.5px;margin-bottom:3px;">💬 AI Chat — Pro Plan</div>
+        <div style="font-size:10px;color:rgba(200,215,240,0.5);">Tap to upgrade and unlock full AI conversation</div>
+      </div>` : `
+      <div id="mob-msgs" style="min-height:80px;max-height:160px;overflow-y:auto;font-family:monospace;font-size:11px;color:#c8cedd;"></div>
+      <div style="display:flex;gap:6px;">
+        <input id="mob-input" placeholder="Ask Tradolux..."
+          style="flex:1;background:#0e1830;border:1px solid #1a2748;color:#e8eaf0;font-family:monospace;font-size:16px;padding:10px 8px;border-radius:3px;outline:none;"
+          onkeydown="if(event.key==='Enter') sendMobileChat();">
+        <button onclick="sendMobileChat();"
+          style="background:#1a7a6e;color:#e8f5f2;border:none;padding:10px 14px;font-family:monospace;font-weight:700;font-size:14px;cursor:pointer;border-radius:3px;">▶</button>
+      </div>`;
     strip.innerHTML = `
       <div style="display:flex;flex-direction:column;padding:8px;gap:6px;">
         <button data-action="assess"
-          style="background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:11px;font-weight:700;padding:10px;border:none;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
-          ⚡ INSTANT ASSESSMENT
+          style="font-family:monospace;font-size:11px;font-weight:700;padding:10px;border:none;border-radius:3px;letter-spacing:0.06em;${assessBtnStyle}">
+          ${assessBtnLabel}${_assessRemain !== null && _assessRemain > 0 ? ` (${_assessRemain} left)` : ''}
         </button>
-        <div id="mob-msgs" style="min-height:80px;max-height:160px;overflow-y:auto;font-family:monospace;font-size:11px;color:#c8cedd;"></div>
-        <div style="display:flex;gap:6px;">
-          <input id="mob-input" placeholder="Ask Tradolux..."
-            style="flex:1;background:#0e1830;border:1px solid #1a2748;color:#e8eaf0;font-family:monospace;font-size:16px;padding:10px 8px;border-radius:3px;outline:none;"
-            onkeydown="if(event.key==='Enter') sendMobileChat();">
-          <button onclick="sendMobileChat();"
-            style="background:#1a7a6e;color:#e8f5f2;border:none;padding:10px 14px;font-family:monospace;font-weight:700;font-size:14px;cursor:pointer;border-radius:3px;">▶</button>
-        </div>
+        ${chatLockHtml}
       </div>`;
-    setTimeout(() => document.getElementById('mob-input')?.focus(), 50);
+    if (!_chatLocked) setTimeout(() => document.getElementById('mob-input')?.focus(), 50);
 
   } else if (panel === 'watchlist') {
-    const wl = document.querySelector('.left-panel');
-    strip.innerHTML = '<div style="padding:8px;">' + (wl ? wl.innerHTML : '') + '</div>';
-    strip.querySelectorAll('.watch-row').forEach(row => {
+    const _wlMax = (_userPlan === 'pro' || _userPlan === 'elite') ? Infinity
+                 : _userPlan === 'starter' ? 7 : 3;
+    const _wlUsed = state.watchlist.length;
+    const _wlCaption = _wlMax === Infinity ? '' :
+      `<div style="font-size:9px;color:rgba(200,215,240,0.4);font-family:monospace;text-align:right;margin-bottom:6px;">${_wlUsed}/${_wlMax} symbols</div>`;
+    const _wlRows = state.watchlist.map(s => {
+      const p = state.prices[s] || { px: 0, chg: 0, chgPct: 0 };
+      const up = p.chg >= 0;
+      const isActive = s === state.symbol ? 'border-left:2px solid #1a7a6e;' : '';
+      return `<div class="mob-watch-row" data-sym="${s}"
+        style="display:flex;justify-content:space-between;align-items:center;padding:9px 10px;cursor:pointer;font-family:monospace;border-bottom:1px solid rgba(255,255,255,0.06);${isActive}">
+        <span style="font-size:12px;font-weight:700;color:#e8eaf0;min-width:52px;">${s}</span>
+        <span style="font-size:11px;color:#c8d0e0;">${p.px > 0 ? p.px.toFixed(2) : '—'}</span>
+        <span style="font-size:11px;font-weight:600;color:${up ? '#0ecb81' : '#f6465d'}">${p.px > 0 ? (up ? '+' : '') + p.chgPct.toFixed(2) + '%' : '—'}</span>
+      </div>`;
+    }).join('') || '<div style="padding:20px 12px;color:rgba(200,215,240,0.35);font-size:11px;text-align:center;font-family:monospace;">Watchlist is empty</div>';
+    strip.innerHTML = `<div style="padding:8px;">
+      <button onclick="openModal('addWatchModal')"
+        style="width:100%;background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:10px;font-weight:700;padding:8px;border:none;cursor:pointer;border-radius:3px;letter-spacing:0.06em;margin-bottom:6px;">+ ADD SYMBOL</button>
+      ${_wlCaption}${_wlRows}
+    </div>`;
+    strip.querySelectorAll('.mob-watch-row').forEach(row => {
       row.onclick = () => {
-        const sym = row.querySelector('.watch-sym')?.textContent?.trim();
+        const sym = row.dataset.sym;
         if (sym) { selectSymbol(sym); showMobilePanel('agents'); }
       };
     });
@@ -6458,23 +6874,60 @@ function showMobilePanel(panel) {
 
   } else if (panel === 'settings') {
     const email = _session?.user?.email || '—';
-    const plan = (typeof _userPlan !== 'undefined' ? _userPlan : 'free').toUpperCase();
-    const planBg = plan === 'ELITE' ? '#c9a84c' : plan === 'PRO' ? '#1a7a6e' : '#1a2748';
+    const _p = typeof _userPlan !== 'undefined' ? _userPlan : 'free';
+    const planLabel = _p.toUpperCase();
+    const planBgStyle = _p === 'elite'
+      ? 'background:linear-gradient(90deg,#1a7a6e,#c9a84c);color:#fff;'
+      : _p === 'pro' ? 'background:#1a7a6e;color:#e8f5f2;'
+      : _p === 'starter' ? 'background:#1a3a6e;color:#e8f5f2;'
+      : 'background:#1a2748;color:#8b95a7;';
+    const _assessUsage = getAssessUsage();
+    const _assessLimit = _p === 'pro' || _p === 'elite' ? '∞' : _p === 'starter' ? '10' : '3';
+    const _assessUsed = _p === 'pro' || _p === 'elite' ? '' : `${_assessUsage.count}/${_assessLimit} today`;
+    const upgradeSection = (_p === 'pro' || _p === 'elite') ? '' : `
+      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);font-weight:600;margin-bottom:2px;">UPGRADE PLAN</div>
+        ${_p === 'free' ? `<button onclick="startCheckout('price_1TUAErRAfobZUNrF4Wj4cOgy')"
+          style="width:100%;background:#1a3a6e;color:#e8f5f2;font-family:monospace;font-size:11px;font-weight:700;padding:10px;border:none;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
+          Starter — 7 symbols · 10 assessments/day
+        </button>` : ''}
+        <button onclick="startCheckout('price_1TU4wlRAfobZUNrFPmVgeONk')"
+          style="width:100%;background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:11px;font-weight:700;padding:10px;border:none;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
+          Pro — $79/mo · AI Chat · Unlimited assessments
+        </button>
+        <button onclick="startCheckout('price_1TU4wuRAfobZUNrF7AhIbytY')"
+          style="width:100%;background:#0e1830;border:1px solid #c9a84c;color:#c9a84c;font-family:monospace;font-size:11px;font-weight:700;padding:10px;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
+          Elite — $149/mo · All Pro features + more
+        </button>
+      </div>`;
+    const eliteComingSoon = _p === 'elite' ? `
+      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);font-weight:600;margin-bottom:8px;">ELITE — COMING SOON</div>
+        ${['Portfolio AI', 'AI Journaling', 'Sentiment Overlays', 'Real-time Scanner'].map(f =>
+          `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <span style="font-size:11px;color:#c8d0e0;font-family:monospace;">${f}</span>
+            <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(201,168,76,0.15);color:#c9a84c;letter-spacing:0.5px;">SOON</span>
+          </div>`).join('')}
+      </div>` : '';
     strip.innerHTML = `
       <div style="padding:12px 8px;display:flex;flex-direction:column;gap:10px;">
         <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);font-weight:600;">ACCOUNT</div>
         <div style="font-size:10px;color:rgba(200,215,240,0.6);font-family:monospace;word-break:break-all;">${email}</div>
-        <div style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:3px;font-family:monospace;color:#e8f5f2;background:${planBg};align-self:flex-start;">${plan}</div>
-        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;display:flex;flex-direction:column;gap:6px;">
-          <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold,#f5a623);font-weight:600;margin-bottom:2px;">UPGRADE PLAN</div>
-          <button onclick="startCheckout('price_1TU4wlRAfobZUNrFPmVgeONk')"
-            style="width:100%;background:#1a7a6e;color:#e8f5f2;font-family:monospace;font-size:11px;font-weight:700;padding:10px;border:none;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
-            Pro — $79/mo
-          </button>
-          <button onclick="startCheckout('price_1TU4wuRAfobZUNrF7AhIbytY')"
-            style="width:100%;background:#0e1830;border:1px solid #1a7a6e;color:#1a7a6e;font-family:monospace;font-size:11px;font-weight:700;padding:10px;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">
-            Elite — $149/mo
-          </button>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:3px;font-family:monospace;align-self:flex-start;${planBgStyle}">${planLabel}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div style="background:#0e1830;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:7px 10px;">
+            <div style="font-size:8px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:3px;">WATCHLIST</div>
+            <div style="font-size:11px;color:#e8eaf0;font-family:monospace;">${state.watchlist.length} / ${(_p === 'pro' || _p === 'elite') ? '∞' : _p === 'starter' ? '7' : '3'}</div>
+          </div>
+          <div style="background:#0e1830;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:7px 10px;">
+            <div style="font-size:8px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:3px;">ASSESSMENTS</div>
+            <div style="font-size:11px;color:#e8eaf0;font-family:monospace;">${_assessUsed || '∞'}</div>
+          </div>
+        </div>
+        ${upgradeSection}
+        ${eliteComingSoon}
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;">
+          <button onclick="_supabase.auth.signOut()" style="width:100%;background:transparent;border:1px solid rgba(255,255,255,0.12);color:rgba(200,215,240,0.5);font-family:monospace;font-size:10px;padding:8px;cursor:pointer;border-radius:3px;letter-spacing:0.06em;">SIGN OUT</button>
         </div>
       </div>`;
   }
