@@ -1373,6 +1373,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _session = null;
 let _userPlan = 'free'; // 'free' | 'starter' | 'pro' | 'elite'
+const sessionStartTime = Date.now();
 
 _supabase.auth.onAuthStateChange((event, session) => {
   _session = session;
@@ -1859,6 +1860,19 @@ function trackSpread(symbol, bid, ask) {
   arr.push(spread);
   // Keep last 30 days worth of 5-min samples — roughly 78 samples/day * 30 = 2340
   if (arr.length > 2340) arr.shift();
+}
+
+function logTelemetry(eventType, featureName, metadata) {
+  if (!_session?.access_token) return;
+  try {
+    _supabase.from('app_telemetry').insert({
+      event_type: eventType,
+      feature_name: featureName,
+      session_duration_sec: Math.floor((Date.now() - sessionStartTime) / 1000),
+      user_plan: _userPlan,
+      metadata: metadata || {},
+    }).then(() => {});
+  } catch {}
 }
 
 function pollHftShield(symbol) {
@@ -3171,7 +3185,9 @@ async function selectSymbol(s) {
   if (chatMessages) {
     chatMessages.innerHTML = `<div class="msg ai" style="opacity:0.6;font-size:10px;text-align:center;border:none;padding:8px 0">— chat reset for ${s.toUpperCase()} —</div>`;
   }
+  const prevSym = state.symbol;
   state.symbol = s;
+  logTelemetry('symbol_changed', 'watchlist', { symbol: s, previousSymbol: prevSym });
   pollHftShield(s);
   syncActivePane();
   document.getElementById('symName').textContent = s;
@@ -4296,6 +4312,9 @@ function renderSignalsTab() {
   `;
   }).join('');
   wireFilterBar();
+  // Telemetry: signal cards viewed
+  const topConf = state.signalHistory[0]?.confidence ?? null;
+  logTelemetry('signal_card_viewed', 'scenario_cards', { symbol: state.symbol, signalCount: state.signalHistory.length, topConfidence: topConf });
 }
 
 function wireFilterBar() {
@@ -4667,6 +4686,7 @@ Rules:
       msgEl.insertAdjacentHTML('beforeend', disclaimer);
     }
     container.scrollTop = container.scrollHeight;
+    logTelemetry('assessment_completed', 'instant_assessment', { symbol: sym, timeframe: tf });
   } catch(e) {
     console.error('[INSTANT ASSESSMENT]', e);
     assessBody.textContent = 'Error: ' + String(e);
@@ -6162,6 +6182,7 @@ async function sendChat() {
   const input = document.getElementById('chatInput');
   const q = input.value.trim();
   if (!q) return;
+  logTelemetry('chat_sent', 'ai_chat', { messageLength: q.length, symbol: state.symbol });
   if (_userPlan === 'free' || _userPlan === 'starter') {
     input.value = '';
     showUpgradeModal('AI Chat', 'Pro');
@@ -6874,6 +6895,7 @@ function recordAssessment() {
 }
 
 function showUpgradeModal(featureName, requiredPlan) {
+  logTelemetry('upgrade_modal_shown', 'paywall', { triggerFeature: featureName, userPlan: _userPlan });
   const planKey = (requiredPlan || 'pro').toLowerCase();
   const planLabel = planKey.charAt(0).toUpperCase() + planKey.slice(1);
   const existing = document.getElementById('upgradeGateModal');
@@ -6954,6 +6976,8 @@ async function sendMobileChat() {
 
 function showMobilePanel(panel) {
   if (window.innerWidth > 768) return;
+  const prevPanel = document.getElementById('mobileAiStrip')?.dataset?.panel || 'agents';
+  logTelemetry('tab_switched', 'mobile_nav', { toTab: panel, fromTab: prevPanel });
   document.querySelectorAll('.mob-panel-btn').forEach(b => b.classList.remove('active'));
   const btn = [...document.querySelectorAll('.mob-panel-btn')]
     .find(b => b.getAttribute('onclick')?.includes("'" + panel + "'"));
