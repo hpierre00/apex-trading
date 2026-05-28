@@ -935,6 +935,10 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 </head>
 <body style="visibility:hidden">
 
+<div id="adminDashboard" style="display:none;position:fixed;inset:0;background:#060c1a;color:#c8d0e0;font-family:monospace;overflow-y:auto;z-index:9999;padding:0;">
+  <!-- content populated by renderAdminDashboard() -->
+</div>
+
 <div class="app">
 
   <!-- TOPBAR -->
@@ -7036,6 +7040,409 @@ function showMobilePanel(panel) {
   }
 }
 
+// ─── ADMIN DASHBOARD ────────────────────────────────────────────────────────
+function showAdminDashboard() {
+  document.getElementById('adminDashboard').style.display = 'block';
+  document.querySelector('.app').style.display = 'none';
+}
+function hideAdminDashboard() {
+  document.getElementById('adminDashboard').style.display = 'none';
+  document.querySelector('.app').style.display = '';
+}
+
+async function checkAdminRoute() {
+  if (window.location.hash !== '#admin') return;
+  if (!_session?.access_token) { window.location.hash = '#app'; return; }
+  try {
+    const { data } = await _supabase
+      .from('profiles')
+      .select('admin')
+      .eq('id', _session.user.id)
+      .single();
+    if (!data?.admin) { window.location.hash = '#app'; return; }
+  } catch { window.location.hash = '#app'; return; }
+  await renderAdminDashboard();
+  showAdminDashboard();
+}
+
+window.addEventListener('hashchange', () => {
+  if (window.location.hash === '#admin') checkAdminRoute();
+  else if (window.location.hash === '#app') hideAdminDashboard();
+});
+
+async function renderAdminDashboard() {
+  const el = document.getElementById('adminDashboard');
+  el.innerHTML = '<div style="padding:40px;text-align:center;color:#0ecb81;font-family:monospace;letter-spacing:2px;font-size:13px;">LOADING INTELLIGENCE BRIEF...</div>';
+
+  // Fetch latest macro brief
+  let brief = state.macroBrief;
+  if (!brief) {
+    try {
+      const { data } = await _supabase.from('macro_daily_brief').select('*').order('date', { ascending: false }).limit(1).single();
+      if (data) { brief = data; state.macroBrief = data; }
+    } catch {}
+  }
+
+  // Fetch last 12 macro_indicators_daily rows for sparklines
+  let indHistory = [];
+  try {
+    const { data } = await _supabase.from('macro_indicators_daily').select('*').order('date', { ascending: false }).limit(12);
+    if (data) indHistory = data.reverse();
+  } catch {}
+
+  // Latest indicators row
+  const ind = indHistory.length ? indHistory[indHistory.length - 1] : null;
+
+  // Fetch signal microstructure data for scatter plot
+  let microLogs = [];
+  try {
+    const { data } = await _supabase.from('signal_microstructure_log').select('*').order('created_at', { ascending: false }).limit(200);
+    if (data) microLogs = data;
+  } catch {}
+
+  // ── Gauge SVG helper ─────────────────────────────────────────────────────
+  function regimeGaugeSVG(score) {
+    const pct = Math.max(0, Math.min(100, score || 0));
+    const angle = -135 + (pct / 100) * 270;
+    const rad = angle * Math.PI / 180;
+    const cx = 60, cy = 60, r = 44;
+    const x = cx + r * Math.cos(rad);
+    const y = cy + r * Math.sin(rad);
+    const color = pct < 30 ? '#f6465d' : pct < 50 ? '#c9a84c' : pct < 70 ? '#4a90d9' : '#0ecb81';
+    const startRad = -135 * Math.PI / 180;
+    const sx = cx + r * Math.cos(startRad);
+    const sy = cy + r * Math.sin(startRad);
+    const largeArc = pct > 50 ? 1 : 0;
+    return `<svg width="120" height="90" viewBox="0 0 120 90">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-dasharray="200 999" stroke-dashoffset="-62" stroke-linecap="round"/>
+      <path d="M${sx},${sy} A${r},${r} 0 ${largeArc},1 ${x},${y}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round"/>
+      <text x="${cx}" y="${cy + 8}" text-anchor="middle" fill="${color}" font-size="20" font-weight="700" font-family="monospace">${Math.round(pct)}</text>
+      <text x="${cx}" y="${cy + 22}" text-anchor="middle" fill="rgba(200,215,240,0.4)" font-size="9" font-family="monospace">/ 100</text>
+    </svg>`;
+  }
+
+  // ── Sparkline SVG helper ──────────────────────────────────────────────────
+  function sparklineSVG(values, color) {
+    if (!values || values.length < 2) return '<svg width="80" height="24"></svg>';
+    const valid = values.filter(v => v !== null && isFinite(v));
+    if (valid.length < 2) return '<svg width="80" height="24"></svg>';
+    const min = Math.min(...valid), max = Math.max(...valid);
+    const range = max - min || 1;
+    const pts = valid.map((v, i) => {
+      const x = (i / (valid.length - 1)) * 78 + 1;
+      const y = 22 - ((v - min) / range) * 20;
+      return `${x},${y}`;
+    }).join(' ');
+    return `<svg width="80" height="24"><polyline points="${pts}" fill="none" stroke="${color || '#0ecb81'}" stroke-width="1.5"/></svg>`;
+  }
+
+  // ── Zone badge helper ─────────────────────────────────────────────────────
+  function zoneBadge(label, color) {
+    return `<span style="background:${color}22;border:1px solid ${color}44;color:${color};font-size:8px;letter-spacing:1px;padding:1px 6px;border-radius:2px;font-family:monospace;">${label}</span>`;
+  }
+
+  // ── Indicator zone functions ──────────────────────────────────────────────
+  function buffettZoneColor(pct) {
+    if (pct < 75) return '#0ecb81';
+    if (pct < 90) return '#26c6da';
+    if (pct < 115) return '#c9a84c';
+    if (pct < 135) return '#f5a623';
+    return '#f6465d';
+  }
+  function yieldCurveColor(bps) { return bps < 0 ? '#f6465d' : bps < 50 ? '#c9a84c' : '#0ecb81'; }
+  function treasuryColor(y) { return y < 3 ? '#0ecb81' : y < 4.5 ? '#26c6da' : y < 5.5 ? '#c9a84c' : '#f6465d'; }
+  function peColor(pe) { return pe < 15 ? '#0ecb81' : pe < 20 ? '#26c6da' : pe < 25 ? '#c9a84c' : pe < 30 ? '#f5a623' : '#f6465d'; }
+  function erpColor(erp) { return erp > 0 ? '#0ecb81' : '#f6465d'; }
+
+  // ── 9 Indicator cards ─────────────────────────────────────────────────────
+  function indicatorCard(title, valueStr, zoneLabel, zoneColor, interpretation, sparkValues) {
+    return `
+      <div style="background:#0a1220;border:1px solid rgba(255,255,255,0.07);border-radius:4px;padding:10px 12px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:9px;letter-spacing:1.5px;color:rgba(200,215,240,0.4);">${title}</span>
+          ${zoneBadge(zoneLabel, zoneColor)}
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:16px;font-weight:700;color:#e8eaf0;font-family:monospace;">${valueStr}</span>
+          ${sparklineSVG(sparkValues, zoneColor)}
+        </div>
+        <div style="font-size:9px;color:rgba(200,215,240,0.5);margin-top:4px;line-height:1.4;">${interpretation}</div>
+      </div>`;
+  }
+
+  const buffettPct = ind?.buffett_indicator_pct;
+  const bColor = buffettPct !== null && buffettPct !== undefined ? buffettZoneColor(buffettPct) : '#c9a84c';
+  const bLabel = ind?.buffett_zone || '—';
+  const yieldBps = ind?.yield_curve_spread_bps;
+  const yColor = yieldBps !== null && yieldBps !== undefined ? yieldCurveColor(yieldBps) : '#c9a84c';
+  const t10 = ind?.treasury_10y;
+  const t2 = ind?.treasury_2y;
+  const ff = ind?.fed_funds_rate;
+  const erp = ind?.equity_risk_premium_pct;
+  const forwardPe = brief?.macro?.forward_pe || 21.5;
+  const divYield = ind?.sp500_dividend_yield;
+  const btc7d = ind?.bitcoin_usd_7d_change;
+
+  const cards9 = [
+    indicatorCard(
+      'BUFFETT INDICATOR', buffettPct !== null && buffettPct !== undefined ? buffettPct.toFixed(1) + '%' : '—',
+      bLabel, bColor,
+      buffettPct !== null && buffettPct !== undefined ? `Market cap / GDP ratio. ${buffettPct > 135 ? 'Extreme overvaluation — high crash risk.' : buffettPct > 115 ? 'Overvalued. Caution warranted.' : buffettPct > 90 ? 'Elevated. Monitor for mean reversion.' : 'Fair to undervalued. Supportive for longs.'}` : 'Data pending — updated quarterly.',
+      indHistory.map(r => r?.buffett_indicator_pct)
+    ),
+    indicatorCard(
+      'YIELD CURVE (10Y-2Y)', yieldBps !== null && yieldBps !== undefined ? yieldBps.toFixed(0) + 'bps' : '—',
+      yieldBps < 0 ? 'INVERTED: RISK' : yieldBps < 50 ? 'NORMAL' : 'STEEP',
+      yColor,
+      yieldBps !== null && yieldBps !== undefined ? `${yieldBps < 0 ? 'Inverted curve — recession historically follows within 12-18mo.' : yieldBps < 50 ? 'Flat to normal curve. Mixed signals.' : 'Steep curve — reflationary or early cycle.'}` : 'Data pending.',
+      indHistory.map(r => r?.yield_curve_spread_bps)
+    ),
+    indicatorCard(
+      '10Y TREASURY YIELD', t10 !== null && t10 !== undefined ? t10.toFixed(2) + '%' : '—',
+      t10 < 3 ? 'EASY' : t10 < 4.5 ? 'NORMAL' : t10 < 5.5 ? 'ELEVATED' : 'RESTRICTIVE',
+      treasuryColor(t10),
+      t10 !== null && t10 !== undefined ? `Risk-free rate at ${t10.toFixed(2)}%. ${t10 > 5 ? 'High real rates compress equity multiples.' : t10 > 4 ? 'Moderately restrictive — watch duration risk.' : 'Accommodative rate environment.'}` : 'Data pending.',
+      indHistory.map(r => r?.treasury_10y)
+    ),
+    indicatorCard(
+      'FED FUNDS RATE', ff !== null && ff !== undefined ? ff.toFixed(2) + '%' : '—',
+      'POLICY RATE',
+      '#4a90d9',
+      ff !== null && ff !== undefined && t10 !== null && t10 !== undefined ? `Policy rate ${ff.toFixed(2)}% vs 10Y ${t10.toFixed(2)}%. Spread: ${(t10 - ff).toFixed(2)}%. ${t10 > ff ? 'Normal curve vs fed funds.' : 'Fed funds above 10Y — inverted policy signal.'}` : 'Data pending.',
+      indHistory.map(r => r?.fed_funds_rate)
+    ),
+    indicatorCard(
+      'FORWARD P/E', forwardPe ? forwardPe.toFixed(1) + 'x' : '21.5x',
+      forwardPe > 30 ? 'EXTREME' : forwardPe > 25 ? 'EXPENSIVE' : forwardPe > 20 ? 'ELEVATED' : forwardPe > 15 ? 'FAIR' : 'CHEAP',
+      peColor(forwardPe),
+      `S&P 500 forward earnings multiple. ${forwardPe > 25 ? 'Expensive vs history. Limited upside unless earnings surprise.' : forwardPe > 20 ? 'Elevated but within range. Macro dependent.' : 'Reasonable valuation. More upside capacity.'}`,
+      []
+    ),
+    indicatorCard(
+      'EQUITY RISK PREMIUM', erp !== null && erp !== undefined ? erp.toFixed(2) + '%' : '—',
+      erp > 0 ? 'EQ COMPETITIVE' : 'BONDS BETTER',
+      erpColor(erp),
+      erp !== null && erp !== undefined ? `ERP = earnings yield minus 10Y. ${erp > 0 ? `+${erp.toFixed(2)}% premium — stocks still competitive vs bonds.` : `${erp.toFixed(2)}% — bonds offer better risk-adj yield.`}` : 'Data pending.',
+      indHistory.map(r => r?.equity_risk_premium_pct)
+    ),
+    indicatorCard(
+      'DIVIDEND YIELD vs 10Y',
+      (divYield !== null && divYield !== undefined && t10 !== null && t10 !== undefined)
+        ? `${divYield.toFixed(2)}% div / ${t10.toFixed(2)}% bond` : '—',
+      (divYield !== null && t10 !== null && divYield !== undefined && t10 !== undefined && divYield > t10) ? 'STOCKS YIELD MORE' : 'BONDS YIELD MORE',
+      (divYield !== null && t10 !== null && divYield !== undefined && t10 !== undefined && divYield > t10) ? '#0ecb81' : '#f6465d',
+      (divYield !== null && divYield !== undefined) ? `S&P dividend yield ${divYield.toFixed(2)}%. ${divYield > t10 ? 'Dividends exceed risk-free — income case for equities.' : 'Risk-free rate beats dividend yield — valuation headwind.'}` : 'Data pending.',
+      indHistory.map(r => r?.sp500_dividend_yield)
+    ),
+    indicatorCard(
+      'GOLD vs SPY 30D',
+      ind?.gold_price ? '$' + ind.gold_price.toFixed(0) + ' GLD' : '—',
+      'RELATIVE PERFORMANCE',
+      '#c9a84c',
+      ind?.gold_price ? 'GLD last trade price. Gold outperforming >5% over SPY signals risk-off rotation.' : 'Data pending.',
+      indHistory.map(r => r?.gold_price)
+    ),
+    indicatorCard(
+      'BITCOIN 7D RETURN',
+      btc7d !== null && btc7d !== undefined ? (btc7d > 0 ? '+' : '') + btc7d.toFixed(1) + '%' : '—',
+      btc7d > 5 ? 'RISK-ON' : btc7d < -5 ? 'RISK-OFF' : 'NEUTRAL',
+      btc7d > 5 ? '#0ecb81' : btc7d < -5 ? '#f6465d' : '#c9a84c',
+      btc7d !== null && btc7d !== undefined ? `7-day: ${btc7d > 0 ? '+' : ''}${btc7d.toFixed(1)}%. ${btc7d > 5 ? 'BTC rising with equities = risk-on confirmation.' : btc7d < -5 ? 'BTC falling while equities hold = deteriorating risk appetite.' : 'Neutral BTC momentum — inconclusive signal.'}` : 'Data pending.',
+      indHistory.map(r => r?.bitcoin_usd_7d_change)
+    ),
+  ].join('');
+
+  // ── Spread quality badges (from state.spreadHistory) ───────────────────────
+  const spreadBadges = state.watchlist.map(sym => {
+    const bid = state.lastBid?.[sym];
+    const ask = state.lastAsk?.[sym];
+    const spread = (isFinite(bid) && isFinite(ask)) ? ask - bid : null;
+    const q = spread ? spreadQuality(sym, spread) : { label: '—', color: '#4a5470', score: null };
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <span style="font-size:11px;color:#c8d0e0;font-family:monospace;">${sym}</span>
+      <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;background:${q.color}22;color:${q.color};border:1px solid ${q.color}44;letter-spacing:0.5px;">${q.label}</span>
+    </div>`;
+  }).join('');
+
+  // ── Simple scatter SVG for signal quality correlation ─────────────────────
+  function scatterSVG(records) {
+    const W = 600, H = 200;
+    const PAD = { top: 10, right: 20, bottom: 30, left: 40 };
+    const iW = W - PAD.left - PAD.right;
+    const iH = H - PAD.top - PAD.bottom;
+    const SCORE = { TIGHT: 10, NORMAL: 6, WIDE: 2 };
+    const points = records
+      .filter(r => SCORE[r.spread_quality] !== undefined && r.outcome)
+      .map(r => ({
+        x: SCORE[r.spread_quality],
+        y: (r.outcome === 'WIN_TP1' || r.outcome === 'WIN_TP2') ? 100 : r.outcome === 'LOSS' ? 0 : 50,
+        color: r.direction === 'BUY' ? '#0ecb81' : '#f6465d',
+      }));
+    if (points.length === 0) {
+      return `<svg width="${W}" height="${H}" style="width:100%;max-width:${W}px"><text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(200,215,240,0.3)" font-size="11" font-family="monospace">Signals accumulating...</text></svg>`;
+    }
+    const dots = points.map(p => {
+      const px = PAD.left + ((p.x - 2) / 8) * iW;
+      const py = PAD.top + (1 - p.y / 100) * iH;
+      return `<circle cx="${px}" cy="${py}" r="3" fill="${p.color}" opacity="0.7"/>`;
+    }).join('');
+    return `<svg width="${W}" height="${H}" style="width:100%;max-width:${W}px">
+      <line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top+iH}" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+      <line x1="${PAD.left}" y1="${PAD.top+iH}" x2="${PAD.left+iW}" y2="${PAD.top+iH}" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+      ${[0,25,50,75,100].map(y => `<text x="${PAD.left-5}" y="${PAD.top+(1-y/100)*iH+4}" fill="rgba(200,215,240,0.3)" font-size="9" text-anchor="end" font-family="monospace">${y}%</text>`).join('')}
+      ${[2,6,10].map(x => `<text x="${PAD.left+((x-2)/8)*iW}" y="${PAD.top+iH+15}" fill="rgba(200,215,240,0.3)" font-size="9" text-anchor="middle" font-family="monospace">${x}</text>`).join('')}
+      ${dots}
+    </svg>`;
+  }
+
+  // ── Regime score zone ─────────────────────────────────────────────────────
+  const regimeScore = brief?.macro_regime_score ?? 0;
+  const regimeColor = regimeScore < 30 ? '#f6465d' : regimeScore < 50 ? '#c9a84c' : regimeScore < 70 ? '#4a90d9' : '#0ecb81';
+  const generatedAt = brief?.generated_at ? new Date(brief.generated_at).toLocaleString() : '—';
+
+  // ── Assemble HTML ─────────────────────────────────────────────────────────
+  el.innerHTML = `
+    <!-- TOP BAR -->
+    <div style="background:#040810;border-bottom:1px solid rgba(255,255,255,0.08);padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:10;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${regimeGaugeSVG(regimeScore)}
+        <div>
+          <div style="font-size:9px;letter-spacing:2px;color:rgba(200,215,240,0.4);">MACRO REGIME SCORE</div>
+          <div style="font-size:14px;font-weight:700;color:${regimeColor};font-family:monospace;">${brief?.market_regime || '—'} · ${brief?.valuation_assessment || '—'}</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:11px;color:#c8d0e0;line-height:1.5;">${brief?.macro_headline || 'Brief not yet generated. Click Refresh.'}</div>
+        <div style="font-size:9px;color:rgba(200,215,240,0.35);margin-top:2px;">Generated: ${generatedAt}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button onclick="adminRefreshBrief()" style="background:#0ecb81;color:#060c1a;font-family:monospace;font-size:10px;font-weight:700;padding:7px 14px;border:none;cursor:pointer;border-radius:3px;letter-spacing:1px;">REFRESH</button>
+        <a href="#app" onclick="hideAdminDashboard()" style="color:rgba(200,215,240,0.4);font-family:monospace;font-size:10px;text-decoration:none;letter-spacing:1px;padding:7px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:3px;">← APP</a>
+      </div>
+    </div>
+
+    <!-- THREE COLUMNS -->
+    <div style="display:grid;grid-template-columns:30% 40% 30%;gap:0;min-height:calc(100vh - 200px);">
+
+      <!-- LEFT: MACRO INTELLIGENCE -->
+      <div style="padding:16px;border-right:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:9px;letter-spacing:2px;color:#0ecb81;font-weight:600;margin-bottom:12px;">MACRO INTELLIGENCE</div>
+        ${cards9}
+      </div>
+
+      <!-- CENTER: AI DAILY BRIEF -->
+      <div style="padding:16px;border-right:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:9px;letter-spacing:2px;color:#0ecb81;font-weight:600;margin-bottom:12px;">AI DAILY BRIEF</div>
+        ${brief?.full_brief ? brief.full_brief.split('\n\n').map(p => p.trim()).filter(Boolean).map(p =>
+          `<p style="font-size:11px;color:#c8d0e0;line-height:1.7;margin:0 0 12px;">${p}</p>`
+        ).join('') : '<p style="color:rgba(200,215,240,0.3);font-size:11px;">Brief not yet generated.</p>'}
+
+        ${brief?.key_risks?.length ? `
+          <div style="border:1px solid rgba(246,70,93,0.3);border-radius:3px;padding:10px 12px;margin-bottom:12px;background:rgba(246,70,93,0.04);">
+            <div style="font-size:9px;letter-spacing:1.5px;color:#f6465d;font-weight:600;margin-bottom:8px;">KEY RISKS</div>
+            ${brief.key_risks.map(r => `<div style="font-size:10px;color:#e8eaf0;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">▸ ${r}</div>`).join('')}
+          </div>` : ''}
+
+        ${brief?.key_supports?.length ? `
+          <div style="border:1px solid rgba(14,203,129,0.3);border-radius:3px;padding:10px 12px;margin-bottom:12px;background:rgba(14,203,129,0.04);">
+            <div style="font-size:9px;letter-spacing:1.5px;color:#0ecb81;font-weight:600;margin-bottom:8px;">KEY SUPPORTS</div>
+            ${brief.key_supports.map(s => `<div style="font-size:10px;color:#e8eaf0;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">▸ ${s}</div>`).join('')}
+          </div>` : ''}
+
+        ${brief?.best_trade_window_today ? `
+          <div style="background:rgba(14,203,129,0.08);border:1px solid rgba(14,203,129,0.2);border-radius:3px;padding:8px 12px;margin-bottom:8px;">
+            <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);">BEST WINDOW</div>
+            <div style="font-size:11px;color:#0ecb81;font-weight:600;font-family:monospace;">${brief.best_trade_window_today}</div>
+          </div>` : ''}
+
+        ${brief?.avoid_window_today ? `
+          <div style="background:rgba(246,70,93,0.08);border:1px solid rgba(246,70,93,0.2);border-radius:3px;padding:8px 12px;margin-bottom:8px;">
+            <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);">AVOID</div>
+            <div style="font-size:11px;color:#f6465d;font-weight:600;font-family:monospace;">${brief.avoid_window_today}</div>
+          </div>` : ''}
+
+        ${brief?.execution_quality_today ? `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border:1px solid rgba(255,255,255,0.08);border-radius:3px;margin-bottom:8px;">
+            <span style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);">EXECUTION QUALITY TODAY</span>
+            <span style="font-size:11px;font-weight:700;font-family:monospace;color:${brief.execution_quality_today==='GOOD'?'#0ecb81':brief.execution_quality_today==='MODERATE'?'#c9a84c':'#f6465d'}">${brief.execution_quality_today}</span>
+          </div>` : ''}
+
+        <div style="font-size:9px;color:rgba(200,215,240,0.25);margin-top:8px;">Updated: ${generatedAt}</div>
+      </div>
+
+      <!-- RIGHT: MICROSTRUCTURE -->
+      <div style="padding:16px;">
+        <div style="font-size:9px;letter-spacing:2px;color:#0ecb81;font-weight:600;margin-bottom:12px;">MICROSTRUCTURE</div>
+
+        <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:8px;">SPREAD QUALITY — LIVE</div>
+        <div id="adminSpreadBadges" style="margin-bottom:16px;">${spreadBadges}</div>
+
+        <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:8px;">TIME-OF-DAY PROFILE</div>
+        <div id="adminTODChart" style="background:#0a1220;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:8px;margin-bottom:16px;min-height:80px;display:flex;align-items:center;justify-content:center;">
+          <span style="color:rgba(200,215,240,0.2);font-size:10px;">Builds after Session 8 is deployed</span>
+        </div>
+
+        <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:8px;">DARK POOL ACTIVITY</div>
+        ${state.watchlist.map(sym => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <span style="font-size:11px;color:#c8d0e0;font-family:monospace;">${sym}</span>
+            <span style="font-size:9px;color:rgba(200,215,240,0.3);font-family:monospace;">—% (weekly CSV)</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- BOTTOM: SIGNAL QUALITY CORRELATION -->
+    <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.06);">
+      <div style="font-size:9px;letter-spacing:2px;color:#0ecb81;font-weight:600;margin-bottom:12px;">SIGNAL QUALITY CORRELATION</div>
+      <div style="display:flex;gap:24px;margin-bottom:8px;font-size:9px;color:rgba(200,215,240,0.4);">
+        <span>x-axis: Spread Quality Score (2=WIDE · 6=NORMAL · 10=TIGHT)</span>
+        <span>y-axis: Signal Outcome Rate (%)</span>
+        <span style="color:#0ecb81;">● BUY</span>
+        <span style="color:#f6465d;">● SELL</span>
+      </div>
+      ${scatterSVG(microLogs)}
+    </div>`;
+
+  // Start a live-update interval for spread badges
+  if (window._adminSpreadInterval) clearInterval(window._adminSpreadInterval);
+  window._adminSpreadInterval = setInterval(() => {
+    const container = document.getElementById('adminSpreadBadges');
+    if (!container || document.getElementById('adminDashboard').style.display === 'none') {
+      clearInterval(window._adminSpreadInterval);
+      return;
+    }
+    container.innerHTML = state.watchlist.map(sym => {
+      const bid = state.lastBid?.[sym];
+      const ask = state.lastAsk?.[sym];
+      const spread = (isFinite(bid) && isFinite(ask)) ? ask - bid : null;
+      const q = spread ? spreadQuality(sym, spread) : { label: '—', color: '#4a5470' };
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <span style="font-size:11px;color:#c8d0e0;font-family:monospace;">${sym}</span>
+        <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;background:${q.color}22;color:${q.color};border:1px solid ${q.color}44;letter-spacing:0.5px;">${q.label}</span>
+      </div>`;
+    }).join('');
+  }, 2000);
+}
+
+async function adminRefreshBrief() {
+  const btn = document.querySelector('[onclick="adminRefreshBrief()"]');
+  if (btn) { btn.textContent = 'REFRESHING...'; btn.disabled = true; }
+  try {
+    await fetch('/.netlify/functions/macro-synthesis', {
+      method: 'GET',
+      headers: {
+        'X-Cron-Secret': '2r7awqiHh0XgXIm2n3w1oAAZ2l6YTV1c',
+        'Authorization': 'Bearer ' + (_session?.access_token || ''),
+      },
+    });
+    const { data } = await _supabase.from('macro_daily_brief').select('*').order('date', { ascending: false }).limit(1).single();
+    if (data) state.macroBrief = data;
+    await renderAdminDashboard();
+  } catch (e) {
+    if (btn) { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = 'REFRESH'; btn.disabled = false; }, 3000); }
+  }
+}
+
 async function bootApp() {
   const { data: { session } } = await _supabase.auth.getSession();
   const mobileRetry = () => {
@@ -7064,6 +7471,7 @@ async function bootApp() {
     init();
     await fetchUserPlan();
     await loadMacroBrief();
+    await checkAdminRoute();
     mobileRetry();
   } else {
     showAuthModal();
@@ -7075,6 +7483,7 @@ async function bootApp() {
         init();
         await fetchUserPlan();
         await loadMacroBrief();
+        await checkAdminRoute();
         mobileRetry();
       }
     });
