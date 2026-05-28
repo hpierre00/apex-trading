@@ -3,6 +3,9 @@
   edge_functions = "netlify/edge-functions"
   publish = "."
 
+[functions."macro-synthesis"]
+  schedule = "0 13 * * 1-5"
+
 [[redirects]]
   from = "/apex-platform"
   to = "/apex-platform.html"
@@ -40,6 +43,46 @@
 [[redirects]]
   from = "/market-preview"
   to = "/market-preview.html"
+  status = 200
+
+[[redirects]]
+  from = "/blog"
+  to = "/blog/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/blog/:slug"
+  to = "/blog/:slug.html"
+  status = 200
+
+[[redirects]]
+  from = "/compare/:slug"
+  to = "/compare/:slug.html"
+  status = 200
+
+[[redirects]]
+  from = "/use-cases/:slug"
+  to = "/use-cases/:slug.html"
+  status = 200
+
+[[redirects]]
+  from = "/legal/disclaimer"
+  to = "/legal/disclaimer.html"
+  status = 200
+
+[[redirects]]
+  from = "/legal/risk-disclosure"
+  to = "/legal/risk-disclosure.html"
+  status = 200
+
+[[redirects]]
+  from = "/legal/terms"
+  to = "/legal/terms.html"
+  status = 200
+
+[[redirects]]
+  from = "/legal/privacy"
+  to = "/legal/privacy.html"
   status = 200
 
 [[redirects]]
