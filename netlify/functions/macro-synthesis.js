@@ -8,11 +8,18 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://soghksmuocrgtttmnete.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZ2hrc211b2NyZ3R0dG1uZXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTg4MTEsImV4cCI6MjA5MjY5NDgxMX0.FWRiSZG5yGsJdZvntD5LrqmV07NFEjZWjisJSK95b7A';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASESKTradoLux;
 
 const SUPABASE_HEADERS = {
   'apikey': SUPABASE_ANON_KEY,
   'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
   'Content-Type': 'application/json',
+};
+
+const SUPABASE_SERVICE_HEADERS = {
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+  'apikey': SUPABASE_SERVICE_KEY,
 };
 
 function todayISO() {
@@ -131,7 +138,7 @@ exports.handler = async (event) => {
   try {
     const macroRes = await fetch(
       `${SUPABASE_URL}/rest/v1/macro_indicators_daily?order=date.desc&limit=1`,
-      { headers: SUPABASE_HEADERS }
+      { headers: SUPABASE_SERVICE_HEADERS }
     );
     if (!macroRes.ok) {
       throw new Error(`Supabase macro_indicators_daily returned HTTP ${macroRes.status}`);
@@ -161,7 +168,7 @@ exports.handler = async (event) => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const microRes = await fetch(
       `${SUPABASE_URL}/rest/v1/signal_microstructure_log?created_at=gte.${thirtyDaysAgo}&order=created_at.desc&limit=1000`,
-      { headers: SUPABASE_HEADERS }
+      { headers: SUPABASE_SERVICE_HEADERS }
     );
     if (microRes.ok) {
       const records = await microRes.json();
@@ -268,7 +275,7 @@ Never use vague language. Output only valid JSON, no prose, no markdown.`;
 
   // ── Step 4: Upsert to Supabase ─────────────────────────────────────────────
   const upsertPayload = {
-    date: today,
+    trading_date: today,
     generated_at: new Date().toISOString(),
     ...brief,
   };
@@ -277,7 +284,7 @@ Never use vague language. Output only valid JSON, no prose, no markdown.`;
     const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/macro_daily_brief`, {
       method: 'POST',
       headers: {
-        ...SUPABASE_HEADERS,
+        ...SUPABASE_SERVICE_HEADERS,
         'Prefer': 'resolution=merge-duplicates',
       },
       body: JSON.stringify(upsertPayload),
