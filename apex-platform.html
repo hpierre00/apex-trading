@@ -1451,6 +1451,7 @@ const state = {
   hftShield: null,             // latest HFT shield result for current symbol
   hftShieldTimer: null,        // setInterval handle for polling
   learnedWeightsDB: [],        // server-fetched approved weights [{condition_key, weight_multiplier}]
+  orbBias: null,               // 'long' | 'short' | null — set by ORB detector, used to penalize conflicting signals
 };
 
 /* ============================================================
@@ -3713,6 +3714,10 @@ async function runSmartSignals() {
       const lastFired = state.smartSignals[key] || 0;
       if (candles.length - lastFired < 10) continue;
       state.smartSignals[key] = candles.length;
+      // ORB bias: track direction for conflict suppression in generateSignal()
+      if (result.label.includes('ORB')) {
+        state.orbBias = result.kind === 'bull' ? 'long' : 'short';
+      }
       state.smartSignalHistory.unshift({
         id: 'ss_' + Date.now(),
         sym, tf,
@@ -3841,6 +3846,13 @@ function generateSignal(verdicts) {
   const conditionKey = `${macroBucket}_${spreadLabelForKey}_${getSpreadBucket()}`;
   const learnedWeight = state.learnedWeightsDB?.find(w => w.condition_key === conditionKey)?.weight_multiplier ?? 1.0;
   adjustedConfidence = Math.max(5, Math.min(99, Math.round(adjustedConfidence * learnedWeight)));
+
+  // ORB conflict suppression — penalize signals that contradict the ORB bias
+  if (state.orbBias && state.orbBias !== (action === 'BUY' ? 'long' : 'short')) {
+    adjustedConfidence = Math.max(0, adjustedConfidence - 20);
+    confExplanation = (confExplanation || '') + ` · ORB ${state.orbBias.toUpperCase()} bias conflicts`;
+    if (adjustedConfidence < 25) return; // suppress entirely
+  }
 
   const signal = {
     id: 'sig_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -4280,14 +4292,41 @@ function renderSignalsTab() {
     return;
   }
 
-  content.innerHTML = filterBar + smartHeader + filtered.map(s => {
+  // Fix 4: dedup cards — only show most recent signal per sym+direction within 0.5% entry
+  const seenKeys = new Map(); // key: `${sym}:${action}` → entry price of most recent shown
+  const dedupedFiltered = filtered.filter(s => {
+    const key = `${s.sym}:${s.action}`;
+    const prev = seenKeys.get(key);
+    if (prev !== undefined && Math.abs(s.entry - prev) / prev < 0.005) return false;
+    seenKeys.set(key, s.entry);
+    return true;
+  });
+
+  content.innerHTML = filterBar + smartHeader + dedupedFiltered.map(s => {
     const statusBadge = statusBadgeHTML(s);
     const action = s.action.toLowerCase();
+
+    // Fix 2: macro adjustment tag
+    const macroAdj = state.macroBrief?.signal_confidence_adjustment;
+    const macroTag = macroAdj != null && macroAdj !== 0
+      ? ` <span style="color:${macroAdj >= 0 ? '#0ecb81' : '#f6465d'};font-size:9px">(${macroAdj >= 0 ? '+' : ''}${macroAdj}% macro)</span>`
+      : '';
+
+    // Fix 3: HFT shield badge
+    const shield = state.hftShield;
+    const shieldTag = shield
+      ? ` <span style="font-size:9px;padding:1px 4px;border-radius:2px;background:${shield.shieldScore >= 60 ? 'rgba(14,203,129,0.15)' : shield.shieldScore >= 40 ? 'rgba(201,168,76,0.15)' : 'rgba(246,70,93,0.15)'};color:${shield.shieldScore >= 60 ? '#0ecb81' : shield.shieldScore >= 40 ? '#c9a84c' : '#f6465d'}">🛡 ${shield.shieldScore} ${shield.recommendation}</span>`
+      : '';
+
+    // Fix 4: timestamp in ET
+    const sigTime = new Date(s.timestamp);
+    const etTime = sigTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York', hour12: false });
+
     return `
     <div class="signal-card ${action}">
       <div class="signal-head">
         <div class="signal-sym">${s.sym} ${statusBadge}</div>
-        <div class="signal-action ${action}">${s.action} · ${s.timeframe || ''} · ${tfTier(s.tf || s.timeframe).label} · ${formatTime(s.timestamp)}</div>
+        <div class="signal-action ${action}">${s.action} · ${s.timeframe || ''} · ${tfTier(s.tf || s.timeframe).label} · <span style="color:var(--text-faint)">${etTime} ET</span></div>
       </div>
       <div class="signal-field">
         <div class="signal-label">ENTRY</div>
@@ -4303,7 +4342,7 @@ function renderSignalsTab() {
       </div>
       <div>
         <button class="signal-btn" onclick="copyIBKR('${s.id}')">COPY IBKR</button>
-        <div class="signal-conf" style="margin-top:4px">CONF <span class="pct">${Math.round(s.confidence)}%</span> · RR ${s.rr}</div>
+        <div class="signal-conf" style="margin-top:4px">CONF <span class="pct">${Math.round(s.confidence)}%</span>${macroTag}${shieldTag} · RR ${s.rr}</div>
         ${s.confExplanation ? `<div style="font-size:9px;color:var(--text-faint);margin-top:3px;line-height:1.4;font-family:monospace;">${s.confExplanation}</div>` : ''}
         ${s.status !== 'OPEN' ? `<div style="font-size:9px;color:var(--text-faint);margin-top:3px">MFE ${s.maxFavorable.toFixed(2)}R · MAE ${s.maxAdverse.toFixed(2)}R</div>` : ''}
       </div>
