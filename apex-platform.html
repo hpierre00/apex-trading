@@ -1438,6 +1438,9 @@ const state = {
   theme: localStorage.getItem('apex.theme') || 'dark',
   userPlan: 'free',
   yAxisLocked: false,  // true during tick updates; prevents Y-axis rescale on every price tick
+  spreadHistory: {},  // { [symbol]: { [bucket]: number[] } } — 30-day rolling by 5-min interval
+  lastBid: {},
+  lastAsk: {},
 };
 
 /* ============================================================
@@ -1818,6 +1821,37 @@ function clampView() {
 // one draw per animation frame (~60fps cap). Prevents layout thrash when
 // many ticks/bars arrive at once.
 let _renderScheduled = false;
+function getSpreadBucket(ts) {
+  const d = new Date(ts || Date.now());
+  const etOffset = d.getTimezoneOffset() + 300; // rough ET offset in minutes
+  const etMinutes = (d.getHours() * 60 + d.getMinutes()) - etOffset;
+  const bucketMin = Math.floor(etMinutes / 5) * 5;
+  const h = Math.floor(bucketMin / 60), m = bucketMin % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+function spreadQuality(symbol, currentSpread) {
+  const bucket = getSpreadBucket();
+  const history = (state.spreadHistory[symbol] || {})[bucket] || [];
+  if (history.length < 5) return { label: 'NORMAL', color: '#c9a84c', score: 6 };
+  const avg = history.reduce((s, v) => s + v, 0) / history.length;
+  if (currentSpread <= avg) return { label: 'TIGHT', color: '#0ecb81', score: 10 };
+  if (currentSpread <= avg * 1.5) return { label: 'NORMAL', color: '#c9a84c', score: 6 };
+  return { label: 'WIDE', color: '#f6465d', score: 2 };
+}
+
+function trackSpread(symbol, bid, ask) {
+  const spread = ask - bid;
+  if (!isFinite(spread) || spread <= 0) return;
+  const bucket = getSpreadBucket();
+  if (!state.spreadHistory[symbol]) state.spreadHistory[symbol] = {};
+  if (!state.spreadHistory[symbol][bucket]) state.spreadHistory[symbol][bucket] = [];
+  const arr = state.spreadHistory[symbol][bucket];
+  arr.push(spread);
+  // Keep last 30 days worth of 5-min samples — roughly 78 samples/day * 30 = 2340
+  if (arr.length > 2340) arr.shift();
+}
+
 function isMarketHours() {
   const now = new Date();
   const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -3809,6 +3843,33 @@ function generateSignal(verdicts) {
       toastKind: signal.action === 'BUY' ? 'bull' : 'bear',
     });
   }
+
+  // Log to signal_microstructure_log — non-blocking
+  (async () => {
+    try {
+      const { data: { session } } = await _supabase.auth.getSession();
+      if (!session) return;
+      const bid = state.lastBid?.[signal.sym];
+      const ask = state.lastAsk?.[signal.sym];
+      const currentSpread = (isFinite(bid) && isFinite(ask)) ? ask - bid : null;
+      const bucket = getSpreadBucket();
+      const history = ((state.spreadHistory[signal.sym] || {})[bucket] || []);
+      const avgSpread = history.length ? history.reduce((s, v) => s + v, 0) / history.length : null;
+      const spreadRatio = (currentSpread && avgSpread) ? currentSpread / avgSpread : null;
+      const quality = currentSpread ? spreadQuality(signal.sym, currentSpread) : { label: 'UNKNOWN', score: null };
+      await _supabase.from('signal_microstructure_log').insert({
+        symbol: signal.sym,
+        timeframe: signal.timeframe,
+        direction: signal.action,
+        confidence: signal.confidence,
+        current_spread: currentSpread,
+        spread_vs_avg_ratio: spreadRatio,
+        spread_quality: quality.label,
+        time_bucket: bucket,
+        macro_regime_score: state.macroBrief?.macro_regime_score ?? null,
+      });
+    } catch {}
+  })();
 }
 
 function updateSignalsStrip() {
@@ -5536,6 +5597,7 @@ async function connectAlpaca() {
           action: 'subscribe',
           trades: state.watchlist,
           bars: state.watchlist,
+          quotes: state.watchlist,
         }));
         const wasLive = state.alpaca.state === 'live';
         state.alpaca.state = 'live';
@@ -5614,6 +5676,12 @@ async function connectAlpaca() {
         });
         if (m.S === (state.panes?.[state.activePane]?.symbol || state.symbol)) {
           runSmartSignals();
+        }
+      } else if (m.T === 'q') {
+        if (isFinite(m.bp) && isFinite(m.ap) && m.ap > m.bp) {
+          trackSpread(m.S, m.bp, m.ap);
+          state.lastBid[m.S] = m.bp;
+          state.lastAsk[m.S] = m.ap;
         }
       } else if (m.T === 'error') {
         // Alpaca auth error codes: 400 invalid syntax, 401 not authenticated,
