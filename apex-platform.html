@@ -1447,6 +1447,8 @@ const state = {
   lastBid: {},
   lastAsk: {},
   timeOfDaySpreadProfile: [],  // [{time:'09:30', avgSpreadPct, label}] — 78 5-min buckets
+  hftShield: null,             // latest HFT shield result for current symbol
+  hftShieldTimer: null,        // setInterval handle for polling
 };
 
 /* ============================================================
@@ -1856,6 +1858,24 @@ function trackSpread(symbol, bid, ask) {
   arr.push(spread);
   // Keep last 30 days worth of 5-min samples — roughly 78 samples/day * 30 = 2340
   if (arr.length > 2340) arr.shift();
+}
+
+function pollHftShield(symbol) {
+  if (state.hftShieldTimer) { clearInterval(state.hftShieldTimer); state.hftShieldTimer = null; }
+  state.hftShield = null;
+  const doFetch = async () => {
+    try {
+      const sq = spreadQuality(symbol, (state.lastAsk[symbol] || 0) - (state.lastBid[symbol] || 0));
+      const url = `/.netlify/functions/hft-shield?symbol=${encodeURIComponent(symbol)}&spreadQuality=${sq.label}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.symbol === symbol) state.hftShield = data;
+      }
+    } catch {}
+  };
+  doFetch();
+  state.hftShieldTimer = setInterval(doFetch, 5000);
 }
 
 function isMarketHours() {
@@ -3151,6 +3171,7 @@ async function selectSymbol(s) {
     chatMessages.innerHTML = `<div class="msg ai" style="opacity:0.6;font-size:10px;text-align:center;border:none;padding:8px 0">— chat reset for ${s.toUpperCase()} —</div>`;
   }
   state.symbol = s;
+  pollHftShield(s);
   syncActivePane();
   document.getElementById('symName').textContent = s;
   // If connected and we don't have bars for this symbol yet (or they're simulated), fetch real
@@ -4207,6 +4228,15 @@ function renderSignalsTab() {
             const sign = adj > 0 ? '+' : '';
             const hl = headline ? ' — ' + headline.slice(0, 60) + (headline.length > 60 ? '…' : '') : '';
             return `<div style="color:${color};font-size:9px;margin-top:3px;font-family:monospace">Macro adjustment: ${sign}${adj}%${hl}</div>`;
+          })()}
+          ${(() => {
+            const shield = state.hftShield;
+            if (!shield) return '';
+            const sc = shield.shieldScore;
+            const shColor = sc >= 60 ? '#0ecb81' : sc >= 40 ? '#c9a84c' : '#f6465d';
+            const lines = [`<div style="color:${shColor};font-size:9px;margin-top:3px;font-family:monospace">Shield: ${sc}/100 — ${shield.recommendation} · Route: ${shield.routeVia}</div>`];
+            if (sc < 50) lines.push(`<div style="color:rgba(255,255,255,0.4);font-size:9px;font-family:monospace">Execution: consider routing via IEX on IBKR to reduce HFT front-running risk</div>`);
+            return lines.join('');
           })()}
         </div>`;
       }).join('') +
