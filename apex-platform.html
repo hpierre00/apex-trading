@@ -1446,6 +1446,7 @@ const state = {
   spreadHistory: {},  // { [symbol]: { [bucket]: number[] } } — 30-day rolling by 5-min interval
   lastBid: {},
   lastAsk: {},
+  timeOfDaySpreadProfile: [],  // [{time:'09:30', avgSpreadPct, label}] — 78 5-min buckets
 };
 
 /* ============================================================
@@ -7070,6 +7071,130 @@ window.addEventListener('hashchange', () => {
   else if (window.location.hash === '#app') hideAdminDashboard();
 });
 
+async function loadTimeOfDayProfile() {
+  if (!_session?.access_token) return;
+  try {
+    // Fetch last 30 trading days of 5-min bars for SPY (~42 calendar days)
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - 42);
+    const fmt = d => d.toISOString().slice(0, 10);
+
+    const res = await fetch('/.netlify/functions/alpaca-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _session.access_token },
+      body: JSON.stringify({
+        path: '/v2/stocks/SPY/bars',
+        params: { timeframe: '5Min', start: fmt(start), end: fmt(end), limit: 10000, feed: 'sip' }
+      }),
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    const bars = json.bars || json.SPY || [];
+    if (!bars.length) return;
+
+    // Group bars by ET time bucket (ignore date)
+    const buckets = {};
+    for (const bar of bars) {
+      const d = new Date(bar.t);
+      // Convert to ET: offset by timezone (approximate — use UTC-5 for EST, UTC-4 for EDT)
+      // Polygon/Alpaca bar timestamps are UTC; market hours are 9:30-16:00 ET
+      const utcH = d.getUTCHours(), utcM = d.getUTCMinutes();
+      // ET is UTC-5 (EST) or UTC-4 (EDT); use UTC-4 for simplicity in summer
+      const etTotalMin = utcH * 60 + utcM - 240;
+      if (etTotalMin < 9 * 60 + 30 || etTotalMin >= 16 * 60) continue; // outside market hours
+      const bucket5 = Math.floor(etTotalMin / 5) * 5;
+      const hh = Math.floor(bucket5 / 60);
+      const mm = bucket5 % 60;
+      const key = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+      if (!buckets[key]) buckets[key] = [];
+      if (bar.h > 0 && bar.o > 0) {
+        buckets[key].push((bar.h - bar.l) / bar.o * 100);
+      }
+    }
+
+    // Build the 78-element array
+    const profile = [];
+    for (let min = 9 * 60 + 30; min < 16 * 60; min += 5) {
+      const hh = Math.floor(min / 60);
+      const mm = min % 60;
+      const key = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+      const vals = buckets[key] || [];
+      const avg = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+      profile.push({ time: key, avgSpreadPct: avg, label: key });
+    }
+    state.timeOfDaySpreadProfile = profile;
+  } catch (e) {
+    console.warn('[TOD profile] failed:', e);
+  }
+}
+
+function buildTODChartSVG() {
+  const profile = state.timeOfDaySpreadProfile;
+  const W = 380, H = 100;
+  const PAD = { top: 8, right: 8, bottom: 18, left: 32 };
+  const iW = W - PAD.left - PAD.right;
+  const iH = H - PAD.top - PAD.bottom;
+
+  if (!profile || profile.length === 0) {
+    return `<svg width="${W}" height="${H}" style="width:100%"><text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(200,215,240,0.2)" font-size="10" font-family="monospace">Loading profile...</text></svg>`;
+  }
+
+  const vals = profile.map(p => p.avgSpreadPct).filter(v => v !== null && isFinite(v));
+  if (vals.length === 0) {
+    return `<svg width="${W}" height="${H}" style="width:100%"><text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(200,215,240,0.2)" font-size="10" font-family="monospace">No bar data yet</text></svg>`;
+  }
+
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const range = maxV - minV || 0.01;
+  const xScale = i => PAD.left + (i / (profile.length - 1)) * iW;
+  const yScale = v => PAD.top + (1 - (v - minV) / range) * iH;
+
+  // Line path
+  const linePts = profile.map((p, i) => {
+    if (p.avgSpreadPct === null || !isFinite(p.avgSpreadPct)) return null;
+    return `${xScale(i)},${yScale(p.avgSpreadPct)}`;
+  }).filter(Boolean).join(' ');
+
+  // Peak HFT bands (9:30-10:00 = first 6 buckets; 15:30-16:00 = last 6 buckets)
+  const bandOpenX1 = PAD.left;
+  const bandOpenX2 = xScale(5);
+  const bandCloseX1 = xScale(profile.length - 6);
+  const bandCloseX2 = PAD.left + iW;
+
+  // Current time marker
+  const now = new Date();
+  const etMin = now.getUTCHours() * 60 + now.getUTCMinutes() - 240;
+  let ctLineX = null;
+  if (etMin >= 9 * 60 + 30 && etMin < 16 * 60) {
+    const idx = Math.floor((etMin - (9 * 60 + 30)) / 5);
+    if (idx >= 0 && idx < profile.length) ctLineX = xScale(idx);
+  }
+
+  // X axis labels
+  const xLabels = ['9:30', '11:00', '12:30', '14:00', '15:30'].map((label, li) => {
+    const mins = li === 0 ? 9*60+30 : li === 1 ? 11*60 : li === 2 ? 12*60+30 : li === 3 ? 14*60 : 15*60+30;
+    const idx = Math.floor((mins - (9*60+30)) / 5);
+    if (idx < 0 || idx >= profile.length) return '';
+    return `<text x="${xScale(idx)}" y="${PAD.top+iH+14}" fill="rgba(200,215,240,0.3)" font-size="8" text-anchor="middle" font-family="monospace">${label}</text>`;
+  }).join('');
+
+  return `<svg width="${W}" height="${H}" style="width:100%;max-width:${W}px;">
+    <!-- Peak HFT bands -->
+    <rect x="${bandOpenX1}" y="${PAD.top}" width="${bandOpenX2-bandOpenX1}" height="${iH}" fill="rgba(246,70,93,0.08)"/>
+    <text x="${(bandOpenX1+bandOpenX2)/2}" y="${PAD.top+iH-2}" text-anchor="middle" fill="rgba(246,70,93,0.4)" font-size="7" font-family="monospace">HFT</text>
+    <rect x="${bandCloseX1}" y="${PAD.top}" width="${bandCloseX2-bandCloseX1}" height="${iH}" fill="rgba(246,70,93,0.08)"/>
+    <text x="${(bandCloseX1+bandCloseX2)/2}" y="${PAD.top+iH-2}" text-anchor="middle" fill="rgba(246,70,93,0.4)" font-size="7" font-family="monospace">HFT</text>
+    <!-- Y axis -->
+    <line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top+iH}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+    <!-- Line -->
+    <polyline points="${linePts}" fill="none" stroke="#0ecb81" stroke-width="1.5"/>
+    <!-- Current time -->
+    ${ctLineX ? `<line x1="${ctLineX}" y1="${PAD.top}" x2="${ctLineX}" y2="${PAD.top+iH}" stroke="#c9a84c" stroke-width="1" stroke-dasharray="3,2"/>` : ''}
+    ${xLabels}
+  </svg>`;
+}
+
 async function renderAdminDashboard() {
   const el = document.getElementById('adminDashboard');
   el.innerHTML = '<div style="padding:40px;text-align:center;color:#0ecb81;font-family:monospace;letter-spacing:2px;font-size:13px;">LOADING INTELLIGENCE BRIEF...</div>';
@@ -7099,6 +7224,8 @@ async function renderAdminDashboard() {
     const { data } = await _supabase.from('signal_microstructure_log').select('*').order('created_at', { ascending: false }).limit(200);
     if (data) microLogs = data;
   } catch {}
+
+  await loadTimeOfDayProfile();
 
   // ── Gauge SVG helper ─────────────────────────────────────────────────────
   function regimeGaugeSVG(score) {
@@ -7379,7 +7506,7 @@ async function renderAdminDashboard() {
 
         <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:8px;">TIME-OF-DAY PROFILE</div>
         <div id="adminTODChart" style="background:#0a1220;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:8px;margin-bottom:16px;min-height:80px;display:flex;align-items:center;justify-content:center;">
-          <span style="color:rgba(200,215,240,0.2);font-size:10px;">Builds after Session 8 is deployed</span>
+          ${buildTODChartSVG()}
         </div>
 
         <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:8px;">DARK POOL ACTIVITY</div>
