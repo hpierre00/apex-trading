@@ -1839,11 +1839,11 @@ function getSpreadBucket(ts) {
 function spreadQuality(symbol, currentSpread) {
   const bucket = getSpreadBucket();
   const history = (state.spreadHistory[symbol] || {})[bucket] || [];
-  if (history.length < 5) return { label: 'NORMAL', color: '#c9a84c', score: 6 };
+  if (history.length < 5) return { label: 'NORMAL', color: '#c9a84c', score: 17 };
   const avg = history.reduce((s, v) => s + v, 0) / history.length;
-  if (currentSpread <= avg) return { label: 'TIGHT', color: '#0ecb81', score: 10 };
-  if (currentSpread <= avg * 1.5) return { label: 'NORMAL', color: '#c9a84c', score: 6 };
-  return { label: 'WIDE', color: '#f6465d', score: 2 };
+  if (currentSpread <= avg) return { label: 'TIGHT', color: '#0ecb81', score: 35 };
+  if (currentSpread <= avg * 1.5) return { label: 'NORMAL', color: '#c9a84c', score: 17 };
+  return { label: 'WIDE', color: '#f6465d', score: 0 };
 }
 
 function trackSpread(symbol, bid, ask) {

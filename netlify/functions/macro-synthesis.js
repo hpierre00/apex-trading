@@ -28,7 +28,7 @@ function todayISO() {
 
 // ── Step 2 helpers ────────────────────────────────────────────────────────────
 
-const SPREAD_SCORE = { TIGHT: 10, NORMAL: 6, WIDE: 2 };
+const SPREAD_SCORE = { TIGHT: 35, NORMAL: 17, WIDE: 0 };
 
 function computeMicrostructure(records) {
   const signals_last_30d = records.length;
@@ -43,7 +43,7 @@ function computeMicrostructure(records) {
       scoreCount++;
     }
   }
-  const avg_spread_quality_score = scoreCount > 0 ? scoreSum / scoreCount : 6;
+  const avg_spread_quality_score = scoreCount > 0 ? scoreSum / scoreCount : 17;
 
   // Accuracy for TIGHT spreads
   const tightRecords = records.filter((r) => r.spread_quality === 'TIGHT');
