@@ -6,6 +6,12 @@
 [functions."macro-synthesis"]
   schedule = "0 13 * * 1-5"
 
+[functions."learning-agent"]
+  schedule = "0 0 * * 0"
+
+[functions."app-enhance"]
+  schedule = "0 11 1-7 * 1"
+
 [[redirects]]
   from = "/apex-platform"
   to = "/apex-platform.html"
