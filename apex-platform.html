@@ -7431,7 +7431,6 @@ async function adminRefreshBrief() {
     await fetch('/.netlify/functions/macro-synthesis', {
       method: 'GET',
       headers: {
-        'X-Cron-Secret': '2r7awqiHh0XgXIm2n3w1oAAZ2l6YTV1c',
         'Authorization': 'Bearer ' + (_session?.access_token || ''),
       },
     });

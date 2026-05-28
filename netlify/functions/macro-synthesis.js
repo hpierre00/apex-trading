@@ -71,7 +71,7 @@ function computeMicrostructure(records) {
 exports.handler = async (event) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Cron-Secret',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Cron-Secret, Authorization',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
   };
 
@@ -80,18 +80,39 @@ exports.handler = async (event) => {
   }
 
   // ── Auth ───────────────────────────────────────────────────────────────────
-  // Allow if: (a) Netlify scheduler added x-nf-request-id, or (b) caller supplied
-  // the correct X-Cron-Secret header.
+  // Allow if: (a) Netlify scheduler, (b) correct X-Cron-Secret, or (c) admin JWT
   const isNetlifyScheduler = Boolean(event.headers['x-nf-request-id']);
   const cronSecret = process.env.CRON_SECRET;
   const suppliedSecret = event.headers['x-cron-secret'];
   const isAuthorizedManual = cronSecret && suppliedSecret === cronSecret;
 
-  if (!isNetlifyScheduler && !isAuthorizedManual) {
+  let isAdminJwt = false;
+  const authHeader = event.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!isNetlifyScheduler && !isAuthorizedManual && token) {
+    try {
+      const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
+      });
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        const profileRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userData.id}&select=admin`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` } }
+        );
+        if (profileRes.ok) {
+          const profiles = await profileRes.json();
+          isAdminJwt = profiles?.[0]?.admin === true;
+        }
+      }
+    } catch {}
+  }
+
+  if (!isNetlifyScheduler && !isAuthorizedManual && !isAdminJwt) {
     return {
       statusCode: 401,
       headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Unauthorized — provide X-Cron-Secret header' }),
+      body: JSON.stringify({ error: 'Unauthorized — provide X-Cron-Secret or admin JWT' }),
     };
   }
 
