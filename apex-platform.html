@@ -356,7 +356,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 }
 .agent-head {
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 11px; margin-bottom: 4px;
+  font-size: 12px; margin-bottom: 4px;
 }
 .agent-name { font-weight: 700; }
 .agent-status {
@@ -372,7 +372,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   height: 100%; background: var(--gold);
   transition: width 0.5s;
 }
-.agent-verdict { font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+.agent-verdict { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
 
 .chat-panel {
   border-top: 1px solid var(--border);
@@ -400,6 +400,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   letter-spacing: 1px; color: var(--text-dim);
 }
 .sb { display: inline-flex; align-items: center; gap: 6px; }
+#clock { font-size: 13px; font-weight: 700; color: var(--gold); letter-spacing: 1px; }
 .sb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--bull); box-shadow: 0 0 6px var(--bull); }
 
 /* ====== MODAL ====== */
@@ -2179,7 +2180,9 @@ function renderChartForPane(pane, candles) {
 
   // --- time axis
   const timeY = ch - TIME_H + 14;
-  ctx.fillStyle = _themeTextFaint;
+  ctx.strokeStyle = _themeGrid; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, ch - TIME_H); ctx.lineTo(chartW, ch - TIME_H); ctx.stroke();
+  ctx.fillStyle = '#94a3b8';
   ctx.font = '10px monospace';
   const labels = 6;
   for (let i = 0; i < labels; i++) {
@@ -2421,10 +2424,15 @@ function drawRSISubPanel(candles, start, end, top, h, chartW, xAt, ay) {
   const period = 14;
   if (candles.length < period + 1) return;
   const rsis = computeRSI(candles, period);
+  // Overbought/oversold zones
+  ctx.fillStyle = 'rgba(246, 70, 93, 0.10)';
+  ctx.fillRect(0, ay(100, 0, 100), chartW, ay(70, 0, 100) - ay(100, 0, 100));
+  ctx.fillStyle = 'rgba(0, 192, 118, 0.10)';
+  ctx.fillRect(0, ay(30, 0, 100), chartW, ay(0, 0, 100) - ay(30, 0, 100));
   // 70/30 lines
-  ctx.strokeStyle = '#f6465d40'; ctx.setLineDash([2, 3]);
+  ctx.strokeStyle = '#f6465d90'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(0, ay(70, 0, 100)); ctx.lineTo(chartW, ay(70, 0, 100)); ctx.stroke();
-  ctx.strokeStyle = '#00c07640';
+  ctx.strokeStyle = '#00c07690';
   ctx.beginPath(); ctx.moveTo(0, ay(30, 0, 100)); ctx.lineTo(chartW, ay(30, 0, 100)); ctx.stroke();
   ctx.setLineDash([]);
   ctx.strokeStyle = '#ab47bc'; ctx.lineWidth = 1.5;
@@ -2990,6 +2998,22 @@ function renderCrosshairForPane(paneIndex, localX, localY) {
   ctx2.beginPath(); ctx2.moveTo(0, localY); ctx2.lineTo(chartW, localY); ctx2.stroke();
   ctx2.setLineDash([]);
   ctx2.restore();
+  // Time label pill on x-axis at crosshair
+  if (bar) {
+    const _d2 = new Date(bar.t);
+    const _mins2 = tfMinutes(pane.timeframe);
+    const _tl = _mins2 >= 1440
+      ? (_d2.getMonth()+1)+'/'+_d2.getDate()
+      : _d2.getHours().toString().padStart(2,'0')+':'+_d2.getMinutes().toString().padStart(2,'0');
+    const _txw = 44, _tlx = Math.max(_txw/2, Math.min(localX, chartW - _txw/2));
+    ctx2.fillStyle = _themeGold || '#1a7a6e';
+    ctx2.fillRect(_tlx - _txw/2, lh - TIME_H + 1, _txw, TIME_H - 3);
+    ctx2.fillStyle = '#0b1221';
+    ctx2.font = 'bold 9px monospace';
+    ctx2.textAlign = 'center';
+    ctx2.fillText(_tl, _tlx, lh - 6);
+    ctx2.textAlign = 'left';
+  }
   const tip = document.getElementById('ohlcTip');
   if (tip && bar) {
     tip.style.cssText = 'position:fixed;background:var(--gold);color:#000;font-size:13px;font-weight:800;padding:3px 8px;border-radius:4px;pointer-events:none;z-index:9999;white-space:nowrap;';
@@ -3188,6 +3212,11 @@ async function selectSymbol(s) {
   }
   const prevSym = state.symbol;
   state.symbol = s;
+  // Clear stale signals when switching symbols
+  const _ssEl = document.getElementById('signalsStrip');
+  if (_ssEl) _ssEl.innerHTML = '<span class="sig-pill-empty">⚡ SCANNING FOR SIGNALS...</span>';
+  const _sbEl = document.getElementById('sigBadge');
+  if (_sbEl) _sbEl.textContent = '0';
   logTelemetry('symbol_changed', 'watchlist', { symbol: s, previousSymbol: prevSym });
   pollHftShield(s);
   syncActivePane();
