@@ -6,15 +6,15 @@
    ============================================================ */
 
 :root {
-  --bg: #0b1221;
-  --panel: #0f1729;
-  --panel-2: #15203a;
-  --border: #1e2a3f;
-  --text: #e5e9f0;
-  --text-dim: #8b95a7;
-  --text-faint: #5a6678;
-  --gold: #f5a623;
-  --gold-dim: #b8860b;
+  --bg: #0D1B2A;
+  --panel: #122436;
+  --panel-2: #1A2E44;
+  --border: #1E3A50;
+  --text: #F1F5F9;
+  --text-dim: #94A3B8;
+  --text-faint: #64748B;
+  --gold: #10B981;
+  --gold-dim: #059669;
   --bull: #00c076;
   --bear: #f6465d;
   --blue: #4c9aff;
@@ -61,7 +61,7 @@ p.lead { font-size: 18px; line-height: 1.55; color: var(--text); }
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(11, 18, 33, 0.92);
+  background: rgba(13, 27, 42, 0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
@@ -99,7 +99,7 @@ p.lead { font-size: 18px; line-height: 1.55; color: var(--text); }
   font-weight: 600;
   transition: background 0.15s ease;
 }
-.nav-links a.cta:hover { background: #ffb84d; color: #0b1221; }
+.nav-links a.cta:hover { background: #0ea572; color: #ffffff; }
 
 @media (max-width: 720px) {
   .nav-links { gap: 14px; font-size: 13px; }
@@ -143,9 +143,9 @@ p.lead { font-size: 18px; line-height: 1.55; color: var(--text); }
 }
 .btn-primary {
   background: var(--gold);
-  color: #0b1221;
+  color: #ffffff;
 }
-.btn-primary:hover { background: #ffb84d; color: #0b1221; }
+.btn-primary:hover { background: #0ea572; color: #ffffff; }
 .btn-secondary {
   background: transparent;
   color: var(--text);
@@ -208,7 +208,7 @@ section.alt { background: var(--panel); border-top: 1px solid var(--border); bor
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(245, 166, 35, 0.08);
+  background: rgba(16, 185, 129, 0.08);
   color: var(--gold);
   border-radius: var(--radius);
   font-size: 18px;
@@ -236,7 +236,7 @@ section.alt { background: var(--panel); border-top: 1px solid var(--border); bor
 }
 .price-card.featured {
   border-color: var(--gold);
-  box-shadow: 0 8px 32px rgba(245, 166, 35, 0.08);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.08);
 }
 .price-card .badge {
   position: absolute;
@@ -338,9 +338,9 @@ section.alt { background: var(--panel); border-top: 1px solid var(--border); bor
 
 /* =============== DISCLAIMER / RISK BANNER =============== */
 .risk-banner {
-  background: rgba(245, 166, 35, 0.06);
-  border-top: 1px solid rgba(245, 166, 35, 0.25);
-  border-bottom: 1px solid rgba(245, 166, 35, 0.25);
+  background: rgba(16, 185, 129, 0.06);
+  border-top: 1px solid rgba(16, 185, 129, 0.25);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
   padding: 14px 0;
   font-size: 12px;
   color: var(--text-dim);
@@ -402,7 +402,7 @@ section.alt { background: var(--panel); border-top: 1px solid var(--border); bor
 .article ul li { color: var(--text-dim); margin-bottom: 6px; line-height: 1.6; }
 .article strong { color: var(--text); }
 .article .notice {
-  background: rgba(245, 166, 35, 0.06);
+  background: rgba(16, 185, 129, 0.06);
   border-left: 3px solid var(--gold);
   padding: 14px 18px;
   margin: 24px 0;
