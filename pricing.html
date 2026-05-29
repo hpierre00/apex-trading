@@ -44,8 +44,8 @@
   <div class="container">
     <!-- Billing toggle -->
     <div style="display:flex;justify-content:center;gap:4px;margin-bottom:36px;">
-      <button id="toggleMonthly" onclick="setBilling('monthly')" style="padding:8px 20px;border-radius:5px 0 0 5px;border:1px solid var(--border);background:var(--gold);color:#0b1221;font-size:13px;font-weight:700;cursor:pointer;">Monthly</button>
-      <button id="toggleAnnual"  onclick="setBilling('annual')"  style="padding:8px 20px;border-radius:0 5px 5px 0;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:13px;font-weight:600;cursor:pointer;">Annual <span style="background:#00c076;color:#0b1221;font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;margin-left:4px;">SAVE 20%</span></button>
+      <button id="toggleMonthly" onclick="setBilling('monthly')" style="padding:8px 20px;border-radius:5px 0 0 5px;border:1px solid var(--border);background:var(--gold);color:#0D1B2A;font-size:13px;font-weight:700;cursor:pointer;">Monthly</button>
+      <button id="toggleAnnual"  onclick="setBilling('annual')"  style="padding:8px 20px;border-radius:0 5px 5px 0;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:13px;font-weight:600;cursor:pointer;">Annual <span style="background:#00c076;color:#0D1B2A;font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;margin-left:4px;">SAVE 20%</span></button>
     </div>
 
     <div class="pricing-grid">
@@ -105,7 +105,7 @@
 
       <!-- Elite -->
       <div class="price-card">
-        <div class="badge" style="background:var(--gold);color:#0b1221;">BEST VALUE</div>
+        <div class="badge" style="background:var(--gold);color:#0D1B2A;">BEST VALUE</div>
         <div class="tier">Elite</div>
         <div class="price">
           <span class="amount"><span class="pm">$149</span><span class="pa" style="display:none">$119</span></span>
@@ -246,9 +246,9 @@ function setBilling(mode) {
   var aBtn = document.getElementById('toggleAnnual');
   if (isAnnual) {
     mBtn.style.background = 'transparent'; mBtn.style.color = 'var(--text-dim)';
-    aBtn.style.background = 'var(--gold)';  aBtn.style.color = '#0b1221';
+    aBtn.style.background = 'var(--gold)';  aBtn.style.color = '#0D1B2A';
   } else {
-    mBtn.style.background = 'var(--gold)'; mBtn.style.color = '#0b1221';
+    mBtn.style.background = 'var(--gold)'; mBtn.style.color = '#0D1B2A';
     aBtn.style.background = 'transparent'; aBtn.style.color = 'var(--text-dim)';
   }
   var starterCta = document.getElementById('starter-cta');
