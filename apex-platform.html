@@ -22,21 +22,21 @@
    white on black for long sessions. */
 :root,
 [data-theme="dark"] {
-  --bg: #0b1221;          /* deep navy, NOT pure black */
-  --panel: #0f1729;       /* slightly lifted from bg */
-  --panel-2: #15203a;     /* secondary panel surface, modal/input bg */
-  --border: #1e2a3f;      /* subtle navy borders, NOT black lines */
-  --text: #e5e9f0;        /* off-white primary text */
-  --text-dim: #8b95a7;    /* muted blue-gray secondary text */
-  --text-faint: #5a6678;  /* tertiary, captions, footnotes */
-  --gold: #1a7a6e;        /* Tradolux Teal primary */
+  --bg: #0D1B2A;          /* deep navy, NOT pure black */
+  --panel: #122436;       /* slightly lifted from bg */
+  --panel-2: #1A2E44;     /* secondary panel surface, modal/input bg */
+  --border: #1E3A50;      /* subtle navy borders, NOT black lines */
+  --text: #F1F5F9;        /* off-white primary text */
+  --text-dim: #94A3B8;    /* muted blue-gray secondary text */
+  --text-faint: #64748B;  /* tertiary, captions, footnotes */
+  --gold: #10B981;        /* Tradolux Teal primary */
   --bull: #00c076;        /* institutional green */
   --bear: #f6465d;        /* readable red, not alarm red */
-  --chart-bg: #0b1221;
-  --header-bg: #0a1020;
-  --input-bg: #15203a;
-  --modal-bg: #0f1729;
-  --scrollbar: #1e2a3f;
+  --chart-bg: #0D1B2A;
+  --header-bg: #0D1B2A;
+  --input-bg: #1A2E44;
+  --modal-bg: #122436;
+  --scrollbar: #1E3A50;
 }
 
 /* LIGHT THEME — "Ivory" — warm off-white professional.
@@ -1651,7 +1651,7 @@ function initLayout(count) {
 
     const symInput = document.createElement('input');
     symInput.value = pane.symbol;
-    symInput.style.cssText = 'background:#0b1221;border:1px solid #1e2d45;color:#1a7a6e;font-family:monospace;font-size:9px;font-weight:700;padding:2px 4px;width:52px;text-transform:uppercase;outline:none;';
+    symInput.style.cssText = 'background:#0D1B2A;border:1px solid #1e2d45;color:#1a7a6e;font-family:monospace;font-size:9px;font-weight:700;padding:2px 4px;width:52px;text-transform:uppercase;outline:none;';
     symInput.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       const sym = symInput.value.trim().toUpperCase();
@@ -4268,7 +4268,7 @@ function renderSignalsTab() {
         </div>`;
       }).join('') +
       ((_userPlan === 'free' && state.smartSignalHistory.length > _smartMax)
-        ? `<div onclick="showUpgradeModal('Scenarios','Starter')" style="padding:10px 12px;background:rgba(26,122,110,0.12);border:1px dashed #1a7a6e;cursor:pointer;text-align:center;font-size:10px;font-family:monospace;color:#1a7a6e;letter-spacing:0.5px;">
+        ? `<div onclick="showUpgradeModal('Scenarios','Starter')" style="padding:10px 12px;background:rgba(16,185,129,0.12);border:1px dashed #1a7a6e;cursor:pointer;text-align:center;font-size:10px;font-family:monospace;color:#1a7a6e;letter-spacing:0.5px;">
              🔒 ${state.smartSignalHistory.length - _smartMax} more scenario${state.smartSignalHistory.length - _smartMax > 1 ? 's' : ''} — Starter plan unlocks all
            </div>`
         : ''));
@@ -5962,7 +5962,7 @@ function initOnboardingWalkthrough() {
   const oBottom = el(`position:fixed;left:0;right:0;bottom:0;z-index:99990;pointer-events:all;background:${BG};`);
   const oLeft   = el(`position:fixed;z-index:99990;pointer-events:all;background:${BG};`);
   const oRight  = el(`position:fixed;z-index:99990;pointer-events:all;background:${BG};`);
-  const ring    = el('position:fixed;border:2px solid #1a7a6e;border-radius:4px;z-index:99991;pointer-events:none;box-shadow:0 0 0 3px rgba(26,122,110,0.2),0 0 24px rgba(26,122,110,0.15);');
+  const ring    = el('position:fixed;border:2px solid #1a7a6e;border-radius:4px;z-index:99991;pointer-events:none;box-shadow:0 0 0 3px rgba(16,185,129,0.2),0 0 24px rgba(16,185,129,0.15);');
   const card    = el('position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:calc(100% - 32px);max-width:480px;background:#0f1729;border:1px solid #1e2d45;border-top-left-radius:8px;border-top-right-radius:8px;padding:20px 20px 28px;z-index:99995;font-family:monospace;box-shadow:0 -8px 32px rgba(0,0,0,0.6);');
 
   function finish() {
@@ -5992,7 +5992,7 @@ function initOnboardingWalkthrough() {
     oBottom.style.height = bGap + 'px';
     oLeft.style.cssText  = `position:fixed;top:${t}px;height:${h}px;left:0;width:${l}px;z-index:99990;pointer-events:all;background:${BG};`;
     oRight.style.cssText = `position:fixed;top:${t}px;height:${h}px;right:0;width:${rGap}px;z-index:99990;pointer-events:all;background:${BG};`;
-    ring.style.cssText   = `position:fixed;top:${t}px;left:${l}px;width:${w}px;height:${h}px;border:2px solid #1a7a6e;border-radius:4px;z-index:99991;pointer-events:none;box-shadow:0 0 0 3px rgba(26,122,110,0.2),0 0 24px rgba(26,122,110,0.15);`;
+    ring.style.cssText   = `position:fixed;top:${t}px;left:${l}px;width:${w}px;height:${h}px;border:2px solid #1a7a6e;border-radius:4px;z-index:99991;pointer-events:none;box-shadow:0 0 0 3px rgba(16,185,129,0.2),0 0 24px rgba(16,185,129,0.15);`;
 
     const dots = steps.map((_, i) =>
       `<div style="height:3px;flex:1;border-radius:2px;background:${i <= idx ? '#1a7a6e' : '#1e2d45'};"></div>`
@@ -7002,7 +7002,7 @@ function showMobilePanel(panel) {
       : 'background:#1a7a6e;color:#e8f5f2;cursor:pointer;';
     const chatLockHtml = _chatLocked ? `
       <div onclick="showUpgradeModal('AI Chat','Pro')"
-        style="background:rgba(26,122,110,0.1);border:1px dashed #1a7a6e;border-radius:3px;padding:10px 12px;cursor:pointer;text-align:center;">
+        style="background:rgba(16,185,129,0.1);border:1px dashed #1a7a6e;border-radius:3px;padding:10px 12px;cursor:pointer;text-align:center;">
         <div style="font-size:10px;font-weight:700;color:#1a7a6e;letter-spacing:0.5px;margin-bottom:3px;">💬 AI Chat — Pro Plan</div>
         <div style="font-size:10px;color:rgba(200,215,240,0.5);">Tap to upgrade and unlock full AI conversation</div>
       </div>` : `
@@ -7838,9 +7838,9 @@ bootApp();
     <div id="authError" style="display:none;background:#f6465d20;border:1px solid #f6465d;color:#f6465d;padding:8px 12px;border-radius:4px;font-size:10px;margin-bottom:12px;"></div>
     <div id="authSuccess" style="display:none;background:#00c07620;border:1px solid #00c076;color:#00c076;padding:8px 12px;border-radius:4px;font-size:10px;margin-bottom:12px;"></div>
     <input id="authEmail" type="email" placeholder="Email address" autocomplete="email"
-      style="width:100%;box-sizing:border-box;background:#0b1221;border:1px solid #1e2d45;color:#e5e9f0;padding:10px 12px;border-radius:4px;font-family:monospace;font-size:11px;margin-bottom:10px;outline:none;">
+      style="width:100%;box-sizing:border-box;background:#0D1B2A;border:1px solid #1e2d45;color:#e5e9f0;padding:10px 12px;border-radius:4px;font-family:monospace;font-size:11px;margin-bottom:10px;outline:none;">
     <input id="authPassword" type="password" placeholder="Password (min 8 characters)" autocomplete="current-password"
-      style="width:100%;box-sizing:border-box;background:#0b1221;border:1px solid #1e2d45;color:#e5e9f0;padding:10px 12px;border-radius:4px;font-family:monospace;font-size:11px;margin-bottom:16px;outline:none;">
+      style="width:100%;box-sizing:border-box;background:#0D1B2A;border:1px solid #1e2d45;color:#e5e9f0;padding:10px 12px;border-radius:4px;font-family:monospace;font-size:11px;margin-bottom:16px;outline:none;">
     <button id="authSubmit" onclick="handleAuthSubmit()"
       style="width:100%;background:#1a7a6e;color:#e8f5f2;border:none;padding:10px;border-radius:4px;font-family:monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>
     <div style="text-align:center;margin-top:12px;">
@@ -7861,7 +7861,7 @@ bootApp();
 
 <!-- DISCLAIMER GATE — fullscreen, shown on first visit, dismissed permanently via localStorage -->
 <div id="disclaimerGate" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(4,8,18,0.97);align-items:center;justify-content:center;padding:24px;box-sizing:border-box;">
-  <div style="max-width:480px;width:100%;background:#0b1221;border:1px solid rgba(245,166,35,0.35);border-radius:6px;padding:32px 28px;font-family:'SF Mono','Fira Code','Courier New',monospace;">
+  <div style="max-width:480px;width:100%;background:#0D1B2A;border:1px solid rgba(245,166,35,0.35);border-radius:6px;padding:32px 28px;font-family:'SF Mono','Fira Code','Courier New',monospace;">
     <div style="font-size:13px;font-weight:900;letter-spacing:2.5px;color:#f5a623;margin-bottom:18px;text-align:center;">⚠ IMPORTANT NOTICE</div>
     <div style="font-size:11px;color:rgba(200,215,240,0.75);line-height:1.75;margin-bottom:24px;">
       <strong style="color:#f5a623;">NOT FINANCIAL ADVICE.</strong> Tradolux provides AI-generated market analysis for informational purposes only. AI outputs may contain errors, hallucinations, or outdated information.<br><br>
