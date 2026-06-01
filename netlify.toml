@@ -224,3 +224,15 @@ publish = "."
     X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[functions]]
+  path = "/evaluate-signal-outcomes"
+  schedule = "0,30 14-21 * * 1-5"
+
+[[functions]]
+  path = "/update-agent-weights"
+  schedule = "0 10 * * 2-6"
+
+[[functions]]
+  path = "/generate-daily-report"
+  schedule = "5 21 * * 1-5"
