@@ -58,8 +58,8 @@ exports.handler = async (event) => {
       // Choose Polygon timespan based on timeframe
       let timespan = 'minute';
       let multiplier = tfMins;
-      if (tfMins >= 1440) { timespan = 'day'; multiplier = Math.round(tfMins / 1440); }
-      else if (tfMins >= 10080) { timespan = 'week'; multiplier = 1; }
+      if (tfMins >= 10080)     { timespan = 'week'; multiplier = 1; }
+      else if (tfMins >= 1440) { timespan = 'day';  multiplier = Math.round(tfMins / 1440); }
 
       const fromDate = from.toISOString().slice(0, 10);
       const toDate   = to.toISOString().slice(0, 10);
