@@ -931,6 +931,54 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   .bottom-panel { display: flex !important; height: 36px !important; min-height: 36px !important; align-items: center !important; padding: 0 10px !important; gap: 10px !important; background: rgba(3,7,18,0.99) !important; border-top: 0.5px solid rgba(255,255,255,0.07) !important; flex-shrink: 0 !important; overflow: hidden !important; }
 }
 
+
+/* ===== PERF TABLE (agent learning) ===== */
+.perf-table{width:100%;border-collapse:collapse;font-size:10px;font-family:monospace}
+.perf-table th{color:var(--text-faint);font-size:9px;letter-spacing:1px;text-align:left;padding:4px 8px;border-bottom:1px solid var(--border)}
+.perf-table td{padding:6px 8px;border-bottom:1px solid var(--border);color:var(--text)}
+.perf-table tr:hover td{background:var(--panel)}
+.approve-btn{background:var(--bull);color:#000;border:none;border-radius:3px;padding:2px 8px;font-size:9px;font-family:monospace;cursor:pointer;margin-right:4px}
+.reject-btn{background:var(--bear);color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;font-family:monospace;cursor:pointer}
+.trend-up{color:var(--bull)}.trend-down{color:var(--bear)}.trend-flat{color:var(--text-faint)}
+/* ===== DAILY REPORT PANEL ===== */
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:900px){.report-grid{grid-template-columns:1fr}}
+.report-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:16px}
+.report-card-title{font-size:9px;letter-spacing:2px;color:var(--text-faint);font-family:monospace;margin-bottom:12px}
+.period-tabs{display:flex;gap:2px;margin-bottom:12px}
+.period-tab{padding:3px 10px;font-size:9px;font-family:monospace;cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);border-radius:3px;letter-spacing:1px}
+.period-tab.active{background:var(--gold);color:var(--bg);font-weight:700;border-color:var(--gold)}
+.kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.kpi-block{flex:1;min-width:100px}
+.kpi-label{font-size:8px;color:var(--text-faint);letter-spacing:1px;margin-bottom:2px}
+.kpi-value{font-size:22px;font-weight:700;font-family:monospace;color:var(--text);line-height:1}
+.kpi-sub{font-size:9px;color:var(--text-dim);margin-top:2px}
+.kpi-up{color:var(--bull)}.kpi-down{color:var(--bear)}
+.usage-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.usage-bar-label{font-size:9px;font-family:monospace;color:var(--text-dim);width:80px;flex-shrink:0}
+.usage-bar-track{flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.usage-bar-fill{height:100%;background:var(--gold);border-radius:4px;transition:width 0.6s}
+.usage-bar-pct{font-size:9px;font-family:monospace;color:var(--text-dim);width:32px;text-align:right;flex-shrink:0}
+.insight-row{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.insight-row:last-child{border-bottom:none}
+.insight-icon{font-size:14px;flex-shrink:0}
+.insight-text{font-size:10px;color:var(--text);line-height:1.5}
+.insight-text b{color:var(--gold)}
+.insight-impact{font-size:8px;letter-spacing:1px;padding:2px 6px;border-radius:3px;flex-shrink:0;margin-left:auto}
+.impact-high{background:rgba(246,70,93,0.2);color:#f6465d}
+.impact-medium{background:rgba(255,152,0,0.2);color:#ff9800}
+.impact-low{background:rgba(14,203,129,0.15);color:var(--bull)}
+.mkt-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:monospace;padding:2px 7px;border-radius:3px}
+.mkt-win{background:rgba(14,203,129,0.15);color:var(--bull)}
+.mkt-warn{background:rgba(255,152,0,0.15);color:#ff9800}
+.mkt-bad{background:rgba(246,70,93,0.15);color:var(--bear)}
+.ops-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:10px;font-family:monospace}
+.ops-row:last-child{border-bottom:none}
+.ops-label{color:var(--text-dim)}.ops-value{color:var(--text);font-weight:700}
+.health-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.health-ok{background:var(--bull);box-shadow:0 0 6px var(--bull)}
+.health-warn{background:#ff9800;box-shadow:0 0 6px #ff9800}
+.health-bad{background:var(--bear);box-shadow:0 0 6px var(--bear)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/js/analytics.js"></script>
@@ -7171,6 +7219,8 @@ async function checkAdminRoute() {
   } catch { window.location.hash = '#app'; return; }
   await renderAdminDashboard();
   showAdminDashboard();
+  loadAgentPerformance();
+  loadDailyReport();
 }
 
 window.addEventListener('hashchange', () => {
@@ -7842,6 +7892,368 @@ async function handleGoogleSignIn() {
 }
 
 bootApp();
+
+// ===== AGENT PERFORMANCE (Session 12) =====
+async function loadAgentPerformance() {
+  // Ensure the panel exists in the DOM
+  if (!document.getElementById('agentPerfPanel')) {
+    const adminEl = document.getElementById('adminDashboard');
+    if (!adminEl) return;
+    const panel = document.createElement('div');
+    panel.id = 'agentPerfPanel';
+    panel.style.cssText = 'margin-top:24px';
+    panel.innerHTML = `<div style="font-size:9px;letter-spacing:3px;color:var(--gold);font-family:monospace;margin-bottom:12px">AGENT PERFORMANCE</div>
+<table class="perf-table" id="agentPerfTable">
+  <thead><tr>
+    <th>AGENT</th><th>SIGNALS</th><th>DIR. ACCURACY</th>
+    <th>R:R WIN RATE</th><th>AVG R:R</th><th>AVG P&amp;L</th><th>TREND</th>
+  </tr></thead>
+  <tbody id="agentPerfBody">
+    <tr><td colspan="7" style="text-align:center;color:var(--text-faint)">Loading...</td></tr>
+  </tbody>
+</table>
+<div style="margin-top:16px">
+  <div style="font-size:9px;letter-spacing:2px;color:var(--text-faint);font-family:monospace;margin-bottom:8px">30-DAY ROLLING ACCURACY</div>
+  <canvas id="agentAccuracyChart" height="120" style="width:100%"></canvas>
+</div>
+<div style="margin-top:16px" id="pendingApprovalsSection">
+  <div style="font-size:9px;letter-spacing:2px;color:var(--text-faint);font-family:monospace;margin-bottom:8px">PENDING WEIGHT UPDATES
+    <span id="pendingCount" style="background:var(--bear);color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;margin-left:6px">0</span>
+  </div>
+  <table class="perf-table" id="pendingTable">
+    <thead><tr><th>CONDITION</th><th>CURRENT</th><th>PROPOSED</th><th>ACCURACY</th><th>SAMPLES</th><th>REASON</th><th>ACTION</th></tr></thead>
+    <tbody id="pendingBody">
+      <tr><td colspan="7" style="text-align:center;color:var(--text-faint)">No pending approvals.</td></tr>
+    </tbody>
+  </table>
+</div>`;
+    adminEl.appendChild(panel);
+  }
+
+  const since = new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
+  const { data: perfRows } = await supabase.from('agent_performance_daily').select('*').gte('date', since).order('date', { ascending: false });
+  if (!perfRows?.length) return;
+  const latest = {}, prev = {};
+  for (const r of perfRows) {
+    if (!latest[r.agent_name]) { latest[r.agent_name] = r; continue; }
+    if (!prev[r.agent_name]) prev[r.agent_name] = r;
+  }
+  const tbody = document.getElementById('agentPerfBody');
+  if (!tbody) return;
+  tbody.innerHTML = Object.entries(latest).map(([name, r]) => {
+    const pWr = prev[name]?.direction_win_rate || r.direction_win_rate;
+    const trend = r.direction_win_rate > pWr+0.02 ? '<span class="trend-up">\u25b2</span>' : r.direction_win_rate < pWr-0.02 ? '<span class="trend-down">\u25bc</span>' : '<span class="trend-flat">\u2014</span>';
+    const pnl = (r.avg_pnl_pct>=0?'+':'') + (r.avg_pnl_pct||0).toFixed(2)+'%';
+    return `<tr><td style="font-weight:700;color:var(--gold)">${name.toUpperCase()}</td><td>${r.signals_count}</td><td>${(r.direction_win_rate*100).toFixed(1)}%</td><td>${(r.rr_win_rate*100).toFixed(1)}%</td><td>${(r.avg_rr||0).toFixed(2)}</td><td style="color:${r.avg_pnl_pct>=0?'var(--bull)':'var(--bear)'}">${pnl}</td><td>${trend}</td></tr>`;
+  }).join('');
+  drawAgentAccuracyChart(perfRows);
+  loadPendingApprovals();
+}
+
+function drawAgentAccuracyChart(rows) {
+  const canvas = document.getElementById('agentAccuracyChart');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.parentElement.offsetWidth * dpr;
+  canvas.height = 120 * dpr;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const agents = [...new Set(rows.map(r=>r.agent_name))];
+  const dates = [...new Set(rows.map(r=>r.date))].sort();
+  const colors = ['#0ecb81','#f6465d','#2e7fff','#ff9800','#ab47bc'];
+  [0.5,0.7].forEach(v => {
+    const y = H - v*H;
+    ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font=`${9*dpr}px monospace`;
+    ctx.fillText((v*100)+'%', 4, y-3);
+  });
+  agents.forEach((agent,ai) => {
+    const agentRows = rows.filter(r=>r.agent_name===agent).sort((a,b)=>a.date.localeCompare(b.date));
+    ctx.strokeStyle=colors[ai%colors.length]; ctx.lineWidth=2;
+    ctx.beginPath();
+    agentRows.forEach((r,i) => {
+      const x=(dates.indexOf(r.date)/(dates.length-1))*W;
+      const y=H-(r.direction_win_rate||0)*H;
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  });
+}
+
+async function loadPendingApprovals() {
+  const { data: pending } = await supabase.from('learned_weights')
+    .select('condition_key,weight_multiplier,pending_weight,pending_accuracy,pending_samples,pending_explanation')
+    .not('pending_weight','is',null);
+  const countEl = document.getElementById('pendingCount');
+  if (countEl) countEl.textContent = pending?.length || 0;
+  const tbody = document.getElementById('pendingBody');
+  if (!tbody) return;
+  if (!pending?.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-faint)">No pending approvals.</td></tr>'; return; }
+  tbody.innerHTML = pending.map(r=>`<tr>
+    <td style="font-weight:700">${r.condition_key}</td>
+    <td>${(r.weight_multiplier||0).toFixed(2)}</td>
+    <td>${(r.pending_weight||0).toFixed(2)}</td>
+    <td>${((r.pending_accuracy||0)*100).toFixed(1)}%</td>
+    <td>${r.pending_samples||0}</td>
+    <td style="color:var(--text-dim);font-size:9px">${r.pending_explanation||''}</td>
+    <td>
+      <button class="approve-btn" onclick="approveWeight('${r.condition_key}',${r.pending_weight},${r.pending_accuracy},${r.pending_samples})">APPROVE</button>
+      <button class="reject-btn" onclick="rejectWeight('${r.condition_key}')">REJECT</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function approveWeight(conditionKey, newWeight, accuracy, samples) {
+  await supabase.from('learned_weights').update({ weight_multiplier:newWeight, accuracy_rate:accuracy, sample_size:samples, approved:true, pending_weight:null, pending_accuracy:null, pending_samples:null, pending_explanation:null, pending_created_at:null }).eq('condition_key', conditionKey);
+  loadPendingApprovals();
+}
+
+async function rejectWeight(conditionKey) {
+  await supabase.from('learned_weights').update({ pending_weight:null, pending_accuracy:null, pending_samples:null, pending_explanation:null, pending_created_at:null }).eq('condition_key', conditionKey);
+  loadPendingApprovals();
+}
+
+// ===== DAILY REPORT (Session 13) =====
+let _reportData = null;
+let _reportPeriod = 'today';
+
+async function loadDailyReport() {
+  // Ensure the panel exists
+  if (!document.getElementById('dailyReportPanel')) {
+    const adminEl = document.getElementById('adminDashboard');
+    if (!adminEl) return;
+    const panel = document.createElement('div');
+    panel.id = 'dailyReportPanel';
+    panel.style.cssText = 'margin-top:24px';
+    panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div style="font-size:9px;letter-spacing:3px;color:var(--gold);font-family:monospace">DAILY BUSINESS REPORT</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="reportDate" style="font-size:9px;color:var(--text-faint);font-family:monospace"></span>
+    <button onclick="loadDailyReport()" style="background:var(--gold);color:var(--bg);border:none;border-radius:3px;padding:3px 10px;font-size:9px;font-family:monospace;cursor:pointer;font-weight:700">REFRESH</button>
+  </div>
+</div>
+<div class="period-tabs">
+  <button class="period-tab active" onclick="setReportPeriod('today',this)">TODAY</button>
+  <button class="period-tab" onclick="setReportPeriod('week',this)">7D</button>
+  <button class="period-tab" onclick="setReportPeriod('month',this)">30D</button>
+  <button class="period-tab" onclick="setReportPeriod('quarter',this)">90D</button>
+  <button class="period-tab" onclick="setReportPeriod('year',this)">1Y</button>
+</div>
+<div class="kpi-row">
+  <div class="kpi-block"><div class="kpi-label">REVENUE</div><div class="kpi-value" id="kpiRevenue">-</div><div class="kpi-sub" id="kpiRevenueSub"></div></div>
+  <div class="kpi-block"><div class="kpi-label">MRR</div><div class="kpi-value" id="kpiMrr">-</div><div class="kpi-sub" id="kpiMrrSub"></div></div>
+  <div class="kpi-block"><div class="kpi-label">SIGNUPS</div><div class="kpi-value" id="kpiSignups">-</div></div>
+  <div class="kpi-block"><div class="kpi-label">ACTIVE SUBS</div><div class="kpi-value" id="kpiActiveSubs">-</div></div>
+  <div class="kpi-block"><div class="kpi-label">CHURN</div><div class="kpi-value kpi-down" id="kpiChurn">-</div></div>
+</div>
+<div class="report-card" style="margin-bottom:16px;padding:12px 16px">
+  <div class="report-card-title">REVENUE TREND - LAST 30 DAYS</div>
+  <canvas id="revSparkline" height="40" style="width:100%"></canvas>
+</div>
+<div class="report-grid">
+  <div class="report-card">
+    <div class="report-card-title">OPERATIONS &amp; UPTIME</div>
+    <div class="ops-row"><span class="ops-label"><span class="health-dot health-ok"></span>SUPABASE DB</span><span class="ops-value" id="opsDbs">-</span></div>
+    <div class="ops-row"><span class="ops-label"><span class="health-dot health-ok" id="polyDot"></span>POLYGON API</span><span class="ops-value" id="opsPoly">-</span></div>
+    <div class="ops-row"><span class="ops-label">MARKET STATUS</span><span class="ops-value" id="opsMarket">-</span></div>
+    <div class="ops-row"><span class="ops-label">EVENTS TODAY</span><span class="ops-value" id="opsEvents">-</span></div>
+    <div class="ops-row"><span class="ops-label">ERROR RATE</span><span class="ops-value" id="opsErrors">-</span></div>
+    <div class="ops-row"><span class="ops-label">DB RESPONSE</span><span class="ops-value" id="opsDbPing">-</span></div>
+  </div>
+  <div class="report-card"><div class="report-card-title">WHERE USERS SPEND TIME</div><div id="usageContent"><div style="color:var(--text-faint);font-size:10px">Loading...</div></div></div>
+  <div class="report-card"><div class="report-card-title">PLAN BREAKDOWN</div><div id="planBreakdownContent"><div style="color:var(--text-faint);font-size:10px">Loading...</div></div></div>
+  <div class="report-card"><div class="report-card-title">MARKETING PERFORMANCE</div><div id="marketingContent"><div style="color:var(--text-faint);font-size:10px">Loading...</div></div></div>
+</div>
+<div class="report-card" style="margin-top:16px"><div class="report-card-title">OPPORTUNITIES &amp; INSIGHTS</div><div id="opportunitiesContent"><div style="color:var(--text-faint);font-size:10px">Generating AI insights...</div></div></div>
+<div class="report-card" style="margin-top:16px"><div class="report-card-title">SIGNUP TREND - LAST 30 DAYS</div><canvas id="signupSparkline" height="60" style="width:100%"></canvas></div>`;
+    adminEl.appendChild(panel);
+  }
+
+  const el = document.getElementById('reportDate');
+  if (el) el.textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  const today = new Date().toISOString().slice(0,10);
+  const { data: cached } = await supabase.from('daily_report_cache').select('data,generated_at').eq('report_date',today).single();
+  if (cached) { _reportData = cached.data; renderReport(); }
+  await Promise.all([loadSignupMetrics(), loadRevenueMetrics(), loadOpsMetrics(), loadUsageMetrics()]);
+  renderReport();
+}
+
+function setReportPeriod(period, btn) {
+  _reportPeriod = period;
+  document.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReport();
+}
+
+async function loadSignupMetrics() {
+  const year = new Date(Date.now()-365*86400000).toISOString();
+  const { data } = await supabase.from('profiles').select('created_at,plan').gte('created_at',year);
+  if (!_reportData) _reportData = {};
+  const wins = {
+    today: (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d; })(),
+    week: new Date(Date.now()-7*86400000), month: new Date(Date.now()-30*86400000),
+    quarter: new Date(Date.now()-90*86400000), year: new Date(Date.now()-365*86400000),
+  };
+  _reportData.signups = {};
+  for (const [k,since] of Object.entries(wins)) {
+    _reportData.signups[k] = (data||[]).filter(r=>new Date(r.created_at)>=since).length;
+  }
+  _reportData.planBreakdown = {};
+  for (const r of (data||[])) { const p=r.plan||'free'; _reportData.planBreakdown[p]=(_reportData.planBreakdown[p]||0)+1; }
+  _reportData.signupsByDay = buildDailyBuckets(data||[], 30, r=>new Date(r.created_at));
+}
+
+async function loadRevenueMetrics() {
+  try {
+    const session = (await supabase.auth.getSession()).data.session;
+    const resp = await fetch('/.netlify/functions/admin-revenue', { headers: { Authorization: `Bearer ${session?.access_token}` } });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (!_reportData) _reportData = {};
+    Object.assign(_reportData, data);
+  } catch(e) { console.warn('revenue fetch failed', e.message); }
+}
+
+async function loadOpsMetrics() {
+  try {
+    const resp = await fetch('/.netlify/functions/admin-ops');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (!_reportData) _reportData = {};
+    _reportData.ops = data;
+    renderOps(data);
+  } catch(e) { console.warn('ops fetch failed', e.message); }
+}
+
+async function loadUsageMetrics() {
+  const since = new Date(Date.now()-30*86400000).toISOString();
+  const { data } = await supabase.from('app_telemetry').select('page_section,duration_ms').gte('created_at',since).not('page_section','is',null);
+  if (!data?.length) return;
+  const totals = {};
+  for (const r of data) totals[r.page_section] = (totals[r.page_section]||0)+(r.duration_ms||1000);
+  const grand = Object.values(totals).reduce((a,b)=>a+b,0);
+  if (!_reportData) _reportData = {};
+  _reportData.usage = Object.entries(totals).sort((a,b)=>b[1]-a[1]).map(([section,ms])=>({section,pct:ms/grand*100,ms}));
+}
+
+function renderReport() {
+  if (!_reportData) return;
+  const p = _reportPeriod;
+  const $ = id => document.getElementById(id);
+  const rev = _reportData.revenue?.[p] || 0;
+  if ($('kpiRevenue')) $('kpiRevenue').textContent = '$'+rev.toLocaleString(undefined,{maximumFractionDigits:0});
+  if ($('kpiMrr')) $('kpiMrr').textContent = '$'+(_reportData.mrr||0).toLocaleString(undefined,{maximumFractionDigits:0});
+  if ($('kpiMrrSub')) $('kpiMrrSub').textContent = 'ARR: $'+((_reportData.arr||0)).toLocaleString(undefined,{maximumFractionDigits:0});
+  if ($('kpiSignups')) $('kpiSignups').textContent = (_reportData.signups?.[p]||0).toString();
+  if ($('kpiActiveSubs')) $('kpiActiveSubs').textContent = _reportData.activeSubscribers||'-';
+  if ($('kpiChurn')) $('kpiChurn').textContent = (_reportData.churnThisMonth||0)+' mo';
+  renderPlanBreakdown(); renderUsageBars(); renderMarketing(); renderOpportunities();
+  drawRevenueSparkline(); drawSignupSparkline();
+}
+
+function renderOps(ops) {
+  const $ = id => document.getElementById(id);
+  if ($('opsDbs')) $('opsDbs').textContent = ops.dbStatus==='ok' ? ops.dbPingMs+'ms' : 'ERROR';
+  if ($('opsPoly')) $('opsPoly').textContent = ops.polygonStatus==='ok' ? ops.polygonPingMs+'ms' : 'ERROR';
+  if ($('opsMarket')) $('opsMarket').textContent = (ops.marketStatus||'-').toUpperCase();
+  if ($('opsEvents')) $('opsEvents').textContent = (ops.telemetryToday||0).toLocaleString();
+  if ($('opsErrors')) $('opsErrors').textContent = (ops.errorRateToday||0)+'%';
+  if ($('opsDbPing')) $('opsDbPing').textContent = ops.dbPingMs ? ops.dbPingMs+'ms' : '-';
+  const polyDot = document.getElementById('polyDot');
+  if (polyDot) polyDot.className = 'health-dot '+(ops.polygonStatus==='ok'?'health-ok':'health-bad');
+}
+
+function renderPlanBreakdown() {
+  const el = document.getElementById('planBreakdownContent');
+  if (!el||!_reportData.planBreakdown) return;
+  const total = Object.values(_reportData.planBreakdown).reduce((a,b)=>a+b,0)||1;
+  const planColors = {free:'#64748b',starter:'#ff9800',pro:'#0ecb81',elite:'#ab47bc'};
+  el.innerHTML = Object.entries(_reportData.planBreakdown).sort((a,b)=>b[1]-a[1]).map(([plan,count])=>{
+    const pct=(count/total*100).toFixed(1); const color=planColors[plan.toLowerCase()]||'var(--gold)';
+    return `<div class="usage-bar-row"><span class="usage-bar-label" style="color:${color}">${plan.toUpperCase()}</span><div class="usage-bar-track"><div class="usage-bar-fill" style="width:${pct}%;background:${color}"></div></div><span class="usage-bar-pct">${count} <span style="color:var(--text-faint)">(${pct}%)</span></span></div>`;
+  }).join('');
+}
+
+function renderUsageBars() {
+  const el = document.getElementById('usageContent');
+  if (!el) return;
+  if (!_reportData.usage?.length) { el.innerHTML='<div style="color:var(--text-faint);font-size:10px">Tracking will appear as users interact with the app.</div>'; return; }
+  const icons = {chart:'',signals:'',chat:'',alerts:'',admin:'',settings:''};
+  el.innerHTML = _reportData.usage.slice(0,6).map(({section,pct})=>
+    `<div class="usage-bar-row"><span class="usage-bar-label">${section.toUpperCase()}</span><div class="usage-bar-track"><div class="usage-bar-fill" style="width:${pct.toFixed(1)}%"></div></div><span class="usage-bar-pct">${pct.toFixed(1)}%</span></div>`
+  ).join('');
+}
+
+function renderMarketing() {
+  const el = document.getElementById('marketingContent');
+  if (!el) return;
+  const rows = [];
+  const convRate = _reportData.activeSubscribers && _reportData.signups?.month ? (_reportData.activeSubscribers/Math.max(_reportData.signups.month,1)*100) : null;
+  if (convRate!==null) rows.push({icon:convRate>=25?'OK':'WARN',text:`Trial-to-paid conversion: ${convRate.toFixed(1)}%`,cls:convRate>=25?'mkt-win':convRate>=15?'mkt-warn':'mkt-bad'});
+  rows.push({icon:'OK',text:`Signups this month: ${_reportData.signups?.month||0}`,cls:'mkt-win'});
+  rows.push({icon:(_reportData.churnThisMonth||0)>3?'WARN':'OK',text:`Churn this month: ${_reportData.churnThisMonth||0} users`,cls:(_reportData.churnThisMonth||0)>3?'mkt-bad':'mkt-win'});
+  el.innerHTML = rows.map(r=>`<div class="insight-row"><span class="insight-icon">${r.icon}</span><span class="insight-text">${r.text}</span><span class="mkt-badge ${r.cls}">${r.cls==='mkt-win'?'WINNING':r.cls==='mkt-warn'?'WATCH':'ACT'}</span></div>`).join('');
+}
+
+function renderOpportunities() {
+  const el = document.getElementById('opportunitiesContent');
+  if (!el) return;
+  const items = [];
+  if ((_reportData.planBreakdown?.free||0)>0) items.push({icon:'HIGH',title:'Convert Free Users',text:`${_reportData.planBreakdown.free} users on free plan.`,impact:'high'});
+  if (_reportData.usage?.length) { const top=_reportData.usage[0]; items.push({icon:'MED',title:`Double down on ${top.section}`,text:`Users spend ${top.pct.toFixed(0)}% of time in ${top.section}.`,impact:'medium'}); }
+  items.push({icon:'MED',title:'Mobile Experience',text:'Track mobile vs desktop split.',impact:'medium'});
+  el.innerHTML = items.map(o=>`<div class="insight-row"><span class="insight-icon">${o.icon}</span><span class="insight-text"><b>${o.title}:</b> ${o.text}</span><span class="insight-impact impact-${o.impact}">${o.impact.toUpperCase()}</span></div>`).join('');
+}
+
+function buildDailyBuckets(rows, days, getDate) {
+  const buckets = {};
+  for (let i=0;i<days;i++) { const d=new Date(Date.now()-i*86400000).toISOString().slice(0,10); buckets[d]=0; }
+  for (const r of rows) { const key=getDate(r).toISOString().slice(0,10); if (key in buckets) buckets[key]++; }
+  return Object.entries(buckets).sort(([a],[b])=>a.localeCompare(b)).map(([d,v])=>({d,v}));
+}
+
+function drawSparklineChart(canvasId, data, color, height) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas||!data?.length) return;
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = canvas.parentElement.offsetWidth*dpr;
+  canvas.height = (height||60)*dpr;
+  const ctx = canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const vals = data.map(d=>d.v||0);
+  const max = Math.max(...vals,1);
+  const barW = W/vals.length;
+  ctx.strokeStyle=color; ctx.lineWidth=2*dpr;
+  ctx.beginPath();
+  vals.forEach((v,i)=>{ const x=i*barW+barW/2; const y=H-(v/max)*(H-8*dpr)-4*dpr; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.stroke();
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,color+'40'); grad.addColorStop(1,color+'00');
+  ctx.fillStyle=grad; ctx.beginPath();
+  vals.forEach((v,i)=>{ const x=i*barW+barW/2; const y=H-(v/max)*(H-8*dpr)-4*dpr; if(i===0){ctx.moveTo(x,H);ctx.lineTo(x,y);}else{ctx.lineTo(x,y);} });
+  ctx.lineTo((vals.length-1)*barW+barW/2,H); ctx.closePath(); ctx.fill();
+}
+
+function drawRevenueSparkline() { drawSparklineChart('revSparkline', _reportData.revenueByDay||Array(30).fill({v:0}), '#0ecb81', 40); }
+function drawSignupSparkline() { drawSparklineChart('signupSparkline', _reportData.signupsByDay||Array(30).fill({v:0}), '#2e7fff', 60); }
+
+// ===== SECTION TIME TRACKER =====
+let _sectionStart = Date.now();
+let _currentSection = 'chart';
+function trackSectionTime(newSection) {
+  const ms = Date.now() - _sectionStart;
+  if (ms > 500 && _currentSection) {
+    supabase.from('app_telemetry').insert({
+      event_type: 'section_time', page_section: _currentSection, duration_ms: ms,
+      device_type: window.innerWidth < 768 ? 'mobile' : 'desktop',
+    }).then(()=>{}).catch(()=>{});
+  }
+  _sectionStart = Date.now();
+  _currentSection = newSection;
+}
 </script>
 
 <!-- Mobile fixed nav + panel (outside .app so fixed positioning is clean) -->
