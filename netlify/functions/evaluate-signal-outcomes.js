@@ -12,8 +12,7 @@ const TF_MINUTES = {
 
 export async function handler(event) {
   const now = new Date();
-
-  const { data: signals } = await supabase
+  const { data: signals, error } = await supabase
     .from('signal_microstructure_log')
     .select('*')
     .eq('is_evaluated', false)
@@ -21,64 +20,56 @@ export async function handler(event) {
     .lte('eval_after_ts', now.toISOString())
     .limit(100);
 
+  if (error) return { statusCode: 500, body: error.message };
   if (!signals?.length) return { statusCode: 200, body: 'nothing to evaluate' };
 
+  let evaluated = 0;
   for (const sig of signals) {
     try {
       const tfMins = TF_MINUTES[sig.timeframe] || 5;
-
+      const multiplier = tfMins < 1440 ? tfMins : 1;
+      const span = tfMins < 1440 ? 'minute' : 'day';
       const from = new Date(sig.created_at);
-      const to   = new Date(sig.eval_after_ts);
-      const url  = 'https://api.polygon.io/v2/aggs/ticker/' + sig.symbol + '/range/' + tfMins + '/minute/' +
-                   from.toISOString().slice(0,10) + '/' + to.toISOString().slice(0,10) +
-                   '?apiKey=' + process.env.POLYGON_API_KEY + '&limit=50&sort=asc';
-
+      const to = new Date(sig.eval_after_ts);
+      const url = `https://api.polygon.io/v2/aggs/ticker/${sig.symbol}/range/${multiplier}/${span}/` +
+        `${from.toISOString().slice(0,10)}/${to.toISOString().slice(0,10)}` +
+        `?apiKey=${process.env.POLYGON_API_KEY}&limit=50&sort=asc&adjusted=true`;
       const resp = await fetch(url);
       const json = await resp.json();
       const bars = json.results || [];
-
       if (!bars.length) continue;
-
       const entry = sig.entry_price || bars[0].o;
-      const direction = sig.signal_type === 'BUY' ? 1 : -1;
-      const stop   = sig.stop_price   || entry * (1 - direction * 0.015);
+      const direction = (sig.signal_type || 'BUY').toUpperCase() === 'BUY' ? 1 : -1;
+      const stop = sig.stop_price || entry * (1 - direction * 0.015);
       const target = sig.target_price || entry * (1 + direction * 0.025);
-
       let hitTarget = false, hitStop = false, exitPrice = bars[bars.length - 1].c;
-
       for (const bar of bars) {
         if (direction === 1) {
           if (bar.h >= target) { hitTarget = true; exitPrice = target; break; }
-          if (bar.l <= stop)   { hitStop   = true; exitPrice = stop;   break; }
+          if (bar.l <= stop) { hitStop = true; exitPrice = stop; break; }
         } else {
           if (bar.l <= target) { hitTarget = true; exitPrice = target; break; }
-          if (bar.h >= stop)   { hitStop   = true; exitPrice = stop;   break; }
+          if (bar.h >= stop) { hitStop = true; exitPrice = stop; break; }
         }
       }
-
       const pnlPct = ((exitPrice - entry) / entry) * direction * 100;
       const riskPct = Math.abs((stop - entry) / entry * 100);
       const rr = riskPct > 0 ? (pnlPct / riskPct) : 0;
-      const directionCorrect = pnlPct > 0 ? 'correct' : pnlPct < -0.05 ? 'incorrect' : 'neutral';
-
-      await supabase
-        .from('signal_microstructure_log')
-        .update({
-          is_evaluated:         true,
-          outcome_direction:    directionCorrect,
-          outcome_hit_target:   hitTarget,
-          outcome_hit_stop:     hitStop,
-          outcome_exit_price:   exitPrice,
-          outcome_pnl_pct:      pnlPct,
-          outcome_rr:           rr,
-          outcome_evaluated_at: now.toISOString()
-        })
-        .eq('id', sig.id);
-
+      const directionCorrect = pnlPct > 0.05 ? 'correct' : pnlPct < -0.05 ? 'incorrect' : 'neutral';
+      await supabase.from('signal_microstructure_log').update({
+        is_evaluated: true,
+        outcome_direction: directionCorrect,
+        outcome_hit_target: hitTarget,
+        outcome_hit_stop: hitStop,
+        outcome_exit_price: exitPrice,
+        outcome_pnl_pct: pnlPct,
+        outcome_rr: rr,
+        outcome_evaluated_at: now.toISOString()
+      }).eq('id', sig.id);
+      evaluated++;
     } catch (err) {
       console.error('evaluate error for signal', sig.id, err.message);
     }
   }
-
-  return { statusCode: 200, body: 'evaluated ' + signals.length + ' signals' };
+  return { statusCode: 200, body: `evaluated ${evaluated}/${signals.length} signals` };
 }
