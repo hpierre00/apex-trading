@@ -929,6 +929,16 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   .bottom-panel { display: flex !important; height: 36px !important; min-height: 36px !important; align-items: center !important; padding: 0 10px !important; gap: 10px !important; background: rgba(3,7,18,0.99) !important; border-top: 0.5px solid rgba(255,255,255,0.07) !important; flex-shrink: 0 !important; overflow: hidden !important; }
 }
 
+.perf-table { width:100%;border-collapse:collapse;font-size:10px;font-family:monospace; }
+.perf-table th { color:var(--text-faint);font-size:9px;letter-spacing:1px;text-align:left;padding:4px 8px;border-bottom:1px solid var(--border); }
+.perf-table td { padding:6px 8px;border-bottom:1px solid var(--border);color:var(--text); }
+.perf-table tr:hover td { background:var(--panel); }
+.approve-btn { background:var(--bull);color:#000;border:none;border-radius:3px;padding:2px 8px;font-size:9px;font-family:monospace;cursor:pointer;margin-right:4px; }
+.reject-btn { background:var(--bear);color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:9px;font-family:monospace;cursor:pointer; }
+.trend-up { color:var(--bull); }
+.trend-down { color:var(--bear); }
+.trend-flat { color:var(--text-faint); }
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/js/analytics.js"></script>
@@ -7691,6 +7701,40 @@ async function renderAdminDashboard() {
       <div id="adminLearnedWeights">
         <div style="color:rgba(200,215,240,0.3);font-size:10px;font-family:monospace;">Loading...</div>
       </div>
+    </div>
+
+    <!-- AGENT PERFORMANCE -->
+    <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.06);">
+      <div style="font-size:9px;letter-spacing:2px;color:#0ecb81;font-weight:600;margin-bottom:12px;">AGENT PERFORMANCE</div>
+      <table class="perf-table" id="agentPerfTable">
+        <thead>
+          <tr>
+            <th>AGENT</th><th>SIGNALS</th><th>DIR. ACCURACY</th>
+            <th>R:R WIN RATE</th><th>AVG R:R</th><th>AVG P&amp;L</th><th>TREND</th>
+          </tr>
+        </thead>
+        <tbody id="agentPerfBody">
+          <tr><td colspan="7" style="text-align:center;color:var(--text-faint)">Loading...</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:16px">
+        <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:6px;">30-DAY ROLLING ACCURACY</div>
+        <canvas id="agentAccuracyChart" height="120" style="width:100%;display:block"></canvas>
+      </div>
+      <div style="margin-top:16px">
+        <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:6px;">
+          PENDING WEIGHT UPDATES
+          <span id="pendingCount" style="background:var(--bear);color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;margin-left:6px">0</span>
+        </div>
+        <table class="perf-table" id="pendingTable">
+          <thead>
+            <tr><th>CONDITION</th><th>CURRENT</th><th>PROPOSED</th><th>ACCURACY</th><th>SAMPLES</th><th>REASON</th><th>ACTION</th></tr>
+          </thead>
+          <tbody id="pendingBody">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-faint)">No pending approvals.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>`;
 
   // Poll HFT shield scores for all watchlist symbols
@@ -7777,6 +7821,157 @@ async function renderAdminDashboard() {
       </div>`;
     }).join('');
   }, 2000);
+
+  loadAgentPerformance().catch(e => console.error('[agentPerf]', e));
+}
+
+async function loadAgentPerformance() {
+  const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const { data: perfRows } = await _supabase
+    .from('agent_performance_daily')
+    .select('*')
+    .gte('date', since)
+    .order('date', { ascending: false });
+
+  if (!perfRows?.length) return;
+
+  const latest = {}, prev = {};
+  for (const r of perfRows) {
+    if (!latest[r.agent_name]) { latest[r.agent_name] = r; continue; }
+    if (!prev[r.agent_name])   { prev[r.agent_name] = r; }
+  }
+
+  const tbody = document.getElementById('agentPerfBody');
+  if (!tbody) return;
+  tbody.innerHTML = Object.entries(latest).map(([name, r]) => {
+    const pWr   = prev[name]?.direction_win_rate ?? r.direction_win_rate;
+    const trend  = r.direction_win_rate > pWr + 0.02
+      ? '<span class="trend-up">▲</span>'
+      : r.direction_win_rate < pWr - 0.02
+        ? '<span class="trend-down">▼</span>'
+        : '<span class="trend-flat">—</span>';
+    const wr    = ((r.direction_win_rate || 0) * 100).toFixed(1) + '%';
+    const rr    = ((r.rr_win_rate || 0) * 100).toFixed(1) + '%';
+    const avgRR = r.avg_rr != null ? r.avg_rr.toFixed(2) : '—';
+    const pnl   = r.avg_pnl_pct != null
+      ? (r.avg_pnl_pct >= 0 ? '+' : '') + r.avg_pnl_pct.toFixed(2) + '%'
+      : '—';
+    return `<tr>
+      <td style="font-weight:700;color:var(--gold)">${name.toUpperCase()}</td>
+      <td>${r.signals_count}</td>
+      <td>${wr}</td>
+      <td>${rr}</td>
+      <td>${avgRR}</td>
+      <td style="color:${(r.avg_pnl_pct || 0) >= 0 ? 'var(--bull)' : 'var(--bear)'}">${pnl}</td>
+      <td>${trend}</td>
+    </tr>`;
+  }).join('');
+
+  drawAgentAccuracyChart(perfRows);
+  await loadPendingApprovals();
+}
+
+function drawAgentAccuracyChart(rows) {
+  const canvas = document.getElementById('agentAccuracyChart');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = canvas.parentElement.offsetWidth * dpr;
+  canvas.height = 120 * dpr;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const agents = [...new Set(rows.map(r => r.agent_name))];
+  const dates  = [...new Set(rows.map(r => r.date))].sort();
+  const colors = ['#0ecb81', '#f6465d', '#2e7fff', '#ff9800', '#ab47bc'];
+
+  [0.5, 0.7].forEach(v => {
+    const y = H - v * H;
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.setLineDash([3 * dpr, 3 * dpr]);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = `${9 * dpr}px monospace`;
+    ctx.fillText((v * 100) + '%', 4, y - 3);
+  });
+
+  agents.forEach((agent, ai) => {
+    const agentRows = rows.filter(r => r.agent_name === agent).sort((a, b) => a.date.localeCompare(b.date));
+    if (agentRows.length < 2) return;
+    ctx.strokeStyle = colors[ai % colors.length];
+    ctx.lineWidth = 2 * dpr;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    agentRows.forEach((r, i) => {
+      const di = dates.indexOf(r.date);
+      const x  = dates.length > 1 ? (di / (dates.length - 1)) * W : W / 2;
+      const y  = H - (r.direction_win_rate || 0) * H;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  });
+}
+
+async function loadPendingApprovals() {
+  const { data: pending } = await _supabase
+    .from('learned_weights')
+    .select('condition_key, weight_multiplier, pending_weight, pending_accuracy, pending_samples, pending_explanation')
+    .not('pending_weight', 'is', null);
+
+  const countEl = document.getElementById('pendingCount');
+  if (countEl) countEl.textContent = pending?.length || 0;
+
+  const tbody = document.getElementById('pendingBody');
+  if (!tbody) return;
+  if (!pending?.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-faint)">No pending approvals.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = pending.map(r => `
+    <tr>
+      <td style="font-weight:700">${r.condition_key}</td>
+      <td>${r.weight_multiplier != null ? r.weight_multiplier.toFixed(2) : '—'}</td>
+      <td>${r.pending_weight != null ? r.pending_weight.toFixed(2) : '—'}</td>
+      <td>${((r.pending_accuracy || 0)).toFixed(1)}%</td>
+      <td>${r.pending_samples || '—'}</td>
+      <td style="color:var(--text-faint);font-size:9px">${r.pending_explanation || ''}</td>
+      <td>
+        <button class="approve-btn" onclick="approveWeight('${r.condition_key}', ${r.pending_weight}, ${r.pending_accuracy}, ${r.pending_samples})">APPROVE</button>
+        <button class="reject-btn"  onclick="rejectWeight('${r.condition_key}')">REJECT</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function approveWeight(conditionKey, newWeight, accuracy, samples) {
+  try {
+    await _supabase.from('learned_weights').update({
+      weight_multiplier:   newWeight,
+      accuracy_rate:       accuracy,
+      sample_size:         samples,
+      approved:            true,
+      pending_weight:      null,
+      pending_accuracy:    null,
+      pending_samples:     null,
+      pending_explanation: null,
+      pending_created_at:  null,
+    }).eq('condition_key', conditionKey);
+    const { data: w } = await _supabase.from('learned_weights').select('condition_key, weight_multiplier').eq('approved', true);
+    state.learnedWeightsDB = Array.isArray(w) ? w : [];
+    await loadPendingApprovals();
+  } catch (e) { console.error('[approveWeight]', e); }
+}
+
+async function rejectWeight(conditionKey) {
+  try {
+    await _supabase.from('learned_weights').update({
+      pending_weight:      null,
+      pending_accuracy:    null,
+      pending_samples:     null,
+      pending_explanation: null,
+      pending_created_at:  null,
+    }).eq('condition_key', conditionKey);
+    await loadPendingApprovals();
+  } catch (e) { console.error('[rejectWeight]', e); }
 }
 
 async function adminRefreshBrief() {
