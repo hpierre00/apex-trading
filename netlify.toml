@@ -12,6 +12,12 @@
 [functions."app-enhance"]
   schedule = "0 11 1-7 * 1"
 
+[functions."evaluate-signal-outcomes"]
+  schedule = "0,30 14-21 * * 1-5"
+
+[functions."update-agent-weights"]
+  schedule = "0 10 * * 2-6"
+
 [[redirects]]
   from = "/apex-platform"
   to = "/apex-platform.html"
