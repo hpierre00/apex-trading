@@ -6864,6 +6864,14 @@ async function loadMacroBrief() {
       .select('condition_key, weight_multiplier')
       .eq('approved', true);
     state.learnedWeightsDB = Array.isArray(weights) ? weights : [];
+    // Refresh weights every 60 minutes
+    if (window._learnedWeightsInterval) clearInterval(window._learnedWeightsInterval);
+    window._learnedWeightsInterval = setInterval(async () => {
+      try {
+        const { data: w } = await _supabase.from('learned_weights').select('condition_key, weight_multiplier').eq('approved', true);
+        state.learnedWeightsDB = Array.isArray(w) ? w : [];
+      } catch {}
+    }, 60 * 60 * 1000);
   } catch {
     state.learnedWeightsDB = [];
   }
