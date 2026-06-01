@@ -4,7 +4,6 @@
 // Also writes agent_performance_daily summary rows.
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://soghksmuocrgtttmnete.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASESKTradoLux;
 
 const APPROVAL_THRESHOLD = 0.20; // changes >= 20% require admin approval
 const MIN_SAMPLES = 10;
@@ -24,6 +23,7 @@ exports.handler = async (event) => {
   if (!isScheduler && secret !== process.env.CRON_SECRET) {
     return { statusCode: 401, body: 'Unauthorized' };
   }
+  const SUPABASE_SERVICE_KEY = process.env.SUPABASESKTradoLux;
   if (!SUPABASE_SERVICE_KEY) return { statusCode: 500, body: 'SUPABASE_SERVICE_KEY not set' };
 
   const SB = sbHeaders(SUPABASE_SERVICE_KEY);
@@ -149,7 +149,7 @@ async function computeAgentPerformance(since, SB) {
       `&limit=5000`;
 
     const res = await fetch(url, { headers: SB });
-    if (!res.ok) continue;
+    if (!res.ok) { console.warn('[weights] agent fetch failed:', agent, await res.text()); continue; }
     const data = await res.json();
     if (!Array.isArray(data) || data.length === 0) continue;
 
