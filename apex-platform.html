@@ -1423,6 +1423,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _session = null;
 let _userPlan = 'free'; // 'free' | 'starter' | 'pro' | 'elite'
+let _isAdmin = false; // admin flag set by checkAdminRoute()
 const sessionStartTime = Date.now();
 
 _supabase.auth.onAuthStateChange((event, session) => {
@@ -6959,6 +6960,7 @@ function getAssessUsage() {
 }
 
 function canRunAssessment() {
+  if (_isAdmin) return true; // Admin bypass
   if (_userPlan === 'pro' || _userPlan === 'elite') return true;
   const limit = _userPlan === 'starter' ? 10 : 3;
   return getAssessUsage().count < limit;
@@ -7219,6 +7221,7 @@ async function checkAdminRoute() {
     if (!data?.admin) { window.location.hash = '#app'; return; }
   } catch { window.location.hash = '#app'; return; }
   await renderAdminDashboard();
+  _isAdmin = true; // Mark session as admin
   showAdminDashboard();
   loadAgentPerformance();
   loadDailyReport();
