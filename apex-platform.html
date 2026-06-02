@@ -1108,7 +1108,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
       <div class="bottom-panel">
         <div id="signalsStrip" class="signals-strip"><span class="sig-pill-empty">⚡ SCANNING FOR SIGNALS...</span></div>
         <div class="tab-bar" id="tabBar">
-          <button class="tab-btn active" data-tab="signals">⚡ SIGNALS <span class="tab-badge" id="sigBadge">0</span></button>
+          <button class="tab-btn active" data-tab="signals">⚡ SIGNALS <span class="tab-badge" id="sigBadge">0</span></button><span id="signalRemainingBadge" style="font-size:9px;font-family:monospace;color:var(--text-faint);margin-left:6px"></span>
           <button class="tab-btn" data-tab="alerts">🔔 ALERTS <span class="tab-badge" id="alertBadge" style="display:none">0</span></button>
           <button class="tab-btn" data-tab="orders">ORDERS</button>
           <button class="tab-btn" data-tab="news">NEWS</button>
@@ -1424,6 +1424,78 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _session = null;
 let _userPlan = 'free'; // 'free' | 'starter' | 'pro' | 'elite'
 let _isAdmin = false; // admin flag set by checkAdminRoute()
+// ===== PLAN LIMITS CONFIG — single source of truth =====
+const PLAN_LIMITS = {
+  free: {
+    signalsPerDay:     3,
+    agentsVisible:     2,
+    timeframes:        ['1m','5m','1d'],
+    hftShield:         'score',
+    macroHistory:      0,
+    scannerResults:    10,
+    scannerRefreshSec: 300,
+    alertsMax:         3,
+    journalDays:       7,
+    aiQueriesPerDay:   5,
+  },
+  starter: {
+    signalsPerDay:     3,
+    agentsVisible:     2,
+    timeframes:        ['1m','5m','1d'],
+    hftShield:         'score',
+    macroHistory:      0,
+    scannerResults:    10,
+    scannerRefreshSec: 300,
+    alertsMax:         3,
+    journalDays:       7,
+    aiQueriesPerDay:   5,
+  },
+  pro: {
+    signalsPerDay:     25,
+    agentsVisible:     5,
+    timeframes:        'all',
+    hftShield:         'full',
+    macroHistory:      7,
+    scannerResults:    100,
+    scannerRefreshSec: 60,
+    alertsMax:         20,
+    journalDays:       30,
+    aiQueriesPerDay:   50,
+  },
+  elite: {
+    signalsPerDay:     999999,
+    agentsVisible:     5,
+    timeframes:        'all',
+    hftShield:         'full',
+    macroHistory:      90,
+    scannerResults:    999999,
+    scannerRefreshSec: 5,
+    alertsMax:         999999,
+    journalDays:       365,
+    aiQueriesPerDay:   999999,
+  }
+};
+
+function getPlanLimits() {
+  if (_isAdmin) return PLAN_LIMITS.elite;
+  return PLAN_LIMITS[_userPlan] || PLAN_LIMITS.free;
+}
+
+function canUse(feature) {
+  if (_isAdmin) return true;
+  const limits = getPlanLimits();
+  if (feature === 'signals') return (_dailySignalCount || 0) < limits.signalsPerDay;
+  if (feature === 'aiChat')  return (_aiQueryCount || 0) < limits.aiQueriesPerDay;
+  return true;
+}
+
+function getRemaining(feature) {
+  const limits = getPlanLimits();
+  if (feature === 'signals') return Math.max(0, limits.signalsPerDay - (_dailySignalCount || 0));
+  if (feature === 'aiChat')  return Math.max(0, limits.aiQueriesPerDay - (_aiQueryCount || 0));
+  return 999999;
+}
+// ===== END PLAN LIMITS =====
 const sessionStartTime = Date.now();
 
 _supabase.auth.onAuthStateChange((event, session) => {
@@ -3338,8 +3410,8 @@ const AGENTS = [
 
 function renderAgents() {
   const el = document.getElementById('agentsBody');
-  el.innerHTML = AGENTS.map(a => `
-    <div class="agent" id="agent-${a.id}">
+  el.innerHTML = AGENTS.map((a, idx) => { const _vc = (typeof getPlanLimits === "function") ? getPlanLimits().agentsVisible : 2; const _lk = !_isAdmin && idx >= _vc; const _lo = _lk ? "<div style=\"position:absolute;inset:0;background:rgba(11,18,33,0.75);display:flex;align-items:center;justify-content:center;border-radius:6px;z-index:2;cursor:pointer\" onclick=\"showUpgradeModal && showUpgradeModal('pro')\" ><span style=\"font-size:9px;font-family:monospace;color:var(--gold);letter-spacing:1px\">PRO \u2192</span></div>" : ""; return `
+    <div class="agent" id="agent-${a.id}" style="position:relative">${_lo}
       <div class="agent-head">
         <span class="agent-name">${a.name}</span>
         <span class="agent-status"><span class="dot"></span>IDLE</span>
@@ -3347,7 +3419,7 @@ function renderAgents() {
       <div class="agent-bar"><div class="agent-bar-fill" style="width:0%"></div></div>
       <div class="agent-verdict">standby</div>
     </div>
-  `).join('');
+  `; }).join('');
 }
 
 async function runAgents() {
@@ -3834,6 +3906,23 @@ function tfTier(tf) {
   return tiers[tf] || tiers['1d'];
 }
 
+function updateSignalRemainingBadge() {
+  const el = document.getElementById('signalRemainingBadge');
+  if (!el) return;
+  if (_isAdmin) { el.textContent = ''; return; }
+  const rem = getRemaining('signals');
+  const lim = getPlanLimits().signalsPerDay;
+  if (rem <= 0) {
+    el.textContent = 'limit reached · resets midnight ET';
+    el.style.color = 'var(--bear, #f6465d)';
+  } else if (rem <= 1) {
+    el.textContent = rem + ' remaining today';
+    el.style.color = '#ff9800';
+  } else {
+    el.textContent = rem + ' / ' + lim + ' today';
+    el.style.color = 'var(--text-faint)';
+  }
+}
 function generateSignal(verdicts) {
   const tier = tfTier(state.timeframe);
   const weightFor = (id) => {
@@ -3957,6 +4046,8 @@ function generateSignal(verdicts) {
   state.lastSignalPerSym[prevKey] = { entry, candleIdx: candles.length };
 
   state.signalHistory.unshift(signal);
+  _dailySignalCount = (_dailySignalCount || 0) + 1;
+  updateSignalRemainingBadge();
   // Keep last 500 signals max (localStorage ~5MB limit; 500 signals ~200KB)
   if (state.signalHistory.length > 500) state.signalHistory.length = 500;
   saveSignals();
@@ -6641,6 +6732,7 @@ function updateMktStatus() {
 
 function init() {
   initLayout();
+  updateSignalRemainingBadge();
   attachResizeObserver();
   initData();
   renderAgents();
