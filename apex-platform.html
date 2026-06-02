@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -979,6 +979,23 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
 .health-ok{background:var(--bull);box-shadow:0 0 6px var(--bull)}
 .health-warn{background:#ff9800;box-shadow:0 0 6px #ff9800}
 .health-bad{background:var(--bear);box-shadow:0 0 6px var(--bear)}
+
+/* ===== ALERTS PANEL ===== */
+.alert-sym{font-weight:700;color:var(--gold);width:52px;flex-shrink:0}
+.alert-type{color:var(--text-dim);font-size:9px;letter-spacing:1px;width:90px;flex-shrink:0}
+.alert-thresh{color:var(--text);flex:1}
+.alert-status-active{color:var(--bull)}
+.alert-status-triggered{color:var(--bear)}
+.alert-del-btn{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:11px;padding:0 4px}
+.alert-del-btn:hover{color:var(--bear)}
+.alert-form{display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--panel);border-radius:6px;margin-bottom:12px}
+.alert-form input,.alert-form select{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:11px;padding:5px 8px;border-radius:4px;width:100%}
+.alert-form input:focus,.alert-form select:focus{outline:none;border-color:var(--gold)}
+.alert-form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.alert-add-btn{background:var(--gold);color:var(--bg);border:none;border-radius:4px;padding:6px 16px;font-family:monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;width:100%}
+.alert-add-btn:hover{opacity:0.9}
+.alert-limit-note{font-size:9px;color:var(--text-faint);text-align:center;margin-top:4px;font-family:monospace}
+.alert-triggered-pill{font-size:8px;background:rgba(246,70,93,0.2);color:var(--bear);border-radius:3px;padding:1px 5px;margin-left:4px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/js/analytics.js"></script>
@@ -4538,63 +4555,59 @@ window.copyIBKR = copyIBKR;
 
 function renderAlertsTab() {
   const content = document.getElementById('tabContent');
-  if (!state.alerts.length) {
-    content.innerHTML = `<div class="empty">No alerts. Click <b>🔔 ALERT</b> in the toolbar to create one.</div>`;
-    document.getElementById('alertBadge').style.display = 'none';
-    return;
-  }
-
-  const todayET = getTradingDate();
-
-  // An alert belongs to "today's view" if it's still active (never triggered)
-  // OR was triggered during today's trading session. Alerts from prior sessions
-  // are hidden but not deleted; user can reveal them with 'Show all'.
-  const isToday = (a) => {
-    if (!a.triggered) return true;
-    if (!a.triggeredAt) return false; // triggered before v5.15, no timestamp, bucket as prior
-    return getTradingDate(new Date(a.triggeredAt)) === todayET;
-  };
-
-  const todayAlerts = state.alerts.filter(isToday);
-  const priorCount = state.alerts.length - todayAlerts.length;
-
-  // Sort: active (untriggered) first by newest createdAt, then triggered-today by newest triggeredAt.
-  const sorted = [
-    ...todayAlerts.filter(a => !a.triggered).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)),
-    ...todayAlerts.filter(a => a.triggered).sort((a, b) => (b.triggeredAt || 0) - (a.triggeredAt || 0)),
-  ];
-
-  const rows = sorted.map(a => {
-    const timeStr = a.triggered
-      ? (a.triggeredAt ? 'triggered ' + relativeTime(new Date(a.triggeredAt)) : 'triggered')
-      : (a.createdAt ? 'set ' + relativeTime(new Date(a.createdAt)) : '');
-    return `
-    <div class="alert-row ${a.triggered ? 'triggered' : ''}">
-      <div style="font-weight:700">${a.sym}</div>
-      <div>${a.cond.toUpperCase()}</div>
-      <div>${a.px.toFixed(2)} ${a.note ? '· ' + a.note : ''}<span style="color:var(--text-faint);font-size:9px;margin-left:6px">${timeStr}</span></div>
-      <div class="alert-status ${a.triggered ? 'triggered' : 'active'}">${a.triggered ? 'TRIGGERED' : 'ACTIVE'}</div>
-      <button class="edit-btn" onclick="editAlert(${a.id})" title="Edit" style="color:var(--text-faint);font-size:13px;padding:2px 4px;background:none;border:none;cursor:pointer">✎</button>
-      <button class="del-btn" onclick="deleteAlert(${a.id})">✕</button>
-    </div>
-  `;
-  }).join('');
-
-  const priorFooter = priorCount > 0
-    ? `<div style="padding:8px 12px;color:var(--text-faint);font-size:10px;border-top:1px solid var(--border);margin-top:8px">
-         ${priorCount} alert${priorCount > 1 ? 's' : ''} from prior sessions hidden ·
-         <button onclick="showPriorAlerts()" style="background:none;border:none;color:var(--gold);cursor:pointer;font-size:10px;text-decoration:underline;padding:0">Show all</button>
-       </div>`
-    : '';
-
-  const emptyNote = sorted.length === 0 && priorCount > 0
-    ? `<div class="empty">No alerts from today's session. ${priorCount} from prior sessions hidden.</div>`
-    : '';
-
-  content.innerHTML = emptyNote + rows + priorFooter;
-
-  document.getElementById('alertBadge').textContent = todayAlerts.filter(a => !a.triggered).length;
-  document.getElementById('alertBadge').style.display = todayAlerts.filter(a => !a.triggered).length ? 'inline-block' : 'none';
+  if (!content) return;
+  const active = state.alerts || [];
+  const triggered = state.triggeredAlerts || [];
+  const typeLabels = { price_above:'Price ≥', price_below:'Price ≤', pct_move_up:'Move ≥ +', pct_move_down:'Move ≤ -', volume_spike:'Vol Spike ≥' };
+  const typeSuffix = { price_above:'', price_below:'', pct_move_up:'%', pct_move_down:'%', volume_spike:'x' };
+  const max = _isAdmin ? 999999 : (getPlanLimits().alertsMax || 3);
+  const rem = Math.max(0, max - active.length);
+  const limitNote = _isAdmin ? '' : (rem === 0
+    ? `<div class="alert-limit-note" style="color:var(--bear)">Alert limit reached (${active.length}/${max}) — upgrade for more</div>`
+    : `<div class="alert-limit-note">${rem} of ${max} alerts remaining</div>`);
+  const renderList = (alerts, isTriggered) => alerts.length === 0
+    ? `<div style="color:var(--text-faint);font-size:10px;font-family:monospace;padding:8px">${isTriggered ? 'None yet.' : 'No alerts set.'}</div>`
+    : alerts.map(a => `
+      <div class="alert-row">
+        <span class="alert-sym">${a.symbol}</span>
+        <span class="alert-type">${typeLabels[a.alert_type] || a.alert_type}</span>
+        <span class="alert-thresh">${a.alert_type && a.alert_type.includes('price') ? '$' : ''}${a.threshold}${typeSuffix[a.alert_type] || ''}${a.label ? ' · <span style=color:var(--text-dim)>' + a.label + '</span>' : ''}</span>
+        ${isTriggered
+          ? `<span class="alert-triggered-pill">FIRED ${a.triggered_at ? new Date(a.triggered_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}</span>`
+          : `<span class="alert-status-active">●</span>`}
+        ${!isTriggered ? `<button class="alert-del-btn" onclick="deleteAlert('${a.id}')" title="Delete">✕</button>` : ''}
+      </div>`).join('');
+  content.innerHTML = `
+    <div style="padding:12px;overflow-y:auto">
+      <div class="alert-form">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--gold);font-family:monospace;margin-bottom:4px">+ NEW ALERT</div>
+        <div class="alert-form-row">
+          <input id="alertSymbol" placeholder="SYMBOL (e.g. AAPL)" style="text-transform:uppercase" />
+          <select id="alertType">
+            <option value="price_above">Price Above</option>
+            <option value="price_below">Price Below</option>
+            <option value="pct_move_up">% Move Up</option>
+            <option value="pct_move_down">% Move Down</option>
+            <option value="volume_spike">Volume Spike (x avg)</option>
+          </select>
+        </div>
+        <div class="alert-form-row">
+          <input id="alertThreshold" type="number" step="0.01" placeholder="Threshold value" />
+          <select id="alertNotify">
+            <option value="in_app">In-App Only</option>
+            <option value="email">Email</option>
+            <option value="both">In-App + Email</option>
+          </select>
+        </div>
+        <input id="alertLabel" placeholder="Label (optional)" />
+        <button class="alert-add-btn" onclick="createAlert()">SET ALERT</button>
+        ${limitNote}
+      </div>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--text-faint);font-family:monospace;margin-bottom:8px">ACTIVE ALERTS</div>
+      ${renderList(active, false)}
+      <div style="font-size:9px;letter-spacing:2px;color:var(--text-faint);font-family:monospace;margin:16px 0 8px">TRIGGERED</div>
+      ${renderList(triggered, true)}
+    </div>`;
 }
 
 // Temporary reveal of all historical alerts (including prior trading sessions).
@@ -4625,11 +4638,10 @@ function showPriorAlerts() {
 }
 window.showPriorAlerts = showPriorAlerts;
 
-function deleteAlert(id) {
-  state.alerts = state.alerts.filter(a => a.id !== id);
-  saveAlerts();
-  renderAlertsTab();
-  renderChart();
+async function deleteAlert(id) {
+  if (!_supabase) return;
+  await _supabase.from('alerts').update({ is_active: false }).eq('id', id);
+  loadAlerts();
 }
 window.deleteAlert = deleteAlert;
 
@@ -7316,6 +7328,8 @@ async function checkAdminRoute() {
   _isAdmin = true; // Mark session as admin
   showAdminDashboard();
   loadAgentPerformance();
+  loadAlerts();
+  startAlertPolling();
   loadDailyReport();
 }
 
@@ -8349,6 +8363,70 @@ function trackSectionTime(newSection) {
   }
   _sectionStart = Date.now();
   _currentSection = newSection;
+}
+
+// ===== ALERTS =====
+async function loadAlerts() {
+  if (!_supabase) return;
+  const { data: { session } } = await _supabase.auth.getSession();
+  const uid = session?.user?.id;
+  if (!uid) return;
+  const { data: active } = await _supabase.from('alerts')
+    .select('*').eq('user_id', uid).eq('is_active', true).eq('is_triggered', false).order('created_at', { ascending: false });
+  const { data: triggered } = await _supabase.from('alerts')
+    .select('*').eq('user_id', uid).eq('is_triggered', true).order('triggered_at', { ascending: false }).limit(20);
+  state.alerts = active || [];
+  state.triggeredAlerts = triggered || [];
+  if (state.activeTab === 'alerts') renderAlertsTab();
+  const count = (active || []).length;
+  const badge = document.getElementById('alertBadge');
+  if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline' : 'none'; }
+}
+
+async function createAlert() {
+  if (!_supabase) return;
+  const { data: { session } } = await _supabase.auth.getSession();
+  const uid = session?.user?.id;
+  if (!uid) return;
+  if (!_isAdmin) {
+    const { count } = await _supabase.from('alerts').select('id', { count: 'exact', head: true })
+      .eq('user_id', uid).eq('is_active', true).eq('is_triggered', false);
+    const max = getPlanLimits().alertsMax || 3;
+    if ((count || 0) >= max) { showUpgradeModal('pro'); return; }
+  }
+  const symbol    = document.getElementById('alertSymbol')?.value.trim().toUpperCase();
+  const alertType = document.getElementById('alertType')?.value;
+  const threshold = parseFloat(document.getElementById('alertThreshold')?.value);
+  const notify    = document.getElementById('alertNotify')?.value || 'in_app';
+  const label     = document.getElementById('alertLabel')?.value.trim() || null;
+  if (!symbol || !alertType || isNaN(threshold)) { alert('Please fill in symbol and threshold.'); return; }
+  const { error } = await _supabase.from('alerts').insert({
+    user_id: uid, symbol, alert_type: alertType, threshold,
+    notification_method: notify, label, is_active: true, is_triggered: false,
+  });
+  if (error) { console.error('create alert error', error.message); return; }
+  document.getElementById('alertSymbol').value    = '';
+  document.getElementById('alertThreshold').value = '';
+  if (document.getElementById('alertLabel')) document.getElementById('alertLabel').value = '';
+  loadAlerts();
+}
+
+let _alertPollInterval = null;
+function startAlertPolling() {
+  if (_alertPollInterval) return;
+  _alertPollInterval = setInterval(async () => {
+    await loadAlerts();
+    if (!_supabase) return;
+    const { data: { session } } = await _supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) return;
+    const { count } = await _supabase.from('alerts').select('id', { count: 'exact', head: true })
+      .eq('user_id', uid).eq('is_triggered', true).gte('triggered_at', new Date(Date.now() - 60000).toISOString());
+    if ((count || 0) > 0) {
+      const badge = document.getElementById('alertBadge');
+      if (badge) { badge.style.display = 'inline'; badge.style.background = 'var(--bear)'; }
+    }
+  }, 60000);
 }
 </script>
 
