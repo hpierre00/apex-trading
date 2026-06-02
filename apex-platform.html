@@ -6983,15 +6983,16 @@ function showUpgradeModal(featureName, requiredPlan) {
     `width:100%;background:${bg};border:${border};color:${color};font-family:monospace;font-size:11px;font-weight:700;padding:10px;cursor:pointer;border-radius:3px;letter-spacing:0.06em;margin-bottom:6px;`;
 
   const starterBtn = `<button onclick="document.getElementById('upgradeGateModal').remove();startCheckout('price_1TUAErRAfobZUNrF4Wj4cOgy')"
-    style="${btnStyle('#1a3a6e','none','#e8f5f2')}">Starter — upgrade</button>`;
+    style="${btnStyle('var(--bull,#0ecb81)','none','#000')}">Activate Starter — FREE<div style="font-size:9px;color:var(--bull);letter-spacing:1px;margin-top:3px;font-family:monospace">NO CREDIT CARD REQUIRED</div></button>`;
+  const divider = `<div style="display:flex;align-items:center;gap:8px;margin:12px 0"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:9px;color:var(--text-faint);font-family:monospace;letter-spacing:1px;white-space:nowrap">OR UPGRADE FOR MORE</span><div style="flex:1;height:1px;background:var(--border)"></div></div>`;
   const proBtn = `<button onclick="document.getElementById('upgradeGateModal').remove();startCheckout('price_1TU4wlRAfobZUNrFPmVgeONk')"
-    style="${btnStyle('#1a7a6e','none','#e8f5f2')}">Pro — $79/mo</button>`;
+    style="${btnStyle('transparent','1px solid var(--border,#334)','var(--text,#e8f5f2)')}">Pro — $79/mo</button>`;
   const eliteBtn = `<button onclick="document.getElementById('upgradeGateModal').remove();startCheckout('price_1TU4wuRAfobZUNrF7AhIbytY')"
-    style="${btnStyle('#0e1830','1px solid #c9a84c','#c9a84c')}">Elite — $149/mo</button>`;
+    style="${btnStyle('transparent','1px solid var(--border,#334)','var(--text,#e8f5f2)')}">Elite — $149/mo</button>`;
 
   let upgradeButtons = eliteBtn;
-  if (planKey === 'pro') upgradeButtons = proBtn + eliteBtn;
-  else if (planKey === 'starter') upgradeButtons = starterBtn + proBtn + eliteBtn;
+  if (planKey === 'pro') upgradeButtons = proBtn + divider + eliteBtn;
+  else if (planKey === 'starter') upgradeButtons = starterBtn + divider + proBtn + eliteBtn;
 
   const el = document.createElement('div');
   el.id = 'upgradeGateModal';
@@ -7000,10 +7001,10 @@ function showUpgradeModal(featureName, requiredPlan) {
     <div style="background:#0f1729;border:1px solid #1a7a6e;border-radius:6px;padding:28px 24px;width:100%;max-width:360px;font-family:monospace;position:relative;">
       <button onclick="document.getElementById('upgradeGateModal').remove()"
         style="position:absolute;top:12px;right:14px;background:none;border:none;color:#4a5470;font-size:16px;cursor:pointer;line-height:1;">✕</button>
-      <div style="font-size:9px;letter-spacing:2px;color:var(--gold,#f5a623);margin-bottom:10px;">PLAN REQUIRED</div>
+      <div style="font-size:9px;letter-spacing:2px;color:var(--gold,#f5a623);margin-bottom:10px;">You've reached your 3/day limit</div>
       <div style="font-size:15px;font-weight:700;color:#e8f5f2;margin-bottom:6px;">${featureName}</div>
       <div style="font-size:11px;color:rgba(200,215,240,0.6);line-height:1.5;margin-bottom:18px;">
-        Requires the <span style="color:#0ecb81;font-weight:700;">${planLabel}</span> plan or higher.
+        Activate your free Starter plan to keep going, or upgrade for unlimited access.
       </div>
       <div>${upgradeButtons}</div>
     </div>`;
