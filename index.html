@@ -30,7 +30,8 @@
     <nav class="nav-links">
       <a href="/features.html">Features</a>
       <a href="/pricing.html">Pricing</a>
-      <a href="/about.html">About</a>
+      <a href="/faq">FAQ</a>
+      <a href="/market-preview" style="color:var(--bull,#0ecb81);display:flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:var(--bull,#0ecb81);display:inline-block;box-shadow:0 0 6px #0ecb81"></span>Live Demo</a>
       <a href="/app">Sign in</a>
       <a href="/app" class="cta">Start free trial</a>
     </nav>
@@ -357,45 +358,54 @@ function setBilling(mode) {
   </div>
 </section>
 
-<footer class="site-footer">
-  <div class="container">
-    <div class="footer-grid">
-      <div class="footer-col">
-        <div class="brand" style="margin-bottom:12px;">Tradolux</div>
-        <p style="color:var(--text-faint); font-size:12px; line-height:1.6; max-width:280px;">
-          AI-powered market analysis for independent traders. Not a broker-dealer, not a registered investment adviser. Not financial advice.
-        </p>
+<footer style="border-top:1px solid var(--border,#1e2d45);background:var(--bg,#0b1221);padding:48px">
+  <div style="max-width:960px;margin:0 auto">
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:40px">
+      <div>
+        <div style="font-size:20px;font-weight:700;color:var(--text,#e2e8f0);margin-bottom:8px">Tradolux<span style="color:var(--gold,#f5a623)">.</span></div>
+        <p style="color:var(--text-faint,#64748b);font-size:13px;line-height:1.6;max-width:260px">AI-powered capital markets intelligence for independent traders. Five learning agents. Real-time signals. Institutional-grade analysis.</p>
+        <a href="/market-preview" style="display:inline-flex;align-items:center;gap:6px;margin-top:16px;background:rgba(14,203,129,0.1);color:var(--bull,#0ecb81);padding:8px 16px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;border:1px solid rgba(14,203,129,0.3)">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--bull,#0ecb81);box-shadow:0 0 6px #0ecb81"></span>
+          Live Demo
+        </a>
       </div>
-      <div class="footer-col">
-        <h4>Product</h4>
-        <ul>
-          <li><a href="/features.html">Features</a></li>
-          <li><a href="/pricing.html">Pricing</a></li>
-          <li><a href="/app">Launch App</a></li>
-        </ul>
+      <div>
+        <div style="font-size:11px;letter-spacing:2px;color:var(--text-faint,#64748b);font-weight:600;margin-bottom:16px;text-transform:uppercase">Product</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <a href="/features.html" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">Features</a>
+          <a href="/pricing.html" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">Pricing</a>
+          <a href="/faq" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">FAQ</a>
+          <a href="/daily-brief" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">Daily Brief</a>
+          <a href="/market-preview" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">Market Preview</a>
+        </div>
       </div>
-      <div class="footer-col">
-        <h4>Company</h4>
-        <ul>
-          <li><a href="/about.html">About</a></li>
-          <li><a href="mailto:contact@vectatrade.com">Contact</a></li>
-        </ul>
+      <div>
+        <div style="font-size:11px;letter-spacing:2px;color:var(--text-faint,#64748b);font-weight:600;margin-bottom:16px;text-transform:uppercase">AI Agents</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <a href="/agent-chart" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">Chart Agent</a>
+          <a href="/agent-sentiment" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">Sentiment Agent</a>
+          <a href="/agent-fundamental" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">Fundamental Agent</a>
+          <a href="/agent-risk" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">Risk Agent</a>
+          <a href="/agent-macro" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">Macro Agent</a>
+        </div>
       </div>
-      <div class="footer-col">
-        <h4>Legal</h4>
-        <ul>
-          <li><a href="/legal/disclaimer.html">Disclaimer</a></li>
-          <li><a href="/legal/risk-disclosure.html">Risk Disclosure</a></li>
-          <li><a href="/legal/terms.html">Terms of Service</a></li>
-          <li><a href="/legal/privacy.html">Privacy Policy</a></li>
-        </ul>
+      <div>
+        <div style="font-size:11px;letter-spacing:2px;color:var(--text-faint,#64748b);font-weight:600;margin-bottom:16px;text-transform:uppercase">Compare</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <a href="/vs-tradingview" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">vs TradingView</a>
+          <a href="/vs-trendspider" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">vs TrendSpider</a>
+          <a href="/vs-seekingalpha" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">vs Seeking Alpha</a>
+          <a href="/vs-bloomberg" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">vs Bloomberg</a>
+          <a href="/vs-finchat" style="color:var(--text-dim,#94a3b8);text-decoration:none;font-size:13px">vs FinChat</a>
+        </div>
       </div>
     </div>
-    <div class="footer-bottom">
-      <div>&copy; 2026 Tradolux. All rights reserved.</div>
-      <div style="max-width:560px; text-align:right;">
-        Tradolux is a technology platform providing AI-generated market analysis for educational and informational purposes only.
-        Nothing on this site constitutes financial, investment, or trading advice.
+    <div style="border-top:1px solid var(--border,#1e2d45);padding-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div style="color:var(--text-faint,#64748b);font-size:12px">© 2026 Tradolux. Not financial advice. For informational purposes only.</div>
+      <div style="display:flex;gap:20px">
+        <a href="/about.html" style="color:var(--text-faint,#64748b);text-decoration:none;font-size:12px">About</a>
+        <a href="/legal/privacy.html" style="color:var(--text-faint,#64748b);text-decoration:none;font-size:12px">Privacy</a>
+        <a href="/legal/terms.html" style="color:var(--text-faint,#64748b);text-decoration:none;font-size:12px">Terms</a>
       </div>
     </div>
   </div>
