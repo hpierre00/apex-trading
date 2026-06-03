@@ -6844,6 +6844,34 @@ function showAuthTab(tab) {
   document.getElementById('authSubmit').dataset.mode = tab;
 }
 
+// ===== TRIAL ABUSE PREVENTION =====
+function normalizeEmail(email) {
+  if (!email) return '';
+  let [local, domain] = email.toLowerCase().trim().split('@');
+  if (!domain) return email.toLowerCase().trim();
+  // Strip + aliases (john+test@gmail.com → john@gmail.com)
+  local = local.split('+')[0];
+  // Strip dots from Gmail/Googlemail local part (j.o.h.n → john)
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    local = local.replace(/\./g, '');
+  }
+  return `${local}@${domain}`;
+}
+
+async function hasExistingTrial(email) {
+  const normalized = normalizeEmail(email);
+  // Check Supabase for any profile with this normalized email that already had a trial
+  const { data, error } = await _supabase
+    .from('profiles')
+    .select('id, trial_ends, plan')
+    .eq('normalized_email', normalized)
+    .limit(1);
+  if (error || !data?.length) return false;
+  // If any matching profile has ever had a trial (trial_ends is set), block
+  return data.some(p => p.trial_ends !== null);
+}
+// ===== END TRIAL ABUSE PREVENTION =====
+
 async function handleAuthSubmit() {
   const mode = document.getElementById('authSubmit').dataset.mode || 'login';
   const email = document.getElementById('authEmail').value.trim();
@@ -6864,6 +6892,19 @@ async function handleAuthSubmit() {
     if (mode === 'login') {
       result = await _supabase.auth.signInWithPassword({ email, password });
     } else {
+      // Check for trial abuse before allowing signup
+      const normalizedEmail = normalizeEmail(email);
+      const alreadyTrialed = await hasExistingTrial(email);
+      if (alreadyTrialed) {
+        const errEl = document.getElementById('authError') || document.getElementById('signupError');
+        if (errEl) {
+          errEl.textContent = 'A trial account has already been used with this email address. Please sign in or upgrade.';
+          errEl.style.display = 'block';
+        } else {
+          alert('A trial account has already been used with this email address.');
+        }
+        return;
+      }
       result = await _supabase.auth.signUp({
           email,
           password,
@@ -6876,6 +6917,11 @@ async function handleAuthSubmit() {
       errEl.textContent = result.error.message;
       errEl.style.display = 'block';
     } else if (mode === 'signup' && !result.data.session) {
+      // Store normalized email for dedup tracking
+      await _supabase.from('profiles').update({
+        normalized_email: normalizedEmail,
+        trial_ends: new Date(Date.now() + 14 * 86400000).toISOString(),
+      }).eq('id', result.data.user?.id || '').catch(() => {});
       okEl.textContent = 'Check your email to confirm your account before signing in.';
       okEl.style.display = 'block';
     } else {
