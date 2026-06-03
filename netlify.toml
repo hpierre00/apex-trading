@@ -1,8 +1,8 @@
 [build]
-functions = "netlify/functions"
-edge_functions = "netlify/edge-functions"
-publish = "."
+  functions = "netlify/functions"
+  publish = "."
 
+# ===== SCHEDULED FUNCTIONS =====
 [functions."macro-synthesis"]
   schedule = "0 13 * * 1-5"
 
@@ -21,147 +21,21 @@ publish = "."
 [functions."generate-daily-report"]
   schedule = "5 21 * * 1-5"
 
-[[redirects]]
-  from = "/apex-platform"
-  to = "/apex-platform.html"
-  status = 200
-
-# Route `/app` to the trading terminal. Kept as a rewrite (status 200)
-# rather than a redirect so the URL stays clean (/app, not /apex-platform.html).
-[[redirects]]
-  from = "/app"
-  to = "/apex-platform.html"
-  status = 200
-
-# Legacy URL support. Some users may have bookmarked the old URL; keep
-# it working so those bookmarks don't 404.
-[[redirects]]
-  from = "/apex-platform.html"
-  to = "/apex-platform.html"
-  status = 200
-
-[[redirects]]
-  from = "/about"
-  to = "/about.html"
-  status = 200
-
-[[redirects]]
-  from = "/pricing"
-  to = "/pricing.html"
-  status = 200
-
-[[redirects]]
-  from = "/features"
-  to = "/features.html"
-  status = 200
-
-[[redirects]]
-  from = "/market-preview"
-  to = "/market-preview.html"
-  status = 200
-
-[[redirects]]
-  from = "/blog"
-  to = "/blog/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/blog/:slug"
-  to = "/blog/:slug.html"
-  status = 200
-
-[[redirects]]
-  from = "/compare/:slug"
-  to = "/compare/:slug.html"
-  status = 200
-
-[[redirects]]
-  from = "/use-cases/:slug"
-  to = "/use-cases/:slug.html"
-  status = 200
-
-[[redirects]]
-  from = "/legal/disclaimer"
-  to = "/legal/disclaimer.html"
-  status = 200
-
-[[redirects]]
-  from = "/legal/risk-disclosure"
-  to = "/legal/risk-disclosure.html"
-  status = 200
-
-[[redirects]]
-  from = "/legal/terms"
-  to = "/legal/terms.html"
-  status = 200
-
-[[redirects]]
-  from = "/legal/privacy"
-  to = "/legal/privacy.html"
-  status = 200
-
-[[redirects]]
-  from = "/favicon.ico"
-  to = "/og-image.png"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 404
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "SAMEORIGIN"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
-[[functions]]
-  path = "/check-alerts"
+[functions."check-alerts"]
   schedule = "*/5 14-21 * * 1-5"
-[build]
-functions = "netlify/functions"
-edge_functions = "netlify/edge-functions"
-publish = "."
 
-[functions."macro-synthesis"]
-  schedule = "0 13 * * 1-5"
-
-[functions."learning-agent"]
-  schedule = "0 0 * * 0"
-
-[functions."app-enhance"]
-  schedule = "0 11 1-7 * 1"
-
-[functions."evaluate-signal-outcomes"]
-  schedule = "0,30 14-21 * * 1-5"
-
-[functions."update-agent-weights"]
-  schedule = "0 10 * * 2-6"
-
-[functions."generate-daily-report"]
-  schedule = "5 21 * * 1-5"
+# ===== CORE APP ROUTES =====
+[[redirects]]
+  from = "/app"
+  to = "/apex-platform.html"
+  status = 200
 
 [[redirects]]
   from = "/apex-platform"
   to = "/apex-platform.html"
   status = 200
 
-# Route `/app` to the trading terminal. Kept as a rewrite (status 200)
-# rather than a redirect so the URL stays clean (/app, not /apex-platform.html).
-[[redirects]]
-  from = "/app"
-  to = "/apex-platform.html"
-  status = 200
-
-# Legacy URL support. Some users may have bookmarked the old URL; keep
-# it working so those bookmarks don't 404.
-[[redirects]]
-  from = "/apex-platform.html"
-  to = "/apex-platform.html"
-  status = 200
-
+# ===== MARKETING PAGES =====
 [[redirects]]
   from = "/about"
   to = "/about.html"
@@ -183,6 +57,69 @@ publish = "."
   status = 200
 
 [[redirects]]
+  from = "/faq"
+  to = "/faq.html"
+  status = 200
+
+[[redirects]]
+  from = "/daily-brief"
+  to = "/daily-brief.html"
+  status = 200
+
+# ===== COMPARISON PAGES =====
+[[redirects]]
+  from = "/vs-tradingview"
+  to = "/vs-tradingview.html"
+  status = 200
+
+[[redirects]]
+  from = "/vs-trendspider"
+  to = "/vs-trendspider.html"
+  status = 200
+
+[[redirects]]
+  from = "/vs-seekingalpha"
+  to = "/vs-seekingalpha.html"
+  status = 200
+
+[[redirects]]
+  from = "/vs-bloomberg"
+  to = "/vs-bloomberg.html"
+  status = 200
+
+[[redirects]]
+  from = "/vs-finchat"
+  to = "/vs-finchat.html"
+  status = 200
+
+# ===== AGENT PAGES =====
+[[redirects]]
+  from = "/agent-chart"
+  to = "/agent-chart.html"
+  status = 200
+
+[[redirects]]
+  from = "/agent-sentiment"
+  to = "/agent-sentiment.html"
+  status = 200
+
+[[redirects]]
+  from = "/agent-fundamental"
+  to = "/agent-fundamental.html"
+  status = 200
+
+[[redirects]]
+  from = "/agent-risk"
+  to = "/agent-risk.html"
+  status = 200
+
+[[redirects]]
+  from = "/agent-macro"
+  to = "/agent-macro.html"
+  status = 200
+
+# ===== BLOG & CONTENT =====
+[[redirects]]
   from = "/blog"
   to = "/blog/index.html"
   status = 200
@@ -192,16 +129,7 @@ publish = "."
   to = "/blog/:slug.html"
   status = 200
 
-[[redirects]]
-  from = "/compare/:slug"
-  to = "/compare/:slug.html"
-  status = 200
-
-[[redirects]]
-  from = "/use-cases/:slug"
-  to = "/use-cases/:slug.html"
-  status = 200
-
+# ===== LEGAL PAGES =====
 [[redirects]]
   from = "/legal/disclaimer"
   to = "/legal/disclaimer.html"
@@ -223,15 +151,28 @@ publish = "."
   status = 200
 
 [[redirects]]
+  from = "/privacy"
+  to = "/legal/privacy.html"
+  status = 200
+
+[[redirects]]
+  from = "/terms"
+  to = "/legal/terms.html"
+  status = 200
+
+# ===== FAVICON =====
+[[redirects]]
   from = "/favicon.ico"
   to = "/og-image.png"
   status = 200
 
+# ===== CATCH-ALL: custom 404 =====
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 404
 
+# ===== SECURITY HEADERS =====
 [[headers]]
   for = "/*"
   [headers.values]
