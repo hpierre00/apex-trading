@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Daily AI Market Brief — Tradolux</title>
+<meta name="description" content="Tradolux's AI agents analyze the market every trading day. Get the daily intelligence brief — signals, macro context, sector rotation, and opportunities.">
+<style>:root{--bg:#0b1221;--panel:#0f1a2e;--border:#1e2d45;--gold:#f5a623;--bull:#0ecb81;--bear:#f6465d;--text:#e2e8f0;--text-dim:#94a3b8;--text-faint:#64748b}*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6}nav{display:flex;justify-content:space-between;align-items:center;padding:16px 48px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:100}.nav-logo{font-size:20px;font-weight:700;color:var(--text);text-decoration:none}.nav-logo span{color:var(--gold)}.nav-links{display:flex;gap:32px;align-items:center}.nav-links a{color:var(--text-dim);text-decoration:none;font-size:14px}.nav-links a:hover{color:var(--text)}.btn-primary{background:var(--bull);color:#000;padding:8px 20px;border-radius:6px;font-weight:600;text-decoration:none;font-size:14px}.container{max-width:960px;margin:0 auto;padding:0 24px}h1{font-size:42px;font-weight:700;line-height:1.2;margin-bottom:16px}h2{font-size:24px;font-weight:600;margin:48px 0 16px;color:var(--gold)}p{color:var(--text-dim);margin-bottom:16px}.hero{padding:80px 0 60px;text-align:center}.verdict{font-size:20px;color:var(--text-dim);max-width:640px;margin:0 auto 40px}.compare-table{width:100%;border-collapse:collapse;margin:24px 0;font-size:14px}.compare-table th{background:var(--panel);padding:12px 16px;text-align:left;color:var(--text-faint);font-size:11px;letter-spacing:1px;text-transform:uppercase;border-bottom:2px solid var(--border)}.compare-table td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:top}.compare-table tr:hover td{background:var(--panel)}.diff-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:32px 0}.diff-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:24px}.diff-num{font-size:32px;font-weight:700;color:var(--gold);margin-bottom:8px}.cta-section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:48px;text-align:center;margin:64px 0}.agent-badge{display:inline-block;background:rgba(245,166,35,0.15);color:var(--gold);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:16px}.io-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:24px 0}.io-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px}.io-card h3{margin-top:0;font-size:11px;letter-spacing:2px;color:var(--text-faint);text-transform:uppercase;margin-bottom:12px}.io-card ul{list-style:none;padding:0}.io-card li{padding:6px 0;color:var(--text-dim);font-size:14px;border-bottom:1px solid var(--border)}.io-card li:last-child{border-bottom:none}.io-card li::before{content:"→ ";color:var(--gold)}.example-box{background:var(--panel);border-left:3px solid var(--gold);padding:20px 24px;border-radius:0 8px 8px 0;margin:24px 0;font-style:italic;color:var(--text-dim)}.prompt-list{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.prompt-pill{background:rgba(14,203,129,0.1);color:var(--bull);padding:6px 14px;border-radius:20px;font-size:13px;font-family:monospace}.faq-item{border-bottom:1px solid var(--border)}.faq-q{padding:18px 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:500;color:var(--text)}.faq-q:hover{color:var(--gold)}.faq-a{padding:0 0 18px;color:var(--text-dim);display:none}.faq-a.open{display:block}.faq-section-title{font-size:11px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin:40px 0 8px;font-weight:600}footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify-content:space-between;align-items:center;color:var(--text-faint);font-size:13px}@media(max-width:768px){.diff-grid{grid-template-columns:1fr}.io-grid{grid-template-columns:1fr}h1{font-size:28px}nav{padding:16px 20px}.nav-links a:not(.btn-primary){display:none}}
+.brief-hero{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--border)}
+.status-pill{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:13px;margin-bottom:24px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--bull);box-shadow:0 0 8px var(--bull)}
+.agents-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin:40px 0}
+.agent-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px;text-align:center}
+.agent-icon{font-size:28px;margin-bottom:8px}
+.agent-name{font-size:11px;letter-spacing:2px;color:var(--gold);font-weight:600;margin-bottom:4px}
+.agent-desc{font-size:12px;color:var(--text-faint)}
+.brief-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:32px;margin:24px 0}
+.brief-card h3{font-size:11px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:16px}
+.gate-section{background:linear-gradient(135deg,rgba(245,166,35,0.1),rgba(14,203,129,0.05));border:1px solid var(--gold);border-radius:12px;padding:40px;text-align:center;margin:40px 0}
+@media(max-width:768px){.agents-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<nav><a class="nav-logo" href="/">Tradolux<span>.</span></a><div class="nav-links"><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/faq.html">FAQ</a><a href="/app#">Sign in</a><a class="btn-primary" href="/app#">Start free trial</a></div></nav>
+<div class="brief-hero">
+  <div class="container">
+    <div class="status-pill"><span class="status-dot"></span><span id="marketStatus">Loading market status...</span></div>
+    <h1>Daily AI Market Brief</h1>
+    <p class="verdict">5 learning agents. Continuous analysis. One daily intelligence summary &mdash; delivered every trading day at 4:05 PM ET.</p>
+    <p id="briefDate" style="color:var(--text-faint);font-size:14px"></p>
+  </div>
+</div>
+<div class="container">
+  <h2>Today's Active Agents</h2>
+  <div class="agents-grid">
+    <div class="agent-card"><div class="agent-icon">&#128200;</div><div class="agent-name">CHART</div><div class="agent-desc">Pattern recognition &amp; technical setups</div></div>
+    <div class="agent-card"><div class="agent-icon">&#128172;</div><div class="agent-name">SENTIMENT</div><div class="agent-desc">Market mood &amp; crowd positioning</div></div>
+    <div class="agent-card"><div class="agent-icon">&#128202;</div><div class="agent-name">FUNDAMENTAL</div><div class="agent-desc">Business quality &amp; earnings momentum</div></div>
+    <div class="agent-card"><div class="agent-icon">&#128737;</div><div class="agent-name">RISK</div><div class="agent-desc">Volatility &amp; position safety</div></div>
+    <div class="agent-card"><div class="agent-icon">&#127760;</div><div class="agent-name">MACRO</div><div class="agent-desc">Fed policy &amp; sector rotation</div></div>
+  </div>
+  <div class="brief-card">
+    <h3>What's in today's brief</h3>
+    <p>Every trading day at market close, Tradolux's AI compiles a complete intelligence summary covering: signal performance from the day's agent activity, macro regime assessment, sector rotation signals, top opportunities identified by the agents, and metrics for account holders.</p>
+    <p>The full brief &mdash; including specific tickers, signal outcomes, agent accuracy scores, and AI-generated opportunity analysis &mdash; is available inside the Tradolux platform.</p>
+  </div>
+  <div class="brief-card" id="publicBriefContent">
+    <h3>Today's market snapshot</h3>
+    <div id="briefContent" style="color:var(--text-dim)">Loading today's brief...</div>
+  </div>
+  <div class="gate-section">
+    <h2 style="color:var(--text);margin-top:0">Get the full daily brief</h2>
+    <p>Sign up for a free 14-day trial. Every trading day you'll receive the complete AI intelligence summary &mdash; signals fired, outcomes tracked, macro context, and tomorrow's setups to watch.</p>
+    <a class="btn-primary" href="/app#" style="display:inline-block;margin-top:24px;padding:14px 40px;font-size:16px">Start free trial &rarr;</a>
+    <p style="margin-top:12px;font-size:12px;color:var(--text-faint)">14-day trial &middot; Credit card required &middot; Cancel anytime</p>
+  </div>
+</div>
+<footer><div>&copy; 2026 Tradolux. Not financial advice.</div><div style="display:flex;gap:24px"><a href="/privacy.html" style="color:var(--text-faint);text-decoration:none">Privacy</a><a href="/terms.html" style="color:var(--text-faint);text-decoration:none">Terms</a></div></footer>
+<script>
+  document.getElementById('briefDate').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var now = new Date();
+  var day = now.getDay();
+  var hour = now.getHours();
+  var isWeekday = day >= 1 && day <= 5;
+  var isMarketHours = hour >= 9 && hour < 16;
+  document.getElementById('marketStatus').textContent = (isWeekday && isMarketHours) ? 'Market Open — Agents Active' : 'Market Closed — Next brief at 4:05 PM ET';
+  var SUPABASE_URL = 'https://soghksmuocrgtttmnete.supabase.co';
+  var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZ2hrc211b2NyZ3R0dG1uZXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU1ODQ0MDUsImV4cCI6MjA2MTE2MDQwNX0.T7EZgmexNwGgDUFEBgfJi5qBEMrHK9Zb4oJmGlilGmA';
+  var today = new Date().toISOString().slice(0,10);
+  fetch(SUPABASE_URL+'/rest/v1/daily_report_cache?report_date=eq.'+today+'&select=data,generated_at', {
+    headers: {'apikey': SUPABASE_ANON, 'Authorization': 'Bearer '+SUPABASE_ANON}
+  }).then(function(r){return r.json();}).then(function(rows){
+    var el = document.getElementById('briefContent');
+    if (!rows || !rows.length || !rows[0].data) { el.textContent = "Today's brief will be available after 4:05 PM ET."; return; }
+    var d = rows[0].data;
+    var gen = new Date(rows[0].generated_at || d.generated_at);
+    var html = '<p style="color:var(--text-faint);font-size:12px;margin-bottom:16px">Generated '+gen.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+' ET</p>';
+    if (d.ops) html += '<p>All systems operational &middot; DB response '+(d.ops.dbPingMs||'&mdash;')+'ms</p>';
+    if (d.signups && d.signups.today !== undefined) html += '<p>New signups today: '+d.signups.today+'</p>';
+    html += '<p style="margin-top:16px;color:var(--text-faint);font-size:13px">Full brief with signal performance, agent accuracy, and AI-generated opportunities available inside the platform.</p>';
+    el.innerHTML = html;
+  }).catch(function(){ document.getElementById('briefContent').textContent = "Today's brief will be available after 4:05 PM ET."; });
+</script>
+</body></html>
