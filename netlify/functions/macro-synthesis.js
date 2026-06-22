@@ -50,7 +50,7 @@ function computeMicrostructure(records) {
   let signal_accuracy_tight_spreads_pct = null;
   if (tightRecords.length >= 5) {
     const wins = tightRecords.filter(
-      (r) => r.outcome === 'WIN_TP1' || r.outcome === 'WIN_TP2'
+      (r) => r.outcome_direction === 'correct'
     ).length;
     signal_accuracy_tight_spreads_pct = (wins / tightRecords.length) * 100;
   }
@@ -60,7 +60,7 @@ function computeMicrostructure(records) {
   let signal_accuracy_wide_spreads_pct = null;
   if (wideRecords.length >= 5) {
     const wins = wideRecords.filter(
-      (r) => r.outcome === 'WIN_TP1' || r.outcome === 'WIN_TP2'
+      (r) => r.outcome_direction === 'correct'
     ).length;
     signal_accuracy_wide_spreads_pct = (wins / wideRecords.length) * 100;
   }
@@ -167,7 +167,7 @@ exports.handler = async (event) => {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const microRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/signal_microstructure_log?created_at=gte.${thirtyDaysAgo}&order=created_at.desc&limit=1000`,
+      `${SUPABASE_URL}/rest/v1/signal_microstructure_log?created_at=gte.${thirtyDaysAgo}&is_evaluated=eq.true&order=created_at.desc&limit=1000`,
       { headers: SUPABASE_SERVICE_HEADERS }
     );
     if (microRes.ok) {
