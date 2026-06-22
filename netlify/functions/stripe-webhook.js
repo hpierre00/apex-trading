@@ -84,6 +84,23 @@ exports.handler = async (event) => {
 
   console.log('[webhook] Event:', stripeEvent.type);
 
+  const svcKey = process.env.SUPABASESKTradoLux;
+  if (svcKey) {
+    try {
+      const dupeCheck = await fetch(
+        `${SUPABASE_URL}/rest/v1/stripe_webhook_events?event_id=eq.${encodeURIComponent(stripeEvent.id)}&select=event_id`,
+        { headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` } }
+      );
+      const existing = dupeCheck.ok ? await dupeCheck.json() : [];
+      if (existing.length > 0) {
+        console.log(`[webhook] Duplicate delivery of ${stripeEvent.id} (${stripeEvent.type}) — skipping`);
+        return { statusCode: 200, body: JSON.stringify({ received: true, duplicate: true }) };
+      }
+    } catch (e) {
+      console.error('[webhook] Dedup check failed, proceeding without it:', e);
+    }
+  }
+
   try {
     switch (stripeEvent.type) {
 
@@ -133,6 +150,22 @@ exports.handler = async (event) => {
   } catch (e) {
     console.error('[webhook] Error:', e);
     return { statusCode: 500, body: 'Internal error' };
+  }
+
+  if (svcKey) {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/stripe_webhook_events`, {
+        method: 'POST',
+        headers: {
+          apikey: svcKey, Authorization: `Bearer ${svcKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=ignore-duplicates,return=minimal'
+        },
+        body: JSON.stringify({ event_id: stripeEvent.id, event_type: stripeEvent.type }),
+      });
+    } catch (e) {
+      console.error('[webhook] Failed to record processed event id:', e);
+    }
   }
 
   return { statusCode: 200, body: JSON.stringify({ received: true }) };
