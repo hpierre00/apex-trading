@@ -39,16 +39,17 @@ async function stripeGet(path) {
 }
 
 // ── Supabase update ───────────────────────────────────────────────────────
-async function updateUserPlan(email, plan, status, customerId, subscriptionId, trialEnd) {
+async function updateUserPlan(userId, email, plan, status, customerId, subscriptionId, trialEnd) {
   const svcKey = process.env.SUPABASESKTradoLux;
   if (!svcKey) { console.error('[webhook] SUPABASESKTradoLux not set'); return; }
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}`, {
+  const filter = userId ? `id=eq.${encodeURIComponent(userId)}` : `email=eq.${encodeURIComponent(email)}`;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?${filter}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       'apikey': svcKey,
       'Authorization': `Bearer ${svcKey}`,
-      'Prefer': 'return=minimal'
+      'Prefer': 'return=representation'
     },
     body: JSON.stringify({
       plan, subscription_status: status,
@@ -58,8 +59,13 @@ async function updateUserPlan(email, plan, status, customerId, subscriptionId, t
       updated_at: new Date().toISOString()
     })
   });
-  if (!r.ok) console.error('[webhook] Supabase error:', await r.text());
-  else console.log(`[webhook] ${email} → ${plan}/${status}`);
+  if (!r.ok) { console.error('[webhook] Supabase error:', await r.text()); return; }
+  const updated = await r.json();
+  if (!Array.isArray(updated) || updated.length === 0) {
+    console.error(`[webhook] PATCH matched 0 rows for ${userId ? 'userId='+userId : 'email='+email} — plan NOT applied`);
+    return;
+  }
+  console.log(`[webhook] ${userId || email} → ${plan}/${status}`);
 }
 
 // ── SendGrid email sender ────────────────────────────────────────────────
@@ -218,8 +224,9 @@ exports.handler = async (event) => {
         const priceId  = sub.items?.data[0]?.price?.id;
         const plan     = PRICE_TO_PLAN[priceId] || 'starter';
         const trialEnd = sub.trial_end; // unix timestamp
+        const userId   = sub.metadata?.supabase_user_id || null;
 
-        await updateUserPlan(email, plan, sub.status, customerId, subId, trialEnd);
+        await updateUserPlan(userId, email, plan, sub.status, customerId, subId, trialEnd);
 
         // Day 1 — immediate welcome
         await sendEmail(emailDay1(email, plan));
@@ -238,10 +245,11 @@ exports.handler = async (event) => {
         const sub      = stripeEvent.data.object;
         const customer = await stripeGet(`/customers/${sub.customer}`);
         const email    = customer.email;
-        if (!email) break;
+        const userId   = sub.metadata?.supabase_user_id || null;
+        if (!email && !userId) break;
         const priceId  = sub.items?.data[0]?.price?.id;
         const plan     = PRICE_TO_PLAN[priceId] || 'starter';
-        await updateUserPlan(email, plan, sub.status, sub.customer, sub.id, sub.trial_end);
+        await updateUserPlan(userId, email, plan, sub.status, sub.customer, sub.id, sub.trial_end);
         break;
       }
 
@@ -249,8 +257,9 @@ exports.handler = async (event) => {
         const sub      = stripeEvent.data.object;
         const customer = await stripeGet(`/customers/${sub.customer}`);
         const email    = customer.email;
-        if (!email) break;
-        await updateUserPlan(email, 'free', 'canceled', sub.customer, sub.id, null);
+        const userId   = sub.metadata?.supabase_user_id || null;
+        if (!email && !userId) break;
+        await updateUserPlan(userId, email, 'free', 'canceled', sub.customer, sub.id, null);
         break;
       }
     }

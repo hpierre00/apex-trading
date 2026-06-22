@@ -52,6 +52,7 @@ exports.handler = async (event) => {
   params.append('line_items[0][price]', priceId);
   params.append('line_items[0][quantity]', '1');
   params.append('subscription_data[trial_period_days]', '14');
+  params.append('subscription_data[metadata][supabase_user_id]', user.id);
   params.append('customer_email', user.email || '');
   params.append('success_url', 'https://tradolux.com/app?upgraded=1');
   params.append('cancel_url', 'https://tradolux.com/app');
