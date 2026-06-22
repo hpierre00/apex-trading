@@ -87,7 +87,7 @@ exports.handler = async (event) => {
   let signalAccuracy = [];
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/signal_microstructure_log?created_at=gte.${thirtyDaysAgo}&outcome_at_1hr=not.is.null&order=created_at.desc&limit=5000`,
+      `${SUPABASE_URL}/rest/v1/signal_microstructure_log?created_at=gte.${thirtyDaysAgo}&is_evaluated=eq.true&order=created_at.desc&limit=5000`,
       { headers: SUPABASE_SERVICE_HEADERS }
     );
     if (res.ok) {
@@ -98,7 +98,7 @@ exports.handler = async (event) => {
           const key = `${r.symbol}|${r.timeframe}`;
           if (!groups[key]) groups[key] = { wins: 0, total: 0 };
           groups[key].total++;
-          if (r.outcome_at_1hr === 'WIN') groups[key].wins++;
+          if (r.outcome_direction === 'correct') groups[key].wins++;
         }
         signalAccuracy = Object.entries(groups)
           .filter(([, g]) => g.total >= 5)

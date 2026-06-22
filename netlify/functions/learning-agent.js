@@ -57,7 +57,7 @@ exports.handler = async (event) => {
   let signals = [];
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/signal_microstructure_log?created_at=gte.${ninetyDaysAgo}&outcome_at_1hr=not.is.null&order=created_at.desc&limit=5000`,
+      `${SUPABASE_URL}/rest/v1/signal_microstructure_log?created_at=gte.${ninetyDaysAgo}&is_evaluated=eq.true&order=created_at.desc&limit=5000`,
       { headers: SUPABASE_SERVICE_HEADERS }
     );
     if (!res.ok) throw new Error(`Supabase returned ${res.status}`);
@@ -88,7 +88,7 @@ exports.handler = async (event) => {
     const key = `${macroBucket}_${spreadLabel}_${timeBucket}`;
     if (!groups[key]) groups[key] = { wins: 0, total: 0, confidence_sum: 0 };
     groups[key].total++;
-    if (s.outcome_at_1hr === 'WIN') groups[key].wins++;
+    if (s.outcome_direction === 'correct') groups[key].wins++;
     groups[key].confidence_sum += s.confidence_score || s.confidence || 50;
   }
 
