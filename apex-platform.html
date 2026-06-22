@@ -1432,7 +1432,7 @@ const state = {
   alpaca: {
     ws: null,
     connected: false,
-    feed: 'sip',
+    feed: 'iex',
     reconnectAttempts: 0,
     reconnectTimer: null,
     state: 'disconnected', // 'disconnected' | 'connecting' | 'live' | 'degraded'
@@ -5495,7 +5495,7 @@ async function runHealthChecks() {
     const r = await fetch('/.netlify/functions/alpaca-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
-      body: JSON.stringify({ path: '/v2/stocks/SPY/bars', params: { timeframe: '1Day', limit: 1, feed: 'sip' } }),
+      body: JSON.stringify({ path: '/v2/stocks/SPY/bars', params: { timeframe: '1Day', limit: 1, feed: 'iex' } }),
     });
     set('stRest', r.ok ? 'OK' : 'ERROR ' + r.status, r.ok ? 'var(--bull)' : 'var(--bear)');
   } catch {
@@ -5693,7 +5693,7 @@ async function fetchExtendedQuotes(symbols) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') },
       body: JSON.stringify({
         path: '/v2/stocks/quotes/latest',
-        params: { symbols: symbols.join(','), feed: 'sip' },
+        params: { symbols: symbols.join(','), feed: 'iex' },
       }),
     });
     if (!r.ok) return null;
@@ -5731,7 +5731,7 @@ async function connectAlpaca() {
     return;
   }
 
-  state.alpaca.feed = creds.feed || 'sip';
+  state.alpaca.feed = creds.feed || 'iex';
   state.alpaca.state = 'connecting';
   updateConnPill();
 
@@ -7235,7 +7235,7 @@ async function loadTimeOfDayProfile() {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _session.access_token },
       body: JSON.stringify({
         path: '/v2/stocks/SPY/bars',
-        params: { timeframe: '5Min', start: fmt(start), end: fmt(end), limit: 10000, feed: 'sip' }
+        params: { timeframe: '5Min', start: fmt(start), end: fmt(end), limit: 10000, feed: 'iex' }
       }),
     });
     if (!res.ok) return;
