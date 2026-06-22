@@ -4297,8 +4297,9 @@ function renderSignalsTab() {
             const shield = state.hftShield;
             if (!shield) return '';
             const sc = shield.shieldScore;
-            const shColor = sc >= 60 ? '#0ecb81' : sc >= 40 ? '#c9a84c' : '#f6465d';
-            const lines = [`<div style="color:${shColor};font-size:9px;margin-top:3px;font-family:monospace">Shield: ${sc}/100 — ${shield.recommendation} · Route: ${shield.routeVia}</div>`];
+            const shColor = shield.usedFallback ? 'rgba(255,255,255,0.35)' : sc >= 60 ? '#0ecb81' : sc >= 40 ? '#c9a84c' : '#f6465d';
+            const estTag = shield.usedFallback ? ' (est.)' : '';
+            const lines = [`<div style="color:${shColor};font-size:9px;margin-top:3px;font-family:monospace">Shield: ${sc}/100${estTag} — ${shield.recommendation} · Route: ${shield.routeVia}</div>`];
             if (sc < 50) lines.push(`<div style="color:rgba(255,255,255,0.4);font-size:9px;font-family:monospace">Execution: consider routing via IEX on IBKR to reduce HFT front-running risk</div>`);
             return lines.join('');
           })()}
@@ -4341,7 +4342,9 @@ function renderSignalsTab() {
     // Fix 3: HFT shield badge
     const shield = state.hftShield;
     const shieldTag = shield
-      ? ` <span style="font-size:9px;padding:1px 4px;border-radius:2px;background:${shield.shieldScore >= 60 ? 'rgba(14,203,129,0.15)' : shield.shieldScore >= 40 ? 'rgba(201,168,76,0.15)' : 'rgba(246,70,93,0.15)'};color:${shield.shieldScore >= 60 ? '#0ecb81' : shield.shieldScore >= 40 ? '#c9a84c' : '#f6465d'}">🛡 ${shield.shieldScore} ${shield.recommendation}</span>`
+      ? (shield.usedFallback
+          ? ` <span style="font-size:9px;padding:1px 4px;border-radius:2px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.4)" title="Fallback estimate — order book data unavailable">🛡 ${shield.shieldScore} (est.)</span>`
+          : ` <span style="font-size:9px;padding:1px 4px;border-radius:2px;background:${shield.shieldScore >= 60 ? 'rgba(14,203,129,0.15)' : shield.shieldScore >= 40 ? 'rgba(201,168,76,0.15)' : 'rgba(246,70,93,0.15)'};color:${shield.shieldScore >= 60 ? '#0ecb81' : shield.shieldScore >= 40 ? '#c9a84c' : '#f6465d'}">🛡 ${shield.shieldScore} ${shield.recommendation}</span>`)
       : '';
 
     // Fix 4: timestamp in ET
@@ -7749,11 +7752,12 @@ async function renderAdminDashboard() {
         if (!res.ok) continue;
         const d = await res.json();
         const sc = d.shieldScore;
-        const col = sc >= 60 ? '#0ecb81' : sc >= 40 ? '#c9a84c' : '#f6465d';
+        const col = d.usedFallback ? '#6b7a9e' : sc >= 60 ? '#0ecb81' : sc >= 40 ? '#c9a84c' : '#f6465d';
+        const estTag = d.usedFallback ? ' (est.)' : '';
         el.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
             <span style="font-size:11px;color:#c8d0e0;font-family:monospace;font-weight:700;">${sym}</span>
-            <span style="font-size:10px;font-weight:700;color:${col};font-family:monospace;">${sc}/100 — ${d.recommendation}</span>
+            <span style="font-size:10px;font-weight:700;color:${col};font-family:monospace;">${sc}/100${estTag} — ${d.recommendation}</span>
           </div>
           <div style="display:flex;gap:10px;font-size:9px;color:rgba(200,215,240,0.5);">
             <span>Imbalance: ${d.imbalanceSignal}</span>
