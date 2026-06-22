@@ -18,6 +18,9 @@
 [functions."update-agent-weights"]
   schedule = "0 10 * * 2-6"
 
+[functions."send-trial-emails"]
+  schedule = "0 13 * * *"
+
 [[redirects]]
   from = "/apex-platform"
   to = "/apex-platform.html"
