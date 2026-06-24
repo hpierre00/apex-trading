@@ -5,6 +5,7 @@
   "description": "APEX AI Trading Terminal",
   "engines": { "node": ">=18" },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "stripe": "^14.0.0"
   }
 }
