@@ -25,6 +25,9 @@
   schedule = "*/5 14-21 * * 1-5"
 
 # ===== CORE APP ROUTES =====
+[functions."site-monitor"]
+  schedule = "*/15 * * * *"
+
 [[redirects]]
   from = "/app"
   to = "/apex-platform.html"

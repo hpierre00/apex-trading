@@ -7864,6 +7864,64 @@ async function renderAdminDashboard() {
       <div id="adminLearnedWeights">
         <div style="color:rgba(200,215,240,0.3);font-size:10px;font-family:monospace;">Loading...</div>
       </div>
+    </div>
+    <!-- USERS & ACCESS MANAGEMENT -->
+    <div id="adminUsersPanel" style="display:none;padding:16px 24px;border-top:1px solid rgba(255,255,255,0.06);">
+      <div style="font-size:9px;letter-spacing:2px;color:#c9a84c;font-weight:600;margin-bottom:16px;">USERS &amp; ACCESS MANAGEMENT</div>
+
+      <!-- INVITE ROW -->
+      <div style="background:#0a1220;border:1px solid rgba(201,168,76,0.25);border-radius:4px;padding:14px 16px;margin-bottom:18px;">
+        <div style="font-size:9px;letter-spacing:1.5px;color:rgba(200,215,240,0.4);margin-bottom:10px;">INVITE USER</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <label style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);display:block;margin-bottom:4px;">EMAIL ADDRESS</label>
+            <input id="inviteEmail" type="email" placeholder="user@example.com"
+              style="width:100%;background:#060c1a;border:1px solid rgba(255,255,255,0.15);color:#c8d0e0;font-family:monospace;font-size:11px;padding:7px 10px;border-radius:3px;box-sizing:border-box;outline:none;" />
+          </div>
+          <div style="min-width:160px;">
+            <label style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);display:block;margin-bottom:4px;">ACCESS LEVEL</label>
+            <select id="invitePlan"
+              style="width:100%;background:#060c1a;border:1px solid rgba(255,255,255,0.15);color:#c8d0e0;font-family:monospace;font-size:11px;padding:7px 10px;border-radius:3px;outline:none;">
+              <option value="starter">Starter</option>
+              <option value="pro">Pro</option>
+              <option value="elite" selected>Elite (Full Access)</option>
+              <option value="free">Free (Limited)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);display:block;margin-bottom:4px;">FEATURES</label>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;">
+              <label style="font-size:10px;color:#c8d0e0;display:flex;align-items:center;gap:5px;cursor:pointer;">
+                <input type="checkbox" id="inviteAllFeatures" checked onchange="adminInviteFeatureToggle(this)"
+                  style="accent-color:#c9a84c;width:13px;height:13px;" /> All Features
+              </label>
+              <label style="font-size:10px;color:#c8d0e0;display:flex;align-items:center;gap:5px;cursor:pointer;">
+                <input type="checkbox" id="inviteSignals" checked style="accent-color:#0ecb81;width:13px;height:13px;" /> Signals
+              </label>
+              <label style="font-size:10px;color:#c8d0e0;display:flex;align-items:center;gap:5px;cursor:pointer;">
+                <input type="checkbox" id="inviteAgents" checked style="accent-color:#0ecb81;width:13px;height:13px;" /> Agents
+              </label>
+              <label style="font-size:10px;color:#c8d0e0;display:flex;align-items:center;gap:5px;cursor:pointer;">
+                <input type="checkbox" id="inviteMacro" checked style="accent-color:#0ecb81;width:13px;height:13px;" /> Macro
+              </label>
+            </div>
+          </div>
+          <button onclick="adminSendInvite()" id="adminInviteBtn"
+            style="background:#c9a84c;color:#060c1a;font-family:monospace;font-size:10px;font-weight:700;padding:8px 18px;border:none;cursor:pointer;border-radius:3px;letter-spacing:1px;white-space:nowrap;height:34px;">
+            SEND INVITE
+          </button>
+        </div>
+        <div id="inviteStatus" style="font-size:10px;font-family:monospace;margin-top:8px;min-height:16px;"></div>
+      </div>
+
+      <!-- USER LIST -->
+      <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:8px;">
+        REGISTERED USERS
+        <button onclick="adminLoadUsers()" style="background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(200,215,240,0.5);font-family:monospace;font-size:9px;padding:2px 8px;cursor:pointer;border-radius:2px;margin-left:8px;letter-spacing:1px;">&#8635; REFRESH</button>
+      </div>
+      <div id="adminUserList">
+        <div style="color:rgba(200,215,240,0.3);font-size:10px;font-family:monospace;padding:20px 0;text-align:center;">Click REFRESH to load users</div>
+      </div>
     </div>`;
 
   // Poll HFT shield scores for all watchlist symbols
@@ -8474,6 +8532,147 @@ function startAlertPolling() {
     }
   }, 60000);
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  ADMIN — USERS & ACCESS MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+
+function adminToggleUsers() {
+  const panel = document.getElementById('adminUsersPanel');
+  const btn   = document.getElementById('adminUsersBtn');
+  if (!panel) return;
+  const showing = panel.style.display !== 'none';
+  panel.style.display = showing ? 'none' : 'block';
+  if (btn) {
+    btn.style.background  = showing ? 'transparent' : 'rgba(201,168,76,0.15)';
+    btn.style.borderColor = showing ? 'rgba(201,168,76,0.4)' : '#c9a84c';
+  }
+  if (!showing) {
+    adminLoadUsers();
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function adminInviteFeatureToggle(cb) {
+  ['inviteSignals','inviteAgents','inviteMacro'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.checked = cb.checked;
+  });
+}
+
+async function adminSendInvite() {
+  const email = (document.getElementById('inviteEmail')?.value || '').trim();
+  const plan  = document.getElementById('invitePlan')?.value || 'elite';
+  const statusEl = document.getElementById('inviteStatus');
+  const btn   = document.getElementById('adminInviteBtn');
+
+  if (!email || !email.includes('@')) {
+    if (statusEl) { statusEl.textContent = '⚠ Enter a valid email address.'; statusEl.style.color = '#f5a623'; }
+    return;
+  }
+  if (btn) { btn.textContent = 'SENDING...'; btn.disabled = true; }
+  if (statusEl) statusEl.textContent = '';
+
+  try {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const res = await fetch('/.netlify/functions/admin-invite', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session?.access_token
+      },
+      body: JSON.stringify({ action: 'invite', email, plan })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Request failed');
+    if (statusEl) { statusEl.textContent = '✓ Invite sent to ' + email; statusEl.style.color = '#0ecb81'; }
+    document.getElementById('inviteEmail').value = '';
+    adminLoadUsers();
+  } catch (e) {
+    if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = '#f6465d'; }
+  } finally {
+    if (btn) { btn.textContent = 'SEND INVITE'; btn.disabled = false; }
+  }
+}
+
+async function adminLoadUsers() {
+  const listEl = document.getElementById('adminUserList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="color:rgba(200,215,240,0.3);font-size:10px;font-family:monospace;padding:12px 0;">Loading...</div>';
+  try {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const res  = await fetch('/.netlify/functions/admin-invite', {
+      headers: { 'Authorization': 'Bearer ' + session?.access_token }
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to load users');
+    const users = json.users || [];
+    if (!users.length) {
+      listEl.innerHTML = '<div style="color:rgba(200,215,240,0.3);font-size:10px;font-family:monospace;padding:12px 0;text-align:center;">No users yet.</div>';
+      return;
+    }
+    const planColor = p => p === 'elite' ? '#c9a84c' : p === 'pro' ? '#4a90d9' : p === 'starter' ? '#0ecb81' : '#6b7589';
+    const statusColor = s => s === 'active' ? '#0ecb81' : s === 'suspended' ? '#f5a623' : s === 'terminated' ? '#f6465d' : '#6b7589';
+    listEl.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:10px;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+            ${['EMAIL','PLAN','STATUS','JOINED','ACTIONS'].map(h =>
+              `<th style="padding:6px 10px;text-align:left;font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.35);font-weight:600;">${h}</th>`
+            ).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map(u => `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+              <td style="padding:8px 10px;color:#c8d0e0;">${u.email}</td>
+              <td style="padding:8px 10px;">
+                <span style="background:${planColor(u.plan)}22;border:1px solid ${planColor(u.plan)}44;color:${planColor(u.plan)};font-size:8px;padding:2px 7px;border-radius:2px;letter-spacing:0.5px;text-transform:uppercase;">${u.plan || 'free'}</span>
+              </td>
+              <td style="padding:8px 10px;color:${statusColor(u.subscription_status)};font-size:9px;">${u.subscription_status || 'inactive'}</td>
+              <td style="padding:8px 10px;color:rgba(200,215,240,0.45);font-size:9px;">${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
+              <td style="padding:8px 10px;">
+                <div style="display:flex;gap:6px;">
+                  ${u.subscription_status !== 'suspended' && u.subscription_status !== 'terminated' ? `
+                    <button onclick="adminManageUser('${u.id}','${u.email}','suspend')"
+                      style="background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.3);color:#f5a623;font-family:monospace;font-size:8px;padding:3px 8px;cursor:pointer;border-radius:2px;">SUSPEND</button>` : ''}
+                  ${u.subscription_status === 'suspended' ? `
+                    <button onclick="adminManageUser('${u.id}','${u.email}','reactivate')"
+                      style="background:rgba(14,203,129,0.12);border:1px solid rgba(14,203,129,0.3);color:#0ecb81;font-family:monospace;font-size:8px;padding:3px 8px;cursor:pointer;border-radius:2px;">REINSTATE</button>` : ''}
+                  ${u.subscription_status !== 'terminated' ? `
+                    <button onclick="adminManageUser('${u.id}','${u.email}','terminate')"
+                      style="background:rgba(246,70,93,0.12);border:1px solid rgba(246,70,93,0.3);color:#f6465d;font-family:monospace;font-size:8px;padding:3px 8px;cursor:pointer;border-radius:2px;">TERMINATE</button>` : ''}
+                </div>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch (e) {
+    listEl.innerHTML = `<div style="color:#f6465d;font-size:10px;font-family:monospace;padding:12px 0;">Error: ${e.message}</div>`;
+  }
+}
+
+async function adminManageUser(userId, email, action) {
+  if (action === 'terminate' && !confirm(`Terminate access for ${email}? They will be downgraded to free immediately.`)) return;
+  if (action === 'suspend'   && !confirm(`Suspend ${email}? They will lose access until reinstated.`)) return;
+  try {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const res = await fetch('/.netlify/functions/admin-invite', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session?.access_token
+      },
+      body: JSON.stringify({ action, userId, email })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Action failed');
+    adminLoadUsers();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
 </script>
 
 <!-- Mobile fixed nav + panel (outside .app so fixed positioning is clean) -->
