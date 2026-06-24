@@ -7761,6 +7761,8 @@ async function renderAdminDashboard() {
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         <button onclick="adminRefreshBrief()" style="background:#0ecb81;color:#060c1a;font-family:monospace;font-size:10px;font-weight:700;padding:7px 14px;border:none;cursor:pointer;border-radius:3px;letter-spacing:1px;">REFRESH</button>
+        <button onclick="adminToggleUsers()" id="adminUsersBtn" style="background:transparent;color:#c9a84c;font-family:monospace;font-size:10px;font-weight:700;padding:7px 14px;border:1px solid rgba(201,168,76,0.4);cursor:pointer;border-radius:3px;letter-spacing:1px;">USERS</button>
+        <button onclick="adminToggleMonitor()" id="adminMonitorBtn" style="background:transparent;color:#4a90d9;font-family:monospace;font-size:10px;font-weight:700;padding:7px 14px;border:1px solid rgba(74,144,217,0.4);cursor:pointer;border-radius:3px;letter-spacing:1px;">MONITOR</button>
         <a href="#app" onclick="hideAdminDashboard()" style="color:rgba(200,215,240,0.4);font-family:monospace;font-size:10px;text-decoration:none;letter-spacing:1px;padding:7px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:3px;">← APP</a>
       </div>
     </div>
@@ -7921,6 +7923,45 @@ async function renderAdminDashboard() {
       </div>
       <div id="adminUserList">
         <div style="color:rgba(200,215,240,0.3);font-size:10px;font-family:monospace;padding:20px 0;text-align:center;">Click REFRESH to load users</div>
+      </div>
+    </div>
+
+    <!-- SITE MONITOR PANEL -->
+    <div id="adminMonitorPanel" style="display:none;padding:16px 24px;border-top:1px solid rgba(255,255,255,0.06);">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+        <div style="font-size:9px;letter-spacing:2px;color:#4a90d9;font-weight:600;">SITE MONITOR — 24/7 STATUS</div>
+        <button onclick="adminLoadMonitorData()" style="background:transparent;border:1px solid rgba(74,144,217,0.3);color:rgba(74,144,217,0.6);font-family:monospace;font-size:9px;padding:2px 8px;cursor:pointer;border-radius:2px;letter-spacing:1px;">&#8635; REFRESH</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;">
+        <div id="monCheck_site" style="background:#0a1220;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:10px;text-align:center;">
+          <div style="font-size:8px;color:rgba(200,215,240,0.4);letter-spacing:1px;margin-bottom:6px;">HOMEPAGE</div>
+          <div style="font-size:18px;">⏳</div>
+          <div style="font-size:8px;color:rgba(200,215,240,0.3);margin-top:4px;">—</div>
+        </div>
+        <div id="monCheck_pricing" style="background:#0a1220;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:10px;text-align:center;">
+          <div style="font-size:8px;color:rgba(200,215,240,0.4);letter-spacing:1px;margin-bottom:6px;">PRICING</div>
+          <div style="font-size:18px;">⏳</div>
+          <div style="font-size:8px;color:rgba(200,215,240,0.3);margin-top:4px;">—</div>
+        </div>
+        <div id="monCheck_ops" style="background:#0a1220;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:10px;text-align:center;">
+          <div style="font-size:8px;color:rgba(200,215,240,0.4);letter-spacing:1px;margin-bottom:6px;">ADMIN-OPS</div>
+          <div style="font-size:18px;">⏳</div>
+          <div style="font-size:8px;color:rgba(200,215,240,0.3);margin-top:4px;">—</div>
+        </div>
+        <div id="monCheck_supabase" style="background:#0a1220;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:10px;text-align:center;">
+          <div style="font-size:8px;color:rgba(200,215,240,0.4);letter-spacing:1px;margin-bottom:6px;">DATABASE</div>
+          <div style="font-size:18px;">⏳</div>
+          <div style="font-size:8px;color:rgba(200,215,240,0.3);margin-top:4px;">—</div>
+        </div>
+        <div id="monCheck_polygon" style="background:#0a1220;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:10px;text-align:center;">
+          <div style="font-size:8px;color:rgba(200,215,240,0.4);letter-spacing:1px;margin-bottom:6px;">POLYGON API</div>
+          <div style="font-size:18px;">⏳</div>
+          <div style="font-size:8px;color:rgba(200,215,240,0.3);margin-top:4px;">—</div>
+        </div>
+      </div>
+      <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:8px;">RECENT CHECKS (last 20)</div>
+      <div id="adminMonitorLog" style="font-family:monospace;font-size:10px;">
+        <div style="color:rgba(200,215,240,0.3);padding:12px 0;">Loading monitor history...</div>
       </div>
     </div>`;
 
@@ -8550,6 +8591,72 @@ function adminToggleUsers() {
   if (!showing) {
     adminLoadUsers();
     panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function adminToggleMonitor() {
+  const panel = document.getElementById('adminMonitorPanel');
+  const btn   = document.getElementById('adminMonitorBtn');
+  if (!panel) return;
+  const showing = panel.style.display !== 'none';
+  panel.style.display = showing ? 'none' : 'block';
+  if (btn) {
+    btn.style.background  = showing ? 'transparent' : 'rgba(74,144,217,0.15)';
+    btn.style.borderColor = showing ? 'rgba(74,144,217,0.4)' : '#4a90d9';
+  }
+  if (!showing) {
+    adminLoadMonitorData();
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+async function adminLoadMonitorData() {
+  const logEl = document.getElementById('adminMonitorLog');
+  if (!logEl) return;
+  try {
+    const { data, error } = await _supabase
+      .from('app_telemetry')
+      .select('*')
+      .eq('event_type', 'monitor_run')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error || !data?.length) {
+      logEl.innerHTML = '<div style="color:rgba(200,215,240,0.3);padding:12px 0;font-family:monospace;font-size:10px;">No monitor runs recorded yet. The scheduler runs every 15 minutes.</div>';
+      return;
+    }
+
+    // Parse latest run to populate status cards
+    const latest = data[0];
+    const latestDetails = latest.feature_name || '';
+    const isAlert = latestDetails.includes('alert') || latestDetails.includes('ALERT');
+    const checks = ['site','pricing','ops','supabase','polygon'];
+    checks.forEach(key => {
+      const el = document.getElementById('monCheck_' + key);
+      if (!el) return;
+      const ok = !isAlert || !latestDetails.includes(key);
+      el.style.borderColor = ok ? 'rgba(14,203,129,0.3)' : 'rgba(246,70,93,0.4)';
+      el.style.background  = ok ? 'rgba(14,203,129,0.04)' : 'rgba(246,70,93,0.06)';
+      el.querySelector('div:nth-child(2)').textContent = ok ? '✅' : '🔴';
+      el.querySelector('div:nth-child(3)').textContent = ok ? 'OK' : 'ALERT';
+      el.querySelector('div:nth-child(3)').style.color = ok ? '#0ecb81' : '#f6465d';
+    });
+
+    // Render log rows
+    logEl.innerHTML = data.map(row => {
+      const t = new Date(row.created_at);
+      const ts = t.toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      const alert = (row.feature_name||'').includes('alert') || (row.feature_name||'').includes('ALERT');
+      const color = alert ? '#f6465d' : '#0ecb81';
+      const label = alert ? '🔴 ALERT' : '✅ OK';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <span style="color:${color};font-weight:700;min-width:80px;">${label}</span>
+        <span style="color:rgba(200,215,240,0.5);flex:1;padding:0 12px;font-size:9px;">${(row.feature_name||'').replace('monitor_','')}</span>
+        <span style="color:rgba(200,215,240,0.3);font-size:9px;">${ts}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    logEl.innerHTML = `<div style="color:#f6465d;font-size:10px;padding:8px 0;">Error loading monitor data: ${e.message}</div>`;
   }
 }
 
