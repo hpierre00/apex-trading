@@ -3997,10 +3997,10 @@ function generateSignal(verdicts) {
 
   const last = candles.at(-1);
   const atr = computeATR(candles, 14);
-  if (!isFinite(atr) || atr <= 0) return;
+  if (!isFinite(atr) || atr <= 0) { updateSignalsStrip(); return; }
 
   const action = total > 0 ? 'BUY' : 'SELL';
-  if (action === 'SELL') return; // Backtester v1 finding: SELL signals negative expectancy pending regime calibration
+  if (action === 'SELL') { updateSignalsStrip(); return; } // Backtester v1 finding: SELL signals negative expectancy pending regime calibration
   const entry = last.c;
   const stop = action === 'BUY' ? entry - atr * 1.5 : entry + atr * 1.5;
   const tp1 = action === 'BUY' ? entry + atr * 2 : entry - atr * 2;
@@ -4013,7 +4013,7 @@ function generateSignal(verdicts) {
   if (prev) {
     const barsSince = candles.length - prev.candleIdx;
     const priceDrift = Math.abs(entry - prev.entry);
-    if (barsSince < tier.dedupBars || priceDrift < atr * 0.3) return;
+    if (barsSince < tier.dedupBars || priceDrift < atr * 0.3) { updateSignalsStrip(); return; }
   }
 
   // Build explainable confidence breakdown — shows WHY, not just what %
@@ -7052,7 +7052,7 @@ async function fetchUserPlan() {
           return;
         }
         const isActive = ['trialing', 'active'].includes(subscription_status);
-        _userPlan = isActive ? (plan || 'free') : 'free';
+        _userPlan = isActive ? (plan || 'free').toLowerCase() : 'free';
         state.userPlan = _userPlan;
         console.log('[plan] user plan:', _userPlan, 'status:', subscription_status);
         applyPlanGating();
@@ -7176,6 +7176,7 @@ function recordAssessment() {
 }
 
 function showUpgradeModal(featureName, requiredPlan) {
+  if (_isAdmin) return; // Admin never sees upgrade gates
   logTelemetry('upgrade_modal_shown', 'paywall', { triggerFeature: featureName, userPlan: _userPlan });
   const planKey = (requiredPlan || 'pro').toLowerCase();
   const planLabel = planKey.charAt(0).toUpperCase() + planKey.slice(1);
