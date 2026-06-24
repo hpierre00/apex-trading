@@ -1006,6 +1006,21 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   <!-- content populated by renderAdminDashboard() -->
 </div>
 
+<!-- ADMIN FLOATING TOGGLE — visible only for admin users -->
+<div id="adminFloatingBtn" onclick="adminToggleView()" title="Toggle Admin / App"
+  style="display:none;position:fixed;bottom:22px;right:22px;z-index:99999;
+         align-items:center;gap:8px;
+         background:linear-gradient(135deg,#6e1a7a,#c9a84c);
+         border:none;border-radius:40px;padding:9px 16px 9px 12px;
+         cursor:pointer;box-shadow:0 4px 20px rgba(110,26,122,0.5);
+         font-family:monospace;font-size:10px;font-weight:700;color:#fff;
+         letter-spacing:1.5px;user-select:none;transition:transform 0.15s,box-shadow 0.15s;"
+  onmouseenter="this.style.transform='scale(1.05)';this.style.boxShadow='0 6px 28px rgba(110,26,122,0.7)'"
+  onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(110,26,122,0.5)'">
+  <span id="adminFloatingIcon" style="font-size:14px;">⚙</span>
+  <span id="adminFloatingLabel">ADMIN</span>
+</div>
+
 <div class="app">
 
   <!-- TOPBAR -->
@@ -6366,7 +6381,7 @@ async function sendChat() {
   const q = input.value.trim();
   if (!q) return;
   logTelemetry('chat_sent', 'ai_chat', { messageLength: q.length, symbol: state.symbol });
-  if (_userPlan === 'free' || _userPlan === 'starter') {
+  if (!_isAdmin && (_userPlan === 'free' || _userPlan === 'starter')) {
     input.value = '';
     showUpgradeModal('AI Chat', 'Pro');
     return;
@@ -7074,6 +7089,12 @@ function applyPlanGating() {
     }
   }
 
+  // ── Admin floating toggle ──
+  const adminBtn = document.getElementById('adminFloatingBtn');
+  if (adminBtn) {
+    adminBtn.style.display = _isAdmin ? 'flex' : 'none';
+  }
+
   // ── Multi-pane: free users only ──
   if (_userPlan === 'free') {
     ['layout2', 'layout4'].forEach(id => {
@@ -7087,7 +7108,7 @@ function applyPlanGating() {
 
   // ── AI Chat placeholder for free/starter ──
   const chatInput = document.getElementById('chatInput');
-  if (chatInput && (_userPlan === 'free' || _userPlan === 'starter')) {
+  if (chatInput && !_isAdmin && (_userPlan === 'free' || _userPlan === 'starter')) {
     chatInput.placeholder = '💬 AI Chat — Pro plan required';
   }
 
@@ -7107,7 +7128,7 @@ function applyPlanGating() {
 
   // ── Smart Alerts: gate for free + starter ──
   const alertBtnEl = document.getElementById('alertBtn');
-  if (alertBtnEl && (_userPlan === 'free' || _userPlan === 'starter')) {
+  if (alertBtnEl && !_isAdmin && (_userPlan === 'free' || _userPlan === 'starter')) {
     alertBtnEl.title = 'Smart Alerts — Pro plan required';
     alertBtnEl.style.opacity = '0.45';
     alertBtnEl.onclick = e => { e.stopPropagation(); showUpgradeModal('Smart Alerts', 'Pro'); };
@@ -7235,7 +7256,7 @@ function showMobilePanel(panel) {
     updateMobileAiStrip();
 
   } else if (panel === 'chat') {
-    const _chatLocked = _userPlan === 'free' || _userPlan === 'starter';
+    const _chatLocked = !_isAdmin && (_userPlan === 'free' || _userPlan === 'starter');
     const _assessCount = getAssessUsage().count;
     const _assessLimit = _userPlan === 'starter' ? 10 : 3;
     const _assessRemain = (_userPlan === 'pro' || _userPlan === 'elite') ? null : Math.max(0, _assessLimit - _assessCount);
@@ -7370,6 +7391,34 @@ function showAdminDashboard() {
 function hideAdminDashboard() {
   document.getElementById('adminDashboard').style.display = 'none';
   document.querySelector('.app').style.display = '';
+  const icon  = document.getElementById('adminFloatingIcon');
+  const label = document.getElementById('adminFloatingLabel');
+  if (icon)  icon.textContent  = '⚙';
+  if (label) label.textContent = 'ADMIN';
+}
+
+async function adminToggleView() {
+  if (!_isAdmin) return;
+  const adminDash = document.getElementById('adminDashboard');
+  const isAdminVisible = adminDash && adminDash.style.display !== 'none';
+  const icon  = document.getElementById('adminFloatingIcon');
+  const label = document.getElementById('adminFloatingLabel');
+  if (isAdminVisible) {
+    hideAdminDashboard();
+    if (icon)  icon.textContent  = '⚙';
+    if (label) label.textContent = 'ADMIN';
+    window.history.replaceState(null, '', window.location.pathname + '#app');
+  } else {
+    if (icon)  icon.textContent  = '◀';
+    if (label) label.textContent = 'APP';
+    await renderAdminDashboard();
+    showAdminDashboard();
+    loadAgentPerformance();
+    loadAlerts();
+    startAlertPolling();
+    loadDailyReport();
+    window.history.replaceState(null, '', window.location.pathname + '#admin');
+  }
 }
 
 async function checkAdminRoute() {
@@ -7463,7 +7512,10 @@ function buildTODChartSVG() {
   const iH = H - PAD.top - PAD.bottom;
 
   if (!profile || profile.length === 0) {
-    return `<svg width="${W}" height="${H}" style="width:100%"><text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(200,215,240,0.2)" font-size="10" font-family="monospace">Loading profile...</text></svg>`;
+    return `<svg width="${W}" height="${H}" style="width:100%">
+      <text x="${W/2}" y="${H/2-8}" text-anchor="middle" fill="rgba(200,215,240,0.25)" font-size="10" font-family="monospace">No intraday spread data yet</text>
+      <text x="${W/2}" y="${H/2+8}" text-anchor="middle" fill="rgba(200,215,240,0.15)" font-size="8" font-family="monospace">Populates after Alpaca bars load</text>
+    </svg>`;
   }
 
   const vals = profile.map(p => p.avgSpreadPct).filter(v => v !== null && isFinite(v));
@@ -7534,14 +7586,30 @@ async function renderAdminDashboard() {
     } catch {}
   }
 
-  // Fetch last 12 macro_indicators_daily rows for sparklines
+  // Fetch last 12 trading days of macro_indicators_daily (key-value format → pivot to wide)
   let indHistory = [];
   try {
-    const { data } = await _supabase.from('macro_indicators_daily').select('*').order('date', { ascending: false }).limit(12);
-    if (data) indHistory = data.reverse();
+    // Fetch enough rows to cover 12 dates × ~13 indicators each
+    const { data } = await _supabase
+      .from('macro_indicators_daily')
+      .select('date,indicator_name,value,zone')
+      .order('date', { ascending: false })
+      .limit(200);
+    if (data && data.length) {
+      // Group by date
+      const byDate = {};
+      data.forEach(r => {
+        if (!byDate[r.date]) byDate[r.date] = { date: r.date };
+        byDate[r.date][r.indicator_name] = r.value;
+        if (r.zone) byDate[r.date][r.indicator_name + '__zone'] = r.zone;
+      });
+      // Sort dates ascending, keep latest 12
+      const sorted = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+      indHistory = sorted.slice(-12);
+    }
   } catch {}
 
-  // Latest indicators row
+  // Latest indicators row (wide format after pivot)
   const ind = indHistory.length ? indHistory[indHistory.length - 1] : null;
 
   // Fetch signal microstructure data for scatter plot
@@ -7731,7 +7799,12 @@ async function renderAdminDashboard() {
         color: r.signal_direction === 'BUY' ? '#0ecb81' : '#f6465d',
       }));
     if (points.length === 0) {
-      return `<svg width="${W}" height="${H}" style="width:100%;max-width:${W}px"><text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(200,215,240,0.3)" font-size="11" font-family="monospace">Signals accumulating...</text></svg>`;
+      return `<svg width="${W}" height="${H}" style="width:100%;max-width:${W}px">
+        <rect x="0" y="0" width="${W}" height="${H}" fill="rgba(10,18,32,0.4)" rx="3"/>
+        <text x="${W/2}" y="${H/2-14}" text-anchor="middle" fill="rgba(200,215,240,0.25)" font-size="11" font-family="monospace">No signal outcomes recorded yet</text>
+        <text x="${W/2}" y="${H/2+4}" text-anchor="middle" fill="rgba(200,215,240,0.15)" font-size="9" font-family="monospace">evaluate-signal-outcomes function will populate this</text>
+        <text x="${W/2}" y="${H/2+20}" text-anchor="middle" fill="rgba(200,215,240,0.15)" font-size="9" font-family="monospace">after signals are generated and evaluated (runs every 30min)</text>
+      </svg>`;
     }
     const dots = points.map(p => {
       const px = PAD.left + (p.x / 100) * iW;
@@ -7808,16 +7881,16 @@ async function renderAdminDashboard() {
             ${brief.key_supports.map(s => `<div style="font-size:10px;color:#e8eaf0;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">▸ ${s}</div>`).join('')}
           </div>` : ''}
 
-        ${brief?.best_trade_window_today ? `
+        ${(brief?.best_trade_window_today || brief?.best_trade_window) ? `
           <div style="background:rgba(14,203,129,0.08);border:1px solid rgba(14,203,129,0.2);border-radius:3px;padding:8px 12px;margin-bottom:8px;">
             <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);">BEST WINDOW</div>
-            <div style="font-size:11px;color:#0ecb81;font-weight:600;font-family:monospace;">${brief.best_trade_window_today}</div>
+            <div style="font-size:11px;color:#0ecb81;font-weight:600;font-family:monospace;">${brief.best_trade_window_today || brief.best_trade_window}</div>
           </div>` : ''}
 
-        ${brief?.avoid_window_today ? `
+        ${(brief?.avoid_window_today || brief?.avoid_window) ? `
           <div style="background:rgba(246,70,93,0.08);border:1px solid rgba(246,70,93,0.2);border-radius:3px;padding:8px 12px;margin-bottom:8px;">
             <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);">AVOID</div>
-            <div style="font-size:11px;color:#f6465d;font-weight:600;font-family:monospace;">${brief.avoid_window_today}</div>
+            <div style="font-size:11px;color:#f6465d;font-weight:600;font-family:monospace;">${brief.avoid_window_today || brief.avoid_window}</div>
           </div>` : ''}
 
         ${brief?.execution_quality_today ? `
@@ -7853,11 +7926,16 @@ async function renderAdminDashboard() {
         </div>
 
         <div style="font-size:9px;letter-spacing:1px;color:rgba(200,215,240,0.4);margin-bottom:8px;">DARK POOL ACTIVITY</div>
+        <div id="adminDarkPool">
         ${state.watchlist.map(sym => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
             <span style="font-size:11px;color:#c8d0e0;font-family:monospace;">${sym}</span>
-            <span style="font-size:9px;color:rgba(200,215,240,0.3);font-family:monospace;">—% (weekly CSV)</span>
+            <span style="font-size:9px;color:rgba(200,215,240,0.25);font-family:monospace;">awaiting CSV</span>
           </div>`).join('')}
+        <div style="margin-top:8px;padding:6px 8px;background:rgba(74,144,217,0.06);border:1px solid rgba(74,144,217,0.2);border-radius:3px;">
+          <div style="font-size:8px;color:rgba(74,144,217,0.7);line-height:1.5;">Dark pool % requires weekly FINRA/Bloomberg CSV upload. Upload via admin-ops once available.</div>
+        </div>
+        </div>
       </div>
     </div>
 
@@ -7941,9 +8019,20 @@ async function renderAdminDashboard() {
 
     <!-- SITE MONITOR PANEL -->
     <div id="adminMonitorPanel" style="display:none;padding:16px 24px;border-top:1px solid rgba(255,255,255,0.06);">
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
         <div style="font-size:9px;letter-spacing:2px;color:#4a90d9;font-weight:600;">SITE MONITOR — 24/7 STATUS</div>
-        <button onclick="adminLoadMonitorData()" style="background:transparent;border:1px solid rgba(74,144,217,0.3);color:rgba(74,144,217,0.6);font-family:monospace;font-size:9px;padding:2px 8px;cursor:pointer;border-radius:2px;letter-spacing:1px;">&#8635; REFRESH</button>
+        <button onclick="adminRunMonitorNow()" id="adminMonitorRunBtn" style="background:rgba(74,144,217,0.15);border:1px solid #4a90d9;color:#4a90d9;font-family:monospace;font-size:9px;padding:4px 10px;cursor:pointer;border-radius:2px;letter-spacing:1px;">▶ RUN CHECK NOW</button>
+        <button onclick="adminLoadMonitorData()" style="background:transparent;border:1px solid rgba(74,144,217,0.3);color:rgba(74,144,217,0.6);font-family:monospace;font-size:9px;padding:4px 8px;cursor:pointer;border-radius:2px;letter-spacing:1px;">&#8635; HISTORY</button>
+        <button onclick="adminRunMonitorAnalysis()" id="adminAIAnalyzeBtn" style="background:linear-gradient(90deg,rgba(110,26,122,0.4),rgba(201,168,76,0.3));border:1px solid rgba(201,168,76,0.5);color:#c9a84c;font-family:monospace;font-size:9px;padding:4px 12px;cursor:pointer;border-radius:2px;letter-spacing:1px;">✦ AI ANALYZE</button>
+        <span id="adminMonitorStatus" style="font-size:9px;color:rgba(200,215,240,0.4);font-family:monospace;"></span>
+      </div>
+      <!-- AI ANALYSIS RESULT -->
+      <div id="adminAIAnalysisPanel" style="display:none;background:#080f1e;border:1px solid rgba(201,168,76,0.3);border-radius:4px;padding:16px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-size:9px;letter-spacing:2px;color:#c9a84c;font-weight:600;">✦ AI PLATFORM ADVISOR</div>
+          <div id="adminAITimestamp" style="font-size:9px;color:rgba(200,215,240,0.3);"></div>
+        </div>
+        <div id="adminAIContent" style="font-size:11px;color:#c8d0e0;line-height:1.6;"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;">
         <div id="monCheck_site" style="background:#0a1220;border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:10px;text-align:center;">
@@ -8015,7 +8104,14 @@ async function renderAdminDashboard() {
     try {
       const { data: weights } = await _supabase.from('learned_weights').select('*').order('accuracy_rate', { ascending: false });
       if (!weights || weights.length === 0) {
-        lwEl.innerHTML = '<div style="color:rgba(200,215,240,0.3);font-size:10px;font-family:monospace;">No weights yet — run learning agent first.</div>';
+        lwEl.innerHTML = `<div style="padding:12px;background:rgba(10,18,32,0.5);border:1px solid rgba(255,255,255,0.07);border-radius:3px;">
+          <div style="color:rgba(200,215,240,0.35);font-size:10px;font-family:monospace;margin-bottom:6px;">No learned weights yet.</div>
+          <div style="font-size:9px;color:rgba(200,215,240,0.2);line-height:1.6;">
+            The <span style="color:rgba(74,144,217,0.7);">update-agent-weights</span> function (runs 10am daily, Mon-Sat) populates this table once
+            at least 20 signals have been evaluated by <span style="color:rgba(74,144,217,0.7);">evaluate-signal-outcomes</span>.
+            Both functions are now deployed — weights will appear after the first market close.
+          </div>
+        </div>`;
         return;
       }
       lwEl.innerHTML = `
@@ -8623,6 +8719,52 @@ function adminToggleMonitor() {
   }
 }
 
+async function adminRunMonitorNow() {
+  const btn    = document.getElementById('adminMonitorRunBtn');
+  const status = document.getElementById('adminMonitorStatus');
+  if (btn) { btn.textContent = '⏳ RUNNING...'; btn.disabled = true; }
+  if (status) status.textContent = 'Running live check...';
+  try {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const res = await fetch('/.netlify/functions/site-monitor', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { 'Authorization': 'Bearer ' + session.access_token } : {}),
+      },
+      body: JSON.stringify({ manual: true }),
+    });
+    const result = await res.json();
+    if (status) {
+      const allOk = result.ok !== false;
+      status.textContent = allOk ? '✅ All checks passed' : `🔴 ${result.checks?.filter(c=>!c.ok).length||1} check(s) failed`;
+      status.style.color = allOk ? '#0ecb81' : '#f6465d';
+    }
+    // Update status cards from live result
+    if (result.checks?.length) {
+      const keyMap = { 'Homepage': 'site', 'Pricing': 'pricing', 'Admin-ops': 'ops', 'Supabase': 'supabase', 'Polygon': 'polygon' };
+      result.checks.forEach(c => {
+        const key = keyMap[c.label] || (Object.keys(keyMap).find(k => c.label?.toLowerCase().includes(k.toLowerCase())) ? keyMap[Object.keys(keyMap).find(k => c.label?.toLowerCase().includes(k.toLowerCase()))] : null);
+        if (!key) return;
+        const el = document.getElementById('monCheck_' + key);
+        if (!el) return;
+        el.style.borderColor = c.ok ? 'rgba(14,203,129,0.3)' : 'rgba(246,70,93,0.4)';
+        el.style.background  = c.ok ? 'rgba(14,203,129,0.04)' : 'rgba(246,70,93,0.06)';
+        const icon = el.querySelector('div:nth-child(2)');
+        const label = el.querySelector('div:nth-child(3)');
+        if (icon) icon.textContent = c.ok ? '✅' : '🔴';
+        if (label) { label.textContent = c.ok ? `${c.ms}ms` : 'ALERT'; label.style.color = c.ok ? '#0ecb81' : '#f6465d'; }
+      });
+    }
+    // Refresh history log
+    setTimeout(() => adminLoadMonitorData(), 1500);
+  } catch (e) {
+    if (status) { status.textContent = '⚠ Check failed: ' + e.message; status.style.color = '#f5a623'; }
+  } finally {
+    if (btn) { btn.textContent = '▶ RUN CHECK NOW'; btn.disabled = false; }
+  }
+}
+
 async function adminLoadMonitorData() {
   const logEl = document.getElementById('adminMonitorLog');
   if (!logEl) return;
@@ -8635,41 +8777,115 @@ async function adminLoadMonitorData() {
       .limit(20);
 
     if (error || !data?.length) {
-      logEl.innerHTML = '<div style="color:rgba(200,215,240,0.3);padding:12px 0;font-family:monospace;font-size:10px;">No monitor runs recorded yet. The scheduler runs every 15 minutes.</div>';
+      logEl.innerHTML = '<div style="color:rgba(200,215,240,0.3);padding:12px 0;font-family:monospace;font-size:10px;">No monitor runs yet — click ▶ RUN CHECK NOW to run the first check, or wait for the 15-min scheduler.</div>';
       return;
     }
 
-    // Parse latest run to populate status cards
+    // Parse latest run checks from metadata JSON to update status cards
     const latest = data[0];
-    const latestDetails = latest.feature_name || '';
-    const isAlert = latestDetails.includes('alert') || latestDetails.includes('ALERT');
-    const checks = ['site','pricing','ops','supabase','polygon'];
-    checks.forEach(key => {
-      const el = document.getElementById('monCheck_' + key);
-      if (!el) return;
-      const ok = !isAlert || !latestDetails.includes(key);
-      el.style.borderColor = ok ? 'rgba(14,203,129,0.3)' : 'rgba(246,70,93,0.4)';
-      el.style.background  = ok ? 'rgba(14,203,129,0.04)' : 'rgba(246,70,93,0.06)';
-      el.querySelector('div:nth-child(2)').textContent = ok ? '✅' : '🔴';
-      el.querySelector('div:nth-child(3)').textContent = ok ? 'OK' : 'ALERT';
-      el.querySelector('div:nth-child(3)').style.color = ok ? '#0ecb81' : '#f6465d';
-    });
+    const isAlert = (latest.feature_name || '').includes('alert');
+    try {
+      const checks = JSON.parse(latest.metadata || '[]');
+      const keyMap = { 'Homepage': 'site', 'Pricing': 'pricing', 'Admin-ops': 'ops', 'Supabase': 'supabase', 'Polygon': 'polygon' };
+      checks.forEach(c => {
+        const key = Object.entries(keyMap).find(([k]) => c.label?.toLowerCase().includes(k.toLowerCase()))?.[1];
+        if (!key) return;
+        const el = document.getElementById('monCheck_' + key);
+        if (!el) return;
+        el.style.borderColor = c.ok ? 'rgba(14,203,129,0.3)' : 'rgba(246,70,93,0.4)';
+        el.style.background  = c.ok ? 'rgba(14,203,129,0.04)' : 'rgba(246,70,93,0.06)';
+        const iconEl  = el.querySelector('div:nth-child(2)');
+        const labelEl = el.querySelector('div:nth-child(3)');
+        if (iconEl)  iconEl.textContent  = c.ok ? '✅' : '🔴';
+        if (labelEl) { labelEl.textContent = c.ok ? `${c.ms}ms` : 'ALERT'; labelEl.style.color = c.ok ? '#0ecb81' : '#f6465d'; }
+      });
+    } catch {}
 
     // Render log rows
     logEl.innerHTML = data.map(row => {
       const t = new Date(row.created_at);
       const ts = t.toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
-      const alert = (row.feature_name||'').includes('alert') || (row.feature_name||'').includes('ALERT');
+      const alert = (row.feature_name||'').includes('alert');
       const color = alert ? '#f6465d' : '#0ecb81';
       const label = alert ? '🔴 ALERT' : '✅ OK';
+      let checksDetail = '';
+      try {
+        const checks = JSON.parse(row.metadata || '[]');
+        checksDetail = checks.map(c => `${c.ok?'✓':'✗'} ${c.label}(${c.ms}ms)`).join(' · ');
+      } catch {}
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-        <span style="color:${color};font-weight:700;min-width:80px;">${label}</span>
-        <span style="color:rgba(200,215,240,0.5);flex:1;padding:0 12px;font-size:9px;">${(row.feature_name||'').replace('monitor_','')}</span>
-        <span style="color:rgba(200,215,240,0.3);font-size:9px;">${ts}</span>
+        <span style="color:${color};font-weight:700;min-width:70px;font-size:9px;">${label}</span>
+        <span style="color:rgba(200,215,240,0.4);flex:1;padding:0 8px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${checksDetail || (row.feature_name||'').replace('monitor_','')}</span>
+        <span style="color:rgba(200,215,240,0.3);font-size:9px;white-space:nowrap;">${ts}</span>
       </div>`;
     }).join('');
   } catch (e) {
     logEl.innerHTML = `<div style="color:#f6465d;font-size:10px;padding:8px 0;">Error loading monitor data: ${e.message}</div>`;
+  }
+}
+
+async function adminRunMonitorAnalysis() {
+  const btn    = document.getElementById('adminAIAnalyzeBtn');
+  const panel  = document.getElementById('adminAIAnalysisPanel');
+  const content = document.getElementById('adminAIContent');
+  const ts     = document.getElementById('adminAITimestamp');
+  if (btn) { btn.textContent = '⏳ ANALYZING...'; btn.disabled = true; }
+  if (panel) panel.style.display = 'block';
+  if (content) content.innerHTML = '<div style="color:rgba(200,215,240,0.4);font-size:10px;">Gathering platform data and running AI analysis... this takes 5-10 seconds.</div>';
+  try {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const res = await fetch('/.netlify/functions/monitor-agent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (session?.access_token || ''),
+      },
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { analysis, generated_at } = await res.json();
+    if (ts) ts.textContent = 'Generated: ' + new Date(generated_at).toLocaleString();
+
+    const healthColor = analysis.health_label === 'HEALTHY' ? '#0ecb81'
+      : analysis.health_label === 'DEGRADED' ? '#f5a623' : '#f6465d';
+
+    const insightColor = t => t === 'positive' ? '#0ecb81' : t === 'warning' ? '#f5a623' : '#f6465d';
+    const prioColor = p => p === 'HIGH' ? '#f6465d' : p === 'MEDIUM' ? '#f5a623' : '#4a90d9';
+
+    content.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <div style="font-size:24px;font-weight:900;color:${healthColor};font-family:monospace;">${analysis.health_score ?? '—'}</div>
+        <div>
+          <div style="font-size:10px;letter-spacing:2px;color:${healthColor};font-weight:700;">${analysis.health_label || '—'}</div>
+          <div style="font-size:10px;color:rgba(200,215,240,0.5);margin-top:2px;">${analysis.summary || ''}</div>
+        </div>
+      </div>
+      ${(analysis.insights || []).length ? `
+        <div style="font-size:9px;letter-spacing:1.5px;color:rgba(200,215,240,0.4);margin-bottom:8px;">INSIGHTS</div>
+        ${(analysis.insights || []).map(ins => `
+          <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;">
+            <span style="color:${insightColor(ins.type)};font-size:12px;line-height:1;margin-top:1px;">●</span>
+            <div>
+              <div style="font-size:10px;color:${insightColor(ins.type)};font-weight:700;letter-spacing:0.5px;">${ins.title || ''}</div>
+              <div style="font-size:10px;color:rgba(200,215,240,0.6);line-height:1.5;">${ins.detail || ''}</div>
+            </div>
+          </div>`).join('')}` : ''}
+      ${(analysis.recommendations || []).length ? `
+        <div style="font-size:9px;letter-spacing:1.5px;color:rgba(200,215,240,0.4);margin:12px 0 8px;">RECOMMENDED ACTIONS</div>
+        ${(analysis.recommendations || []).map(r => `
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 8px;margin-bottom:4px;background:rgba(255,255,255,0.03);border-radius:3px;border-left:2px solid ${prioColor(r.priority)};">
+            <span style="font-size:8px;letter-spacing:1px;color:${prioColor(r.priority)};font-weight:700;white-space:nowrap;margin-top:1px;">${r.priority}</span>
+            <span style="font-size:10px;color:#c8d0e0;">${r.action || ''}</span>
+          </div>`).join('')}` : ''}
+      ${(analysis.data_gaps || []).length ? `
+        <div style="margin-top:12px;padding:8px 10px;background:rgba(245,166,35,0.06);border:1px solid rgba(245,166,35,0.2);border-radius:3px;">
+          <div style="font-size:9px;letter-spacing:1.5px;color:#f5a623;margin-bottom:6px;">DATA GAPS</div>
+          ${(analysis.data_gaps || []).map(g => `<div style="font-size:9px;color:rgba(200,215,240,0.5);padding:2px 0;">▸ ${g}</div>`).join('')}
+        </div>` : ''}`;
+  } catch (e) {
+    if (content) content.innerHTML = `<div style="color:#f6465d;font-size:10px;">Analysis failed: ${e.message}</div>`;
+  } finally {
+    if (btn) { btn.textContent = '✦ AI ANALYZE'; btn.disabled = false; }
   }
 }
 
