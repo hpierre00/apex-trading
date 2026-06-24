@@ -1,313 +1,279 @@
-// netlify/functions/macro-synthesis.js
-// Scheduled function: generates a daily macro intelligence brief using Claude AI
-// and stores the result in Supabase `macro_daily_brief`.
-//
-// Trigger modes:
-//   1. Netlify scheduler (Mon-Fri 9am ET) — identified by x-nf-request-id header
-//   2. Manual GET with header X-Cron-Secret matching CRON_SECRET env var
+/**
+ * macro-synthesis.js
+ * Runs daily at 1pm ET (Mon-Fri).
+ * 1. Fetches key macro indicators from Polygon (VIX, SPY, TLT, GLD, BTC)
+ * 2. Carries forward slow-moving indicators (Fed Funds, Buffett) from last stored row
+ * 3. Calls Claude to synthesize a macro brief
+ * 4. Writes key-value rows to macro_indicators_daily + brief to macro_daily_brief
+ */
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://soghksmuocrgtttmnete.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZ2hrc211b2NyZ3R0dG1uZXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTg4MTEsImV4cCI6MjA5MjY5NDgxMX0.FWRiSZG5yGsJdZvntD5LrqmV07NFEjZWjisJSK95b7A';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASESKTradoLux;
+import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_HEADERS = {
-  'apikey': SUPABASE_ANON_KEY,
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  'Content-Type': 'application/json',
-};
+const supabase   = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const POLY_KEY   = process.env.POLYGON_API_KEY;
+const ANTH_KEY   = process.env.ANTHROPIC_API_KEY;
 
-const SUPABASE_SERVICE_HEADERS = {
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-  'apikey': SUPABASE_SERVICE_KEY,
-};
+// ── Market data helpers ───────────────────────────────────────────────────────
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+async function polyPrevClose(ticker) {
+  if (!POLY_KEY) return null;
+  try {
+    const r = await fetch(`https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${POLY_KEY}`);
+    const d = await r.json();
+    return d.results?.[0] || null;
+  } catch { return null; }
 }
 
-// ── Step 2 helpers ────────────────────────────────────────────────────────────
-
-const SPREAD_SCORE = { TIGHT: 35, NORMAL: 17, WIDE: 0 };
-
-function computeMicrostructure(records) {
-  const signals_last_30d = records.length;
-
-  // Average spread quality score
-  let scoreSum = 0;
-  let scoreCount = 0;
-  for (const r of records) {
-    const s = SPREAD_SCORE[r.spread_quality];
-    if (s !== undefined) {
-      scoreSum += s;
-      scoreCount++;
-    }
-  }
-  const avg_spread_quality_score = scoreCount > 0 ? scoreSum / scoreCount : 17;
-
-  // Accuracy for TIGHT spreads
-  const tightRecords = records.filter((r) => r.spread_quality === 'TIGHT');
-  let signal_accuracy_tight_spreads_pct = null;
-  if (tightRecords.length >= 5) {
-    const wins = tightRecords.filter(
-      (r) => r.outcome === 'WIN_TP1' || r.outcome === 'WIN_TP2'
-    ).length;
-    signal_accuracy_tight_spreads_pct = (wins / tightRecords.length) * 100;
-  }
-
-  // Accuracy for WIDE spreads
-  const wideRecords = records.filter((r) => r.spread_quality === 'WIDE');
-  let signal_accuracy_wide_spreads_pct = null;
-  if (wideRecords.length >= 5) {
-    const wins = wideRecords.filter(
-      (r) => r.outcome === 'WIN_TP1' || r.outcome === 'WIN_TP2'
-    ).length;
-    signal_accuracy_wide_spreads_pct = (wins / wideRecords.length) * 100;
-  }
-
-  return {
-    signals_last_30d,
-    avg_spread_quality_score,
-    signal_accuracy_tight_spreads_pct,
-    signal_accuracy_wide_spreads_pct,
-  };
+async function polyIndexClose(indexTicker) {
+  if (!POLY_KEY) return null;
+  try {
+    const r = await fetch(`https://api.polygon.io/v3/snapshot?ticker.any_of=${indexTicker}&apiKey=${POLY_KEY}`);
+    const d = await r.json();
+    return d.results?.[0]?.session?.close || d.results?.[0]?.prevDay?.close || null;
+  } catch { return null; }
 }
 
-// ── Main handler ──────────────────────────────────────────────────────────────
+// ── Load last stored indicator values (for carry-forward) ────────────────────
 
-exports.handler = async (event) => {
-  const cors = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Cron-Secret, Authorization',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+async function getLastIndicators() {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from('macro_indicators_daily')
+    .select('indicator_name,value,zone')
+    .gte('date', sevenDaysAgo)
+    .order('date', { ascending: false });
+  if (!data?.length) return {};
+  // Pivot: take most recent value per indicator_name
+  const map = {};
+  data.forEach(r => { if (!(r.indicator_name in map)) map[r.indicator_name] = { value: r.value, zone: r.zone }; });
+  return map;
+}
+
+// ── Compute macro regime score (0-100) ───────────────────────────────────────
+
+function computeRegime(indicators) {
+  const { vix_level, yield_curve_spread_bps, buffett_indicator_pct, equity_risk_premium_pct } = indicators;
+  let score = 50;
+  const vix = vix_level?.value ?? null;
+  const yld = yield_curve_spread_bps?.value ?? null;
+  const buf = buffett_indicator_pct?.value ?? null;
+  const erp = equity_risk_premium_pct?.value ?? null;
+
+  if (vix !== null) {
+    if (vix < 15) score += 15;
+    else if (vix < 20) score += 8;
+    else if (vix > 30) score -= 20;
+    else if (vix > 25) score -= 10;
+  }
+  if (yld !== null) {
+    if (yld > 50)  score += 10;
+    else if (yld < 0) score -= 15;
+  }
+  if (buf !== null) {
+    if (buf > 175) score -= 15;
+    else if (buf > 145) score -= 8;
+    else if (buf < 100) score += 10;
+  }
+  if (erp !== null) {
+    if (erp > 2) score += 10;
+    else if (erp < 0) score -= 15;
+  }
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+// ── Main handler ─────────────────────────────────────────────────────────────
+
+export async function handler() {
+  const today = new Date().toISOString().slice(0, 10);
+  const now   = new Date().toISOString();
+  console.log('[macro-synthesis] Starting for', today);
+
+  // Skip if already ran today
+  const { data: existing } = await supabase
+    .from('macro_daily_brief')
+    .select('id')
+    .eq('trading_date', today)
+    .single();
+  if (existing) {
+    console.log('[macro-synthesis] Already ran today, skipping');
+    return { statusCode: 200, body: JSON.stringify({ ok: true, skipped: true }) };
+  }
+
+  // ── Fetch market data in parallel ─────────────────────────────────────────
+  const [vixVal, spyData, gldData, btcData, tltData, qqqData, last] = await Promise.allSettled([
+    polyIndexClose('I:VIX'),
+    polyPrevClose('SPY'),
+    polyPrevClose('GLD'),
+    polyPrevClose('X:BTCUSD'),
+    polyPrevClose('TLT'),
+    polyPrevClose('QQQ'),
+    getLastIndicators(),
+  ]);
+
+  const vix  = vixVal.status  === 'fulfilled' ? vixVal.value  : null;
+  const spy  = spyData.status === 'fulfilled' ? spyData.value : null;
+  const gld  = gldData.status === 'fulfilled' ? gldData.value : null;
+  const btc  = btcData.status === 'fulfilled' ? btcData.value : null;
+  const tlt  = tltData.status === 'fulfilled' ? tltData.value : null;
+  const qqq  = qqqData.status === 'fulfilled' ? qqqData.value : null;
+  const prev = last.status    === 'fulfilled' ? last.value    : {};
+
+  // Carry forward slow-moving indicators; fall back to reasonable defaults
+  const treasury10y  = prev.treasury_10y?.value          ?? 4.35;
+  const fedFunds     = prev.fed_funds_rate?.value         ?? 5.33;
+  const yieldCurve   = prev.yield_curve_spread_bps?.value ?? -25;
+  const buffettPct   = prev.buffett_indicator_pct?.value  ?? 197;
+  const spDivYield   = prev.sp500_dividend_yield?.value   ?? 1.35;
+  const forwardPe    = prev.forward_pe?.value              ?? 21.5;
+  const erp          = prev.equity_risk_premium_pct?.value ?? ((1 / forwardPe * 100) - treasury10y);
+  const buffettZone  = buffettPct > 175 ? 'EXTREME' : buffettPct > 145 ? 'OVERVALUED' : buffettPct > 115 ? 'ELEVATED' : 'FAIR';
+
+  const goldPrice  = gld?.c  || null;
+  const btcClose   = btc?.c  || null;
+  const btcPrev    = prev.bitcoin_usd?.value ?? null;
+  const btcChange7d = (btcClose && btcPrev) ? +((btcClose - btcPrev) / btcPrev * 100).toFixed(2) : null;
+  const spyClose   = spy?.c  || null;
+  const qqqClose   = qqq?.c  || null;
+  const vixLevel   = typeof vix === 'number' ? vix : null;
+
+  // Build named indicator map for regime calc
+  const indicatorMap = {
+    vix_level:                { value: vixLevel,    zone: vixLevel === null ? null : vixLevel < 15 ? 'LOW' : vixLevel < 20 ? 'NORMAL' : vixLevel < 30 ? 'ELEVATED' : 'EXTREME' },
+    treasury_10y:             { value: treasury10y, zone: treasury10y < 3 ? 'EASY' : treasury10y < 4.5 ? 'NORMAL' : 'RESTRICTIVE' },
+    fed_funds_rate:           { value: fedFunds,    zone: 'POLICY_RATE' },
+    yield_curve_spread_bps:   { value: yieldCurve,  zone: yieldCurve < 0 ? 'INVERTED' : yieldCurve < 50 ? 'FLAT' : 'NORMAL' },
+    buffett_indicator_pct:    { value: buffettPct,  zone: buffettZone },
+    sp500_dividend_yield:     { value: spDivYield,  zone: spDivYield > treasury10y ? 'STOCKS_BETTER' : 'BONDS_BETTER' },
+    forward_pe:               { value: forwardPe,   zone: forwardPe > 25 ? 'EXPENSIVE' : forwardPe > 20 ? 'ELEVATED' : 'FAIR' },
+    equity_risk_premium_pct:  { value: +erp.toFixed(2), zone: erp > 0 ? 'EQ_COMPETITIVE' : 'BONDS_BETTER' },
+    gold_price:               { value: goldPrice,   zone: null },
+    bitcoin_usd:              { value: btcClose,    zone: null },
+    bitcoin_usd_7d_change:    { value: btcChange7d, zone: null },
+    spy_close:                { value: spyClose,    zone: null },
+    qqq_close:                { value: qqqClose,    zone: null },
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: cors, body: '' };
-  }
+  const regime   = computeRegime(indicatorMap);
+  const signalAdj = regime >= 65 ? 10 : regime >= 50 ? 0 : regime >= 35 ? -10 : -20;
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
-  // Allow if: (a) Netlify scheduler, (b) correct X-Cron-Secret, or (c) admin JWT
-  const isNetlifyScheduler = Boolean(event.headers['x-nf-request-id']);
-  const cronSecret = process.env.CRON_SECRET;
-  const suppliedSecret = event.headers['x-cron-secret'];
-  const isAuthorizedManual = cronSecret && suppliedSecret === cronSecret;
-
-  let isAdminJwt = false;
-  const authHeader = event.headers['authorization'] || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!isNetlifyScheduler && !isAuthorizedManual && token) {
-    try {
-      const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
-      });
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        const profileRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userData.id}&select=admin`,
-          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` } }
-        );
-        if (profileRes.ok) {
-          const profiles = await profileRes.json();
-          isAdminJwt = profiles?.[0]?.admin === true;
-        }
-      }
-    } catch {}
-  }
-
-  if (!isNetlifyScheduler && !isAuthorizedManual && !isAdminJwt) {
-    return {
-      statusCode: 401,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Unauthorized — provide X-Cron-Secret or admin JWT' }),
-    };
-  }
-
-  // ── Check ANTHROPIC_API_KEY early ──────────────────────────────────────────
-  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!ANTHROPIC_API_KEY) {
-    return {
-      statusCode: 500,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'ANTHROPIC_API_KEY is not set' }),
-    };
-  }
-
-  // ── Step 1: Fetch latest macro row ─────────────────────────────────────────
-  let macroRow;
-  try {
-    const macroRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/macro_indicators_daily?order=date.desc&limit=1`,
-      { headers: SUPABASE_SERVICE_HEADERS }
-    );
-    if (!macroRes.ok) {
-      throw new Error(`Supabase macro_indicators_daily returned HTTP ${macroRes.status}`);
-    }
-    const rows = await macroRes.json();
-    if (!rows || rows.length === 0) {
-      throw new Error('No rows found in macro_indicators_daily');
-    }
-    macroRow = rows[0];
-  } catch (err) {
-    console.error('[macro-synthesis] Step 1 failed:', err);
-    return {
-      statusCode: 503,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Failed to fetch macro data', detail: String(err) }),
-    };
-  }
-
-  // ── Step 2: Fetch microstructure data ─────────────────────────────────────
-  let microStats = {
-    signals_last_30d: 0,
-    avg_spread_quality_score: 6,
-    signal_accuracy_tight_spreads_pct: null,
-    signal_accuracy_wide_spreads_pct: null,
-  };
-  try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const microRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/signal_microstructure_log?created_at=gte.${thirtyDaysAgo}&order=created_at.desc&limit=1000`,
-      { headers: SUPABASE_SERVICE_HEADERS }
-    );
-    if (microRes.ok) {
-      const records = await microRes.json();
-      if (Array.isArray(records)) {
-        microStats = computeMicrostructure(records);
-      }
-    } else {
-      console.warn('[macro-synthesis] signal_microstructure_log fetch status:', microRes.status);
-    }
-  } catch (err) {
-    // Non-fatal — use defaults
-    console.warn('[macro-synthesis] Step 2 microstructure fetch failed (using defaults):', err);
-  }
-
-  // ── Step 3: Call Claude API ────────────────────────────────────────────────
-  const today = todayISO();
-  const forwardPe = parseFloat(process.env.FORWARD_PE || '21.5');
-
-  const userPromptData = {
-    date: today,
-    macro: {
-      treasury_10y: macroRow.treasury_10y ?? null,
-      treasury_2y: macroRow.treasury_2y ?? null,
-      yield_curve_spread_bps: macroRow.yield_curve_spread_bps ?? null,
-      fed_funds_rate: macroRow.fed_funds_rate ?? null,
-      buffett_indicator_pct: macroRow.buffett_indicator_pct ?? null,
-      buffett_zone: macroRow.buffett_zone ?? null,
-      forward_pe: forwardPe,
-      equity_risk_premium_pct: macroRow.equity_risk_premium_pct ?? null,
-      dividend_yield_pct: macroRow.sp500_dividend_yield ?? null,
-      gold_30d_return_pct: null,
-      spy_30d_return_pct: null,
-      bitcoin_7d_return_pct: macroRow.bitcoin_usd_7d_change ?? null,
-      bitcoin_30d_return_pct: null,
-    },
-    microstructure: microStats,
-  };
-
-  const SYSTEM_PROMPT = `You are a senior macro strategist and market microstructure analyst.
-Produce institutional-grade daily market intelligence briefs.
-Be direct, precise, and probabilistic. Cite specific indicators.
-Never use vague language. Output only valid JSON, no prose, no markdown.`;
-
-  let claudeRaw;
-  try {
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: JSON.stringify(userPromptData, null, 2),
-          },
-        ],
-      }),
-    });
-
-    if (!claudeRes.ok) {
-      const errText = await claudeRes.text();
-      console.error('[macro-synthesis] Claude API error:', claudeRes.status, errText);
-      return {
-        statusCode: 502,
-        headers: { ...cors, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Claude API error', status: claudeRes.status, detail: errText }),
-      };
-    }
-
-    const claudeData = await claudeRes.json();
-    claudeRaw = claudeData.content?.[0]?.text || '';
-  } catch (err) {
-    console.error('[macro-synthesis] Claude fetch threw:', err);
-    return {
-      statusCode: 500,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Failed to call Claude API', detail: String(err) }),
-    };
-  }
-
-  // Parse Claude's JSON response
-  let brief;
-  try {
-    // Strip any accidental markdown fences
-    const cleaned = claudeRaw.replace(/```json|```/g, '').trim();
-    brief = JSON.parse(cleaned);
-  } catch (err) {
-    console.error('[macro-synthesis] JSON parse failed. Raw response:', claudeRaw);
-    return {
-      statusCode: 500,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        error: 'Claude response was not valid JSON',
-        raw_response: claudeRaw,
-      }),
-    };
-  }
-
-  // ── Step 4: Upsert to Supabase ─────────────────────────────────────────────
-  const upsertPayload = {
-    trading_date: today,
-    generated_at: new Date().toISOString(),
-    ...brief,
-  };
-
-  try {
-    const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/macro_daily_brief`, {
-      method: 'POST',
-      headers: {
-        ...SUPABASE_SERVICE_HEADERS,
-        'Prefer': 'resolution=merge-duplicates',
-      },
-      body: JSON.stringify(upsertPayload),
-    });
-    if (!upsertRes.ok) {
-      const errText = await upsertRes.text();
-      console.error('[macro-synthesis] Supabase upsert failed:', upsertRes.status, errText);
-      // Non-fatal: log and continue
-    }
-  } catch (err) {
-    // Non-fatal: brief was generated, just log
-    console.error('[macro-synthesis] Supabase upsert threw:', err);
-  }
-
-  // ── Step 5: Return success ─────────────────────────────────────────────────
-  return {
-    statusCode: 200,
-    headers: { ...cors, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      success: true,
+  // ── Insert key-value rows into macro_indicators_daily ─────────────────────
+  const indicatorRows = Object.entries(indicatorMap)
+    .filter(([, v]) => v.value !== null && v.value !== undefined)
+    .map(([name, v]) => ({
       date: today,
-      market_regime: brief.market_regime,
-      macro_regime_score: brief.macro_regime_score,
-    }),
+      indicator_name: name,
+      value: v.value,
+      zone: v.zone || null,
+    }));
+
+  if (indicatorRows.length) {
+    const { error: indErr } = await supabase
+      .from('macro_indicators_daily')
+      .upsert(indicatorRows, { onConflict: 'date,indicator_name' });
+    if (indErr) console.error('[macro-synthesis] indicator insert error:', indErr.message);
+  }
+
+  // ── Generate AI brief ─────────────────────────────────────────────────────
+  const context = {
+    date: today,
+    vix: vixLevel,
+    treasury_10y: treasury10y,
+    fed_funds: fedFunds,
+    yield_curve_bps: yieldCurve,
+    buffett_pct: buffettPct,
+    buffett_zone: buffettZone,
+    forward_pe: forwardPe,
+    equity_risk_premium_pct: +erp.toFixed(2),
+    sp500_dividend_yield: spDivYield,
+    gold_price: goldPrice,
+    btc_close: btcClose,
+    btc_7d_change_pct: btcChange7d,
+    spy_close: spyClose,
+    regime_score: regime,
+    signal_adj_pct: signalAdj,
   };
-};
+
+  const marketRegime = regime >= 65 ? 'BULL' : regime >= 50 ? 'NEUTRAL-BULL' : regime >= 35 ? 'NEUTRAL-BEAR' : 'BEAR';
+  const valuationAss = buffettPct > 175 ? 'EXTREME OVERVALUATION' : buffettPct > 145 ? 'OVERVALUED' : buffettPct > 115 ? 'ELEVATED' : 'FAIR';
+
+  if (!ANTH_KEY) {
+    // Write minimal brief without AI
+    await supabase.from('macro_daily_brief').upsert({
+      trading_date: today,
+      macro_headline: `Regime score ${regime}/100 — ${marketRegime} | VIX: ${vixLevel ?? '—'}`,
+      market_regime: marketRegime,
+      valuation_assessment: valuationAss,
+      macro_regime_score: regime,
+      signal_confidence_adjustment: signalAdj,
+      raw_indicators: context,
+      generated_at: now,
+    }, { onConflict: 'trading_date' });
+    return { statusCode: 200, body: JSON.stringify({ ok: true, regime, ai: false }) };
+  }
+
+  const prompt = `You are the macro analyst for Tradolux, an AI-powered day-trading platform. Today is ${today}.
+
+Current macro indicators:
+${JSON.stringify(context, null, 2)}
+
+Generate a concise macro market brief for day traders. Return ONLY valid JSON:
+{
+  "macro_headline": "<15-word max headline summarising today's macro backdrop>",
+  "full_brief": "<2-3 paragraphs covering macro regime, key risks, and opportunities for day traders today>",
+  "key_risks": ["<risk 1>", "<risk 2>", "<risk 3>"],
+  "key_supports": ["<support 1>", "<support 2>"],
+  "best_trade_window": "<e.g. '10:30-11:30 ET — post-open momentum'>",
+  "avoid_window": "<e.g. '12:00-13:00 ET — lunch chop'>",
+  "execution_quality_today": "<GOOD|MODERATE|POOR>"
+}`;
+
+  try {
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTH_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 900,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    const aiData = await aiRes.json();
+    const rawText = aiData.content?.[0]?.text || '{}';
+    let brief = {};
+    try {
+      const match = rawText.match(/\{[\s\S]*\}/);
+      brief = match ? JSON.parse(match[0]) : {};
+    } catch { brief = {}; }
+
+    const { error: briefErr } = await supabase.from('macro_daily_brief').upsert({
+      trading_date: today,
+      macro_headline:              brief.macro_headline || `Regime ${regime}/100 — VIX ${vixLevel ?? '—'}`,
+      full_brief:                  brief.full_brief || null,
+      key_risks:                   brief.key_risks  || [],
+      key_supports:                brief.key_supports || [],
+      best_trade_window:           brief.best_trade_window || null,
+      avoid_window:                brief.avoid_window || null,
+      execution_quality_today:     brief.execution_quality_today || null,
+      market_regime:               marketRegime,
+      valuation_assessment:        valuationAss,
+      macro_regime_score:          regime,
+      signal_confidence_adjustment: signalAdj,
+      raw_indicators:              context,
+      generated_at:                now,
+    }, { onConflict: 'trading_date' });
+
+    if (briefErr) console.error('[macro-synthesis] brief error:', briefErr.message);
+
+    console.log(`[macro-synthesis] Done — regime: ${regime}, VIX: ${vixLevel}`);
+    return { statusCode: 200, body: JSON.stringify({ ok: true, regime, vix: vixLevel, date: today }) };
+
+  } catch (err) {
+    console.error('[macro-synthesis] AI failed:', err.message);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+  }
+}
