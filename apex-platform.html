@@ -3498,6 +3498,8 @@ async function runAgents() {
       `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">⚠️ Downweighted to 0x on ${state.timeframe} — irrelevant intraday</div>`);
   }
   updateMobileAiStrip();
+  const _statusEl = document.getElementById('agentsStatus');
+  if (_statusEl) _statusEl.textContent = '● ACTIVE';
 }
 
 /* ============================================================
@@ -3987,6 +3989,7 @@ function generateSignal(verdicts) {
       if (state.smartSignalHistory.length > 200) state.smartSignalHistory.length = 200;
       if (state.activeTab === 'signals') renderSignalsTab();
     }
+    updateSignalsStrip();
     return;
   }
   const candles = state.candles[state.symbol];
@@ -4861,14 +4864,15 @@ Rules:
     if (!r || !r.ok) throw new Error(r ? 'HTTP ' + r.status : 'No response');
 
     let fullText = '';
-    if (!r.body) {
-      const data = await r.json();
-      fullText = data?.content?.[0]?.text || '';
-    } else {
+    const _assessIsSSE = (r.headers.get('content-type') || '').includes('text/event-stream');
+    if (_assessIsSSE) {
       await readClaudeStream(r,
         (_delta, acc) => { fullText = acc; container.scrollTop = container.scrollHeight; },
         () => {}
       );
+    } else {
+      const data = await r.json();
+      fullText = data?.content?.[0]?.text || '';
     }
 
     // Strip markdown fences the model may add despite instructions
@@ -6425,21 +6429,34 @@ ${buildChartContext(state.activePane)}`,
     }, _session?.access_token || '');
     if (!res || !res.ok) throw new Error(res ? 'HTTP ' + res.status : 'No response');
     thinkingEl.textContent = '';
-    await readClaudeStream(
-      res,
-      (_delta, acc) => {
-        thinkingEl.textContent = acc;
-        msgs.scrollTop = msgs.scrollHeight;
-      },
-      (text) => {
-        thinkingEl.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer">AI responses may be inaccurate. Verify before acting.</div>`);
-        if (text) {
-          state.chatHistory.push({ role: 'assistant', content: text });
-          if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
+    const _chatIsSSE = (res.headers.get('content-type') || '').includes('text/event-stream');
+    if (_chatIsSSE) {
+      await readClaudeStream(
+        res,
+        (_delta, acc) => {
+          thinkingEl.textContent = acc;
+          msgs.scrollTop = msgs.scrollHeight;
+        },
+        (text) => {
+          thinkingEl.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer">AI responses may be inaccurate. Verify before acting.</div>`);
+          if (text) {
+            state.chatHistory.push({ role: 'assistant', content: text });
+            if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
+          }
+          msgs.scrollTop = msgs.scrollHeight;
         }
-        msgs.scrollTop = msgs.scrollHeight;
+      );
+    } else {
+      const _chatData = await res.json();
+      const _chatText = _chatData?.content?.[0]?.text || '';
+      thinkingEl.textContent = _chatText;
+      thinkingEl.insertAdjacentHTML('beforeend', `<div class="ai-response-disclaimer">AI responses may be inaccurate. Verify before acting.</div>`);
+      if (_chatText) {
+        state.chatHistory.push({ role: 'assistant', content: _chatText });
+        if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
       }
-    );
+      msgs.scrollTop = msgs.scrollHeight;
+    }
   } catch (e) {
     thinkingEl.textContent = '⚠ AI service temporarily unavailable. Please try again in a moment.';
     state.chatHistory.pop();
