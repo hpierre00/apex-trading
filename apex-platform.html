@@ -5841,6 +5841,18 @@ async function fetchExtendedQuotes(symbols) {
 }
 
 async function connectAlpaca() {
+  // Mutex: this function is async and multiple callers (watchdogs, scheduleReconnect)
+  // can overlap during the ws-auth await. Without a flag, two invocations both pass
+  // all guards (no socket exists yet), both auth, both open a WebSocket → Alpaca 406.
+  if (state.alpaca._connecting) return;
+  state.alpaca._connecting = true;
+
+  // Also bail if a socket is already live or handshaking (0=CONNECTING, 1=OPEN).
+  if (state.alpaca.ws && state.alpaca.ws.readyState <= 1) {
+    state.alpaca._connecting = false;
+    return;
+  }
+
   // 1. Get credentials from server
   let creds;
   try {
@@ -5857,6 +5869,7 @@ async function connectAlpaca() {
         state.alpaca.manualDisconnect = true;
         toast('WS auth failed 3x. Check Netlify env vars, then click RECONNECT WS.', 'bear');
       }
+      state.alpaca._connecting = false;
       return;
     }
     creds = await r.json();
@@ -5865,6 +5878,7 @@ async function connectAlpaca() {
     // Network error reaching ws-auth: treat as transport, keep retrying.
     state.alpaca.state = 'disconnected';
     updateConnPill();
+    state.alpaca._connecting = false;
     return;
   }
 
@@ -5872,9 +5886,21 @@ async function connectAlpaca() {
   state.alpaca.state = 'connecting';
   updateConnPill();
 
+  // Detach and close any stale socket before creating the new one.
+  // Without this, the old socket's onclose fires after we replace state.alpaca.ws,
+  // calls scheduleReconnect(), and queues yet another connectAlpaca() — a loop
+  // that eventually produces a second live connection and another 406.
+  if (state.alpaca.ws) {
+    const stale = state.alpaca.ws;
+    stale.onopen = null; stale.onmessage = null; stale.onclose = null; stale.onerror = null;
+    try { stale.close(); } catch {}
+    state.alpaca.ws = null;
+  }
+
   const url = `wss://stream.data.alpaca.markets/v2/${state.alpaca.feed}`;
   const ws = new WebSocket(url);
   state.alpaca.ws = ws;
+  state.alpaca._connecting = false; // socket handed off; mutex released
 
   ws.onopen = () => {
     ws.send(JSON.stringify({ action: 'auth', key: creds.key, secret: creds.secret }));
