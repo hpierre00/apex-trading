@@ -8707,13 +8707,11 @@ async function adminLoadUsers() {
   if (!listEl) return;
   listEl.innerHTML = '<div style="color:rgba(200,215,240,0.3);font-size:10px;font-family:monospace;padding:12px 0;">Loading...</div>';
   try {
-    const { data: { session } } = await _supabase.auth.getSession();
-    const res  = await fetch('/.netlify/functions/admin-invite', {
-      headers: { 'Authorization': 'Bearer ' + session?.access_token }
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Failed to load users');
-    const users = json.users || [];
+    const { data: users, error } = await _supabase
+      .from('profiles')
+      .select('id, email, plan, subscription_status, admin, created_at')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
     if (!users.length) {
       listEl.innerHTML = '<div style="color:rgba(200,215,240,0.3);font-size:10px;font-family:monospace;padding:12px 0;text-align:center;">No users yet.</div>';
       return;
@@ -8763,17 +8761,16 @@ async function adminManageUser(userId, email, action) {
   if (action === 'terminate' && !confirm(`Terminate access for ${email}? They will be downgraded to free immediately.`)) return;
   if (action === 'suspend'   && !confirm(`Suspend ${email}? They will lose access until reinstated.`)) return;
   try {
-    const { data: { session } } = await _supabase.auth.getSession();
-    const res = await fetch('/.netlify/functions/admin-invite', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + session?.access_token
-      },
-      body: JSON.stringify({ action, userId, email })
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Action failed');
+    const update = action === 'suspend'
+      ? { subscription_status: 'suspended', updated_at: new Date().toISOString() }
+      : action === 'reactivate'
+      ? { subscription_status: 'active', updated_at: new Date().toISOString() }
+      : { subscription_status: 'terminated', plan: 'free', updated_at: new Date().toISOString() };
+    const { error } = await _supabase
+      .from('profiles')
+      .update(update)
+      .eq('id', userId);
+    if (error) throw new Error(error.message);
     adminLoadUsers();
   } catch (e) {
     alert('Error: ' + e.message);
