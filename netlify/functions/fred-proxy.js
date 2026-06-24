@@ -1,92 +1,120 @@
-// Netlify Function: FRED (Federal Reserve Economic Data) proxy.
-// FRED requires a free API key for JSON responses; we ship one or the user provides via env var.
-// Exposes whitelisted series IDs only.
+/**
+ * fred-proxy.js
+ * Proxies requests to the St. Louis FRED API keeping the API key server-side.
+ * Used by the macro agent in apex-platform.html.
+ *
+ * POST body: { series_id: string, limit?: number }
+ *   series_id — e.g. 'DGS10', 'DGS2', 'T10Y2Y', 'DFF'
+ *   limit     — number of most-recent observations to return (default 30, max 100)
+ *
+ * Returns FRED observation format: { observations: [{ date, value }] }
+ * Observations are sorted newest-first to match fredValues() in apex-platform.html.
+ */
 
-const SUPABASE_URL = 'https://soghksmuocrgtttmnete.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZ2hrc211b2NyZ3R0dG1uZXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTg4MTEsImV4cCI6MjA5MjY5NDgxMX0.FWRiSZG5yGsJdZvntD5LrqmV07NFEjZWjisJSK95b7A';
+const ALLOWED_SERIES = new Set([
+  // Treasury yields
+  'DGS1MO', 'DGS3MO', 'DGS6MO', 'DGS1', 'DGS2', 'DGS3', 'DGS5', 'DGS7', 'DGS10', 'DGS20', 'DGS30',
+  // Yield curve spreads
+  'T10Y2Y', 'T10Y3M', 'T5YIFR',
+  // Policy rate
+  'DFF', 'FEDFUNDS',
+  // Macro indicators
+  'CPIAUCSL', 'CPILFESL', 'UNRATE', 'GDP', 'INDPRO', 'PAYEMS', 'HOUST', 'RSAFS',
+  // Credit / volatility
+  'BAMLH0A0HYM2', 'DCOILWTICO', 'VIXCLS',
+]);
 
-exports.handler = async (event) => {
-  const cors = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
-  const authHeader = event.headers['authorization'] || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!token) {
-    return { statusCode: 401, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized' }) };
+export async function handler(event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS, body: '' };
   }
-  const authCheck = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY }
-  });
-  if (!authCheck.ok) {
-    return { statusCode: 401, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized' }) };
+
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  if (event.httpMethod !== 'POST') return { statusCode: 405, headers: { ...cors, 'Content-Type': 'application/json' }, body: 'Method Not Allowed' };
-
-  const KEY = process.env.FRED_API_KEY;
-  if (!KEY) {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) {
     return {
-      statusCode: 500, headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'FRED_API_KEY not set. Get one free at https://fred.stlouisfed.org/docs/api/api_key.html and add to Netlify env vars.' }),
+      statusCode: 500,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'FRED_API_KEY not configured' }),
     };
   }
 
   let body;
-  try { body = JSON.parse(event.body || '{}'); }
-  catch { return { statusCode: 400, headers: cors, body: 'Invalid JSON' }; }
-
-  // Whitelist FRED series IDs we'll expose. These are the macro indicators
-  // the Macro agent uses, plus a few commonly referenced ones for AI chat context.
-  const allowedSeries = new Set([
-    'DGS10',     // 10-Year Treasury yield
-    'DGS2',      // 2-Year Treasury yield
-    'T10Y2Y',    // 10Y-2Y spread (recession indicator)
-    'DFF',       // Federal Funds effective rate
-    'UNRATE',    // Unemployment rate
-    'CPIAUCSL',  // CPI (inflation)
-    'CPILFESL',  // Core CPI
-    'VIXCLS',    // VIX index
-    'DTWEXBGS',  // Trade-weighted dollar index
-    'DCOILWTICO', // WTI crude oil
-    'GOLDPMGBD228NLBM', // Gold PM London fix
-  ]);
-
-  const seriesId = body.series_id || '';
-  if (!allowedSeries.has(seriesId)) {
+  try {
+    body = JSON.parse(event.body || '{}');
+  } catch {
     return {
-      statusCode: 400, headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Series not whitelisted: ' + seriesId }),
+      statusCode: 400,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Invalid JSON body' }),
     };
   }
 
-  // Default to last 30 observations if the caller doesn't ask for more
-  const params = new URLSearchParams({
-    series_id: seriesId,
-    api_key: KEY,
-    file_type: 'json',
-    sort_order: 'desc',
-    limit: body.limit || 30,
-  });
+  const { series_id, limit = 30 } = body;
+  const seriesUpper = (series_id || '').toUpperCase().trim();
 
-  const url = `https://api.stlouisfed.org/fred/series/observations?${params.toString()}`;
+  if (!seriesUpper || !ALLOWED_SERIES.has(seriesUpper)) {
+    return {
+      statusCode: 400,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: `Unsupported series: ${series_id}`,
+        allowed: [...ALLOWED_SERIES],
+      }),
+    };
+  }
+
+  const clampedLimit = Math.min(Math.max(1, parseInt(limit, 10) || 30), 100);
+
+  const url = new URL('https://api.stlouisfed.org/fred/series/observations');
+  url.searchParams.set('series_id', seriesUpper);
+  url.searchParams.set('api_key', apiKey);
+  url.searchParams.set('file_type', 'json');
+  url.searchParams.set('limit', String(clampedLimit));
+  url.searchParams.set('sort_order', 'desc'); // newest-first — required by fredValues()
 
   try {
-    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    const text = await r.text();
+    const upstream = await fetch(url.toString(), {
+      headers: { 'User-Agent': 'tradolux-netlify-proxy/1.0' },
+    });
+    const data = await upstream.json();
+
+    // Surface FRED API-level errors clearly
+    if (data.error_code) {
+      return {
+        statusCode: 400,
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: data.error_message || 'FRED API error',
+          code: data.error_code,
+        }),
+      };
+    }
+
     return {
-      statusCode: r.status,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: text,
+      statusCode: 200,
+      headers: {
+        ...CORS,
+        'Content-Type': 'application/json',
+        // FRED series update daily — 1-hour cache is safe
+        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=300',
+      },
+      body: JSON.stringify(data),
     };
   } catch (err) {
     return {
       statusCode: 502,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Upstream fetch failed', detail: String(err) }),
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'FRED upstream error', details: err.message }),
     };
   }
-};
+}

@@ -1,83 +1,100 @@
-// Netlify Function: Finnhub data proxy.
-// Keeps FINNHUB_API_KEY server-side, exposes whitelisted endpoints to the browser.
+/**
+ * finnhub-proxy.js
+ * Proxies requests to Finnhub API keeping the API key server-side.
+ * Used by the sentiment and fundamental agents in apex-platform.html.
+ *
+ * POST body: { path: string, params: Record<string, string> }
+ *   path   — e.g. '/company-news', '/stock/metric', '/stock/recommendation'
+ *   params — e.g. { symbol: 'AAPL', from: '2024-01-01', to: '2024-01-07' }
+ */
 
-const SUPABASE_URL = 'https://soghksmuocrgtttmnete.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZ2hrc211b2NyZ3R0dG1uZXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTg4MTEsImV4cCI6MjA5MjY5NDgxMX0.FWRiSZG5yGsJdZvntD5LrqmV07NFEjZWjisJSK95b7A';
+const ALLOWED_PATHS = new Set([
+  '/company-news',
+  '/stock/metric',
+  '/stock/recommendation',
+  '/quote',
+  '/news-sentiment',
+  '/stock/peers',
+]);
 
-exports.handler = async (event) => {
-  const cors = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
-  const authHeader = event.headers['authorization'] || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!token) {
-    return { statusCode: 401, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized' }) };
+export async function handler(event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS, body: '' };
   }
-  const authCheck = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY }
-  });
-  if (!authCheck.ok) {
-    return { statusCode: 401, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized' }) };
+
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  if (event.httpMethod !== 'POST') return { statusCode: 405, headers: { ...cors, 'Content-Type': 'application/json' }, body: 'Method Not Allowed' };
-
-  const KEY = process.env.FINNHUB_API_KEY;
-  if (!KEY) {
+  const apiKey = process.env.FINNHUB_API_KEY;
+  if (!apiKey) {
     return {
-      statusCode: 500, headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'FINNHUB_API_KEY not set' }),
+      statusCode: 500,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'FINNHUB_API_KEY not configured' }),
     };
   }
 
   let body;
-  try { body = JSON.parse(event.body || '{}'); }
-  catch { return { statusCode: 400, headers: cors, body: 'Invalid JSON' }; }
-
-  const path = body.path || '';
-  const params = body.params || {};
-
-  // Whitelist allowed paths to limit blast radius if the function is abused.
-  const allowed = [
-    '/stock/profile2',
-    '/stock/metric',
-    '/stock/recommendation',
-    '/stock/earnings',
-    '/calendar/earnings',
-    '/quote',
-    '/company-news',
-    '/news',
-    '/news-sentiment',
-    '/stock/insider-sentiment',
-    '/stock/social-sentiment',
-  ];
-  if (!allowed.includes(path)) {
+  try {
+    body = JSON.parse(event.body || '{}');
+  } catch {
     return {
-      statusCode: 400, headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Path not allowed: ' + path }),
+      statusCode: 400,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Invalid JSON body' }),
     };
   }
 
-  const qs = new URLSearchParams({ ...params, token: KEY }).toString();
-  const url = `https://finnhub.io/api/v1${path}?${qs}`;
+  const { path, params = {} } = body;
+
+  if (!path || !ALLOWED_PATHS.has(path)) {
+    return {
+      statusCode: 400,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: `Unsupported path: ${path}`,
+        allowed: [...ALLOWED_PATHS],
+      }),
+    };
+  }
+
+  // Sanitize params — only allow string values, no prototype pollution
+  const safeParams = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (typeof k === 'string' && typeof v === 'string') safeParams[k] = v;
+  }
+
+  const qs = new URLSearchParams({ ...safeParams, token: apiKey });
+  const url = `https://finnhub.io/api/v1${path}?${qs.toString()}`;
 
   try {
-    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    const text = await r.text();
+    const upstream = await fetch(url, {
+      headers: { 'User-Agent': 'tradolux-netlify-proxy/1.0' },
+    });
+    const data = await upstream.json();
+
     return {
-      statusCode: r.status,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: text,
+      statusCode: upstream.status,
+      headers: {
+        ...CORS,
+        'Content-Type': 'application/json',
+        // 5-min client cache — news and metrics don't change by the second
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=60',
+      },
+      body: JSON.stringify(data),
     };
   } catch (err) {
     return {
       statusCode: 502,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Upstream fetch failed', detail: String(err) }),
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Finnhub upstream error', details: err.message }),
     };
   }
-};
+}
