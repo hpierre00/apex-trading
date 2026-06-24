@@ -5337,7 +5337,8 @@ async function addWatchlistFromModal() {
     toast(sym + ' already in watchlist', 'bear');
     return;
   }
-  const _wlLimit = (_userPlan === 'pro' || _userPlan === 'elite') ? Infinity
+  const _wlLimit = _isAdmin ? Infinity
+                 : (_userPlan === 'pro' || _userPlan === 'elite') ? Infinity
                  : _userPlan === 'starter' ? 7 : 3;
   if (state.watchlist.length >= _wlLimit) {
     closeModal('addWatchModal');
@@ -6997,7 +6998,7 @@ async function fetchUserPlan() {
   if (!_session?.user?.id) return;
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${_session.user.id}&select=plan,subscription_status,trial_end`,
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${_session.user.id}&select=plan,subscription_status,trial_end,admin`,
       {
         headers: {
           'apikey': SUPABASE_KEY,
@@ -7008,7 +7009,16 @@ async function fetchUserPlan() {
     if (res.ok) {
       const data = await res.json();
       if (data[0]) {
-        const { plan, subscription_status, trial_end } = data[0];
+        const { plan, subscription_status, trial_end, admin } = data[0];
+        // Admin users bypass all plan restrictions
+        if (admin === true) {
+          _isAdmin = true;
+          _userPlan = 'elite';
+          state.userPlan = 'elite';
+          console.log('[plan] admin user — unlimited access');
+          applyPlanGating();
+          return;
+        }
         const isActive = ['trialing', 'active'].includes(subscription_status);
         _userPlan = isActive ? (plan || 'free') : 'free';
         state.userPlan = _userPlan;
@@ -7047,9 +7057,12 @@ function applyPlanGating() {
   // ── Badge ──
   const badge = document.getElementById('planBadge');
   if (badge) {
-    badge.textContent = _userPlan.toUpperCase();
+    badge.textContent = _isAdmin ? 'ADMIN' : _userPlan.toUpperCase();
     badge.style.display = _userPlan !== 'free' ? 'inline-block' : 'none';
-    if (_userPlan === 'elite') {
+    if (_isAdmin) {
+      badge.style.background = 'linear-gradient(90deg,#6e1a7a,#c9a84c)';
+      badge.style.color = '#fff';
+    } else if (_userPlan === 'elite') {
       badge.style.background = 'linear-gradient(90deg,#1a7a6e,#c9a84c)';
       badge.style.color = '#fff';
     } else if (_userPlan === 'pro') {
