@@ -3463,46 +3463,54 @@ async function runAgents() {
   if (!candles.length) return;
 
   const verdicts = {};
-  for (const a of AGENTS) {
-    const el = document.getElementById(`agent-${a.id}`);
-    if (!el) continue;
-    el.querySelector('.agent-status').classList.add('thinking');
-    el.querySelector('.agent-status').innerHTML = '<span class="dot"></span>FETCHING';
-    el.querySelector('.agent-verdict').textContent = 'computing...';
-    el.querySelector('.agent-bar-fill').style.width = '0%';
-    const v = await computeAgent(a.id, candles);
-    verdicts[a.id] = v;
-    el.querySelector('.agent-status').classList.remove('thinking');
-    el.querySelector('.agent-status').innerHTML = `<span class="dot"></span>${v.label.toUpperCase()}`;
-    el.querySelector('.agent-status').style.color = v.score > 0 ? 'var(--bull)' : v.score < 0 ? 'var(--bear)' : 'var(--text-dim)';
-    el.querySelector('.agent-bar-fill').style.width = Math.abs(v.score * 100) + '%';
-    el.querySelector('.agent-bar-fill').style.background = v.score > 0 ? 'var(--bull)' : 'var(--bear)';
-    const verdictEl = el.querySelector('.agent-verdict');
-    verdictEl.innerHTML = `${v.reason}${v.source ? `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">source: ${v.source}</div>` : ''}`;
-    if (_userPlan === 'free') {
-      verdictEl.style.cssText += ';filter:blur(4px);user-select:none;cursor:pointer;';
-      verdictEl.onclick = () => showUpgradeModal('AI Agent Detail', 'Starter');
+  try {
+    for (const a of AGENTS) {
+      const el = document.getElementById(`agent-${a.id}`);
+      if (!el) continue;
+      el.querySelector('.agent-status').classList.add('thinking');
+      el.querySelector('.agent-status').innerHTML = '<span class="dot"></span>FETCHING';
+      el.querySelector('.agent-verdict').textContent = 'computing...';
+      el.querySelector('.agent-bar-fill').style.width = '0%';
+      let v;
+      try { v = await computeAgent(a.id, candles); }
+      catch (e) { v = { score: 0, label: 'error', reason: 'Agent error — ' + e.message, source: 'local' }; }
+      verdicts[a.id] = v;
+      el.querySelector('.agent-status').classList.remove('thinking');
+      el.querySelector('.agent-status').innerHTML = `<span class="dot"></span>${v.label.toUpperCase()}`;
+      el.querySelector('.agent-status').style.color = v.score > 0 ? 'var(--bull)' : v.score < 0 ? 'var(--bear)' : 'var(--text-dim)';
+      el.querySelector('.agent-bar-fill').style.width = Math.abs(v.score * 100) + '%';
+      el.querySelector('.agent-bar-fill').style.background = v.score > 0 ? 'var(--bull)' : 'var(--bear)';
+      const verdictEl = el.querySelector('.agent-verdict');
+      verdictEl.innerHTML = `${v.reason}${v.source ? `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">source: ${v.source}</div>` : ''}`;
+      if (_userPlan === 'free') {
+        verdictEl.style.cssText += ';filter:blur(4px);user-select:none;cursor:pointer;';
+        verdictEl.onclick = () => showUpgradeModal('AI Agent Detail', 'Starter');
+      }
     }
+    if ((state.panes[state.activePane]?.symbol || state.symbol) !== sym) return;
+    rebalanceAgentWeights();
+    generateSignal(verdicts);
+    const tier = tfTier(state.timeframe);
+    if (tier.fundWeight === 0) {
+      const el = document.getElementById('agent-fundamental');
+      const v = el?.querySelector('.agent-verdict');
+      if (v) v.insertAdjacentHTML('beforeend',
+        `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">⚠️ Downweighted to 0x on ${state.timeframe} — irrelevant intraday</div>`);
+    }
+    if (tier.macroWeight === 0) {
+      const el = document.getElementById('agent-macro');
+      const v = el?.querySelector('.agent-verdict');
+      if (v) v.insertAdjacentHTML('beforeend',
+        `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">⚠️ Downweighted to 0x on ${state.timeframe} — irrelevant intraday</div>`);
+    }
+    updateMobileAiStrip();
+  } catch (e) {
+    console.warn('[runAgents] unexpected error:', e);
+  } finally {
+    // Always update header status — even if generateSignal or any agent threw
+    const _statusEl = document.getElementById('agentsStatus');
+    if (_statusEl) _statusEl.textContent = '● ACTIVE';
   }
-  if ((state.panes[state.activePane]?.symbol || state.symbol) !== sym) return;
-  rebalanceAgentWeights();
-  generateSignal(verdicts);
-  const tier = tfTier(state.timeframe);
-  if (tier.fundWeight === 0) {
-    const el = document.getElementById('agent-fundamental');
-    const v = el?.querySelector('.agent-verdict');
-    if (v) v.insertAdjacentHTML('beforeend',
-      `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">⚠️ Downweighted to 0x on ${state.timeframe} — irrelevant intraday</div>`);
-  }
-  if (tier.macroWeight === 0) {
-    const el = document.getElementById('agent-macro');
-    const v = el?.querySelector('.agent-verdict');
-    if (v) v.insertAdjacentHTML('beforeend',
-      `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">⚠️ Downweighted to 0x on ${state.timeframe} — irrelevant intraday</div>`);
-  }
-  updateMobileAiStrip();
-  const _statusEl = document.getElementById('agentsStatus');
-  if (_statusEl) _statusEl.textContent = '● ACTIVE';
 }
 
 /* ============================================================
@@ -4144,7 +4152,16 @@ function updateSignalsStrip() {
   if (!strip) return;
   const signals = state.signals || [];
   if (!signals.length) {
-    strip.innerHTML = '<span class="sig-pill-empty">⚡ NO OPEN SIGNALS — AI SCANNING...</span>';
+    const regime = state.macroBrief?.macro_regime_score;
+    const adj = state.macroBrief?.signal_confidence_adjustment;
+    let msg;
+    if (typeof regime === 'number' && regime < 40) {
+      const adjStr = typeof adj === 'number' ? ` (conf adj ${adj > 0 ? '+' : ''}${adj}%)` : '';
+      msg = `⚠️ BEARISH REGIME ${regime}/100${adjStr} — SCANNING FOR BUY SETUPS...`;
+    } else {
+      msg = '⚡ NO OPEN SIGNALS — AI SCANNING...';
+    }
+    strip.innerHTML = `<span class="sig-pill-empty">${msg}</span>`;
     return;
   }
   strip.innerHTML = signals.slice(0, 8).map(s => {
@@ -7027,6 +7044,7 @@ async function handleSignOut() {
 }
 
 async function startCheckout(priceId) {
+  if (_isAdmin) return; // Admin never needs to purchase — bypass all checkout
   const btn = event.currentTarget;
   const orig = btn.textContent;
   btn.textContent = 'LOADING...';
@@ -7178,6 +7196,14 @@ function applyPlanGating() {
     alertBtnEl.title = 'Smart Alerts — Pro plan required';
     alertBtnEl.style.opacity = '0.45';
     alertBtnEl.onclick = e => { e.stopPropagation(); showUpgradeModal('Smart Alerts', 'Pro'); };
+  }
+
+  // ── Admin: re-render agent cards to remove PRO lock overlays that loaded before plan resolved ──
+  if (_isAdmin) {
+    if (typeof renderAgents === 'function') renderAgents();
+    // Restore chat placeholder so admin sees the normal prompt, not the gate message
+    const chatEl = document.getElementById('chatInput');
+    if (chatEl) chatEl.placeholder = '💬 Ask me about this chart, setup, or trade...';
   }
 }
 
