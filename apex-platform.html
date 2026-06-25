@@ -1532,6 +1532,9 @@ const sessionStartTime = Date.now();
 
 _supabase.auth.onAuthStateChange((event, session) => {
   _session = session;
+  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+    if (session) logTelemetry('session_start', 'auth', { plan: _userPlan });
+  }
   if (event === 'SIGNED_OUT' || !session) {
     if (typeof showAuthModal === 'function') showAuthModal();
   }
