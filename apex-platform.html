@@ -3968,6 +3968,33 @@ function updateSignalRemainingBadge() {
     el.style.color = 'var(--text-faint)';
   }
 }
+// Log a signal attempt to signal_microstructure_log regardless of display gating.
+// signal_status: 'active' | 'regime_suppressed' | 'confidence_filtered'
+// Downstream evaluators (agent_performance_daily, learned_weights) must filter on signal_status='active'.
+async function _logSignalMicrostructure(sym, tf, direction, confidence, signal_status) {
+  try {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return;
+    const bid = state.lastBid?.[sym];
+    const ask = state.lastAsk?.[sym];
+    const currentSpread = (isFinite(bid) && isFinite(ask)) ? ask - bid : null;
+    const bucket = getSpreadBucket();
+    const history = ((state.spreadHistory[sym] || {})[bucket] || []);
+    const avgSpread = history.length ? history.reduce((s, v) => s + v, 0) / history.length : null;
+    const spreadRatio = (currentSpread && avgSpread) ? currentSpread / avgSpread : null;
+    const quality = currentSpread ? spreadQuality(sym, currentSpread) : { label: 'UNKNOWN', score: null };
+    await _supabase.from('signal_microstructure_log').insert({
+      symbol: sym, timeframe: tf, direction, confidence,
+      current_spread: currentSpread, spread_vs_avg_ratio: spreadRatio,
+      spread_quality: quality.label, time_bucket: bucket,
+      macro_regime_score: state.macroBrief?.macro_regime_score ?? null,
+      macro_adjustment: state.macroBrief?.signal_confidence_adjustment ?? null,
+      book_imbalance_ratio: state.hftShield?.imbalanceRatio ?? null,
+      hft_shield_score: state.hftShield?.shieldScore ?? null,
+      signal_status,
+    });
+  } catch {}
+}
 function generateSignal(verdicts) {
   const tier = tfTier(state.timeframe);
   const weightFor = (id) => {
@@ -4000,6 +4027,7 @@ function generateSignal(verdicts) {
       if (state.smartSignalHistory.length > 200) state.smartSignalHistory.length = 200;
       if (state.activeTab === 'signals') renderSignalsTab();
     }
+    _logSignalMicrostructure(sym, tf, total > 0 ? 'BUY' : 'SELL', parseFloat(confidence.toFixed(1)), 'confidence_filtered');
     updateSignalsStrip();
     return;
   }
@@ -4011,7 +4039,10 @@ function generateSignal(verdicts) {
   if (!isFinite(atr) || atr <= 0) { updateSignalsStrip(); return; }
 
   const action = total > 0 ? 'BUY' : 'SELL';
-  if (action === 'SELL') { updateSignalsStrip(); return; } // Backtester v1 finding: SELL signals negative expectancy pending regime calibration
+  if (action === 'SELL') {
+    _logSignalMicrostructure(state.symbol, state.timeframe, 'SELL', parseFloat(confidence.toFixed(1)), 'regime_suppressed');
+    updateSignalsStrip(); return;
+  } // Backtester v1 finding: SELL signals negative expectancy pending regime calibration
   const entry = last.c;
   const stop = action === 'BUY' ? entry - atr * 1.5 : entry + atr * 1.5;
   const tp1 = action === 'BUY' ? entry + atr * 2 : entry - atr * 2;
@@ -4116,35 +4147,8 @@ function generateSignal(verdicts) {
     });
   }
 
-  // Log to signal_microstructure_log — non-blocking
-  (async () => {
-    try {
-      const { data: { session } } = await _supabase.auth.getSession();
-      if (!session) return;
-      const bid = state.lastBid?.[signal.sym];
-      const ask = state.lastAsk?.[signal.sym];
-      const currentSpread = (isFinite(bid) && isFinite(ask)) ? ask - bid : null;
-      const bucket = getSpreadBucket();
-      const history = ((state.spreadHistory[signal.sym] || {})[bucket] || []);
-      const avgSpread = history.length ? history.reduce((s, v) => s + v, 0) / history.length : null;
-      const spreadRatio = (currentSpread && avgSpread) ? currentSpread / avgSpread : null;
-      const quality = currentSpread ? spreadQuality(signal.sym, currentSpread) : { label: 'UNKNOWN', score: null };
-      await _supabase.from('signal_microstructure_log').insert({
-        symbol: signal.sym,
-        timeframe: signal.timeframe,
-        direction: signal.action,
-        confidence: signal.confidence,
-        current_spread: currentSpread,
-        spread_vs_avg_ratio: spreadRatio,
-        spread_quality: quality.label,
-        time_bucket: bucket,
-        macro_regime_score: state.macroBrief?.macro_regime_score ?? null,
-        macro_adjustment: state.macroBrief?.signal_confidence_adjustment ?? null,
-        book_imbalance_ratio: state.hftShield?.imbalanceRatio ?? null,
-        hft_shield_score: state.hftShield?.shieldScore ?? null,
-      });
-    } catch {}
-  })();
+  // Log to signal_microstructure_log — non-blocking. status='active' means it passed all filters.
+  _logSignalMicrostructure(signal.sym, signal.timeframe, signal.action, signal.confidence, 'active');
 }
 
 function updateSignalsStrip() {
