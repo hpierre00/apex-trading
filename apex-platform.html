@@ -6,6 +6,59 @@
 <link rel="icon" type="image/png" href="/og-image.png">
 <title>Tradolux — AI Trading Terminal</title>
   <meta name="msvalidate.01" content="E96FAEEBFF654721BAF3CB98FB220704" />
+<meta name="description" content="Tradolux is an AI Trading Terminal with live multi-agent market analysis, real-time signal generation, and institutional-grade intelligence for independent traders and investors.">
+<meta property="og:title" content="Tradolux — AI Trading Terminal">
+<meta property="og:description" content="Multi-agent AI market analysis, live signal generation, and real-time trade intelligence. Built for independent traders.">
+<meta property="og:url" content="https://tradolux.com">
+<meta property="og:type" content="website">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is an AI trading terminal?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "An AI trading terminal is a platform that uses artificial intelligence to analyze market data, identify trade setups, and generate real-time signals. Unlike traditional charting software, an AI trading terminal runs multiple intelligent agents simultaneously — each evaluating momentum, macro conditions, microstructure, and sentiment — to produce a composite market verdict. Tradolux is an AI trading terminal built for independent traders and investors who want institutional-grade analysis without institutional costs."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does AI stock analysis work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "AI stock analysis works by processing multiple data streams — price action, volume, order flow, macroeconomic indicators, and spread quality — and running them through specialized analytical agents. Each agent evaluates the market from a different lens. The results are aggregated into a confidence score and a directional verdict. Tradolux runs five agents: Momentum, Macro, Microstructure, Contrarian, and Composite. Their outputs are weighted by historical accuracy and combined into a single signal."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can AI identify trade setups?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Tradolux AI agents analyze real-time market data to identify high-probability trade setups based on configurable confidence thresholds. The system evaluates spread quality, order book imbalance, macro regime, and agent consensus before generating a signal. Setups that do not meet the minimum confidence threshold are filtered out rather than shown with a lower-quality rating, preserving signal integrity."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is multi-agent market analysis?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Multi-agent market analysis is a method where several independent AI agents each evaluate the market through a different analytical framework, then combine their verdicts into a single composite signal. Tradolux uses five specialized agents: a Momentum agent evaluating price and volume trends, a Macro agent assessing broader economic regime, a Microstructure agent reading order flow and spread conditions, a Contrarian agent detecting potential reversals, and a Composite agent synthesizing all inputs. This approach reduces single-model bias and improves signal reliability."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are Tradolux signals financial advice?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Tradolux signals are not financial advice. They are AI-generated analytical outputs for informational purposes only. Tradolux does not provide personalized investment recommendations, and no signal or analysis on the platform should be construed as a recommendation to buy or sell any security. All trading decisions are made solely by the user. Past signal accuracy does not guarantee future results."
+      }
+    }
+  ]
+}
+</script>
 <style>
 :root {
   /* Shared across all themes (accents, not theme-dependent) */
@@ -9100,6 +9153,7 @@ async function adminManageUser(userId, email, action) {
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#0ecb81;">Tradolux</div>
       <div style="font-size:11px;color:#5a6678;margin-top:4px;letter-spacing:1px;">AI TRADING TERMINAL</div>
+      <p style="font-size:10px;color:#3d4f62;margin:10px 0 0;line-height:1.5;letter-spacing:0;font-weight:400;font-family:sans-serif;max-width:320px;text-align:center;">Tradolux is an AI Trading Terminal that runs five simultaneous market analysis agents — Momentum, Macro, Microstructure, Contrarian, and Composite — to generate real-time trade signals and institutional-grade intelligence for independent traders.</p>
     </div>
     <div id="authTabs" style="display:flex;margin-bottom:20px;border-bottom:1px solid #1e2d45;">
       <button id="tabLogin" onclick="showAuthTab('login')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid #1a7a6e;color:#1a7a6e;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>
@@ -9123,22 +9177,28 @@ async function adminManageUser(userId, email, action) {
     </div>
     <button id="googleSignInBtn" onclick="handleGoogleSignIn()"
       style="width:100%;background:#fff;color:#000;border:none;padding:10px;border-radius:4px;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:8px;">
-      <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.38 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-3.88-13.45-9.41l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      <svg width="16" height="16" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.38 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        <path fill="none" d="M0 0h48v48H0z"/>
+      </svg>
       CONTINUE WITH GOOGLE
     </button>
   </div>
 </div>
 
 <!-- DISCLAIMER GATE — fullscreen, shown on first visit, dismissed permanently via localStorage -->
-<div id="disclaimerGate" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(4,8,18,0.97);align-items:center;justify-content:center;padding:24px;box-sizing:border-box;">
-  <div style="max-width:480px;width:100%;background:#0D1B2A;border:1px solid rgba(245,166,35,0.35);border-radius:6px;padding:32px 28px;font-family:'SF Mono','Fira Code','Courier New',monospace;">
+<div id="disclaimerGate" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(4,8,18,0.97);align-items:center;justify-content:center;">
+  <div style="max-width:480px;width:100%;background:#0D1B2A;border:1px solid rgba(245,166,35,0.35);border-radius:6px;padding:40px 36px;">
     <div style="font-size:13px;font-weight:900;letter-spacing:2.5px;color:#f5a623;margin-bottom:18px;text-align:center;">⚠ IMPORTANT NOTICE</div>
     <div style="font-size:11px;color:rgba(200,215,240,0.75);line-height:1.75;margin-bottom:24px;">
-      <strong style="color:#f5a623;">NOT FINANCIAL ADVICE.</strong> Tradolux provides AI-generated market analysis for informational purposes only. AI outputs may contain errors, hallucinations, or outdated information.<br><br>
-      This platform is <strong style="color:#e8eaf0;">not a broker, investment adviser, or trading system</strong>. Nothing on this platform constitutes a recommendation to buy or sell any security.<br><br>
-      <strong style="color:#e8eaf0;">All trading decisions are solely your own.</strong> You accept full responsibility for any action taken based on information provided here. Past performance does not guarantee future results. You may lose money.
+      <strong style="color:#f5a623;">NOT FINANCIAL ADVICE.</strong> Tradolux provides AI-generated market analysis for informational purposes only.<br><br>
+      This platform is <strong style="color:#e8eaf0;">not a broker, investment adviser, or trading system. Nothing on this platform constitutes financial advice or a recommendation to buy or sell any security.</strong><br><br>
+      <strong style="color:#e8eaf0;">All trading decisions are solely your own. You accept full responsibility for any action taken based on information from this platform.</strong>
     </div>
-    <button id="disclaimerGateBtn" style="width:100%;background:#1a7a6e;color:#e8f5f2;border:none;padding:14px;border-radius:4px;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:1.5px;cursor:pointer;">I UNDERSTAND — CONTINUE TO TRADOLUX</button>
+    <button id="disclaimerGateBtn" style="width:100%;background:#1a7a6e;color:#e8f5f2;border:none;padding:14px;border-radius:4px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;">I UNDERSTAND — CONTINUE TO TRADOLUX</button>
   </div>
 </div>
 
