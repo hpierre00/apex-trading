@@ -1531,16 +1531,16 @@ const PLAN_LIMITS = {
     aiQueriesPerDay:   5,
   },
   starter: {
-    signalsPerDay:     3,
-    agentsVisible:     2,
-    timeframes:        ['1m','5m','1d'],
+    signalsPerDay:     15,
+    agentsVisible:     3,
+    timeframes:        ['1m','5m','15m','1h','1d'],
     hftShield:         'score',
-    macroHistory:      0,
-    scannerResults:    10,
-    scannerRefreshSec: 300,
-    alertsMax:         3,
-    journalDays:       7,
-    aiQueriesPerDay:   5,
+    macroHistory:      3,
+    scannerResults:    25,
+    scannerRefreshSec: 120,
+    alertsMax:         10,
+    journalDays:       14,
+    aiQueriesPerDay:   20,
   },
   pro: {
     signalsPerDay:     25,
@@ -4058,6 +4058,13 @@ async function _logSignalMicrostructure(sym, tf, direction, confidence, signal_s
   } catch {}
 }
 function generateSignal(verdicts) {
+  // Gate: enforce daily signal limit for non-admin users.
+  // canUse() returns true for admins and when under the plan cap.
+  if (!canUse('signals')) {
+    updateSignalsStrip();
+    updateSignalRemainingBadge();
+    return;
+  }
   const tier = tfTier(state.timeframe);
   const weightFor = (id) => {
     const base = state.learnedWeights?.[id] ?? AGENTS.find(a => a.id === id).weight;
