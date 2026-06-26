@@ -3523,6 +3523,7 @@ async function runAgents() {
   if (!candles.length) return;
 
   const verdicts = {};
+  let _noDataCount = 0;
   try {
     for (const a of AGENTS) {
       const el = document.getElementById(`agent-${a.id}`);
@@ -3534,6 +3535,7 @@ async function runAgents() {
       let v;
       try { v = await computeAgent(a.id, candles); }
       catch (e) { v = { score: 0, label: 'error', reason: 'Agent error — ' + e.message, source: 'local' }; }
+      if (['no data', 'error', 'incomplete'].includes(v.label)) _noDataCount++;
       verdicts[a.id] = v;
       el.querySelector('.agent-status').classList.remove('thinking');
       el.querySelector('.agent-status').innerHTML = `<span class="dot"></span>${v.label.toUpperCase()}`;
@@ -3569,7 +3571,7 @@ async function runAgents() {
   } finally {
     // Always update header status — even if generateSignal or any agent threw
     const _statusEl = document.getElementById('agentsStatus');
-    if (_statusEl) _statusEl.textContent = '● ACTIVE';
+    if (_statusEl) _statusEl.textContent = _noDataCount >= 3 ? '⚠ DATA LIMITED' : '● ACTIVE';
   }
 }
 
@@ -4099,10 +4101,6 @@ function generateSignal(verdicts) {
   if (!isFinite(atr) || atr <= 0) { updateSignalsStrip(); return; }
 
   const action = total > 0 ? 'BUY' : 'SELL';
-  if (action === 'SELL') {
-    _logSignalMicrostructure(state.symbol, state.timeframe, 'SELL', parseFloat(confidence.toFixed(1)), 'regime_suppressed');
-    updateSignalsStrip(); return;
-  } // Backtester v1 finding: SELL signals negative expectancy pending regime calibration
   const entry = last.c;
   const stop = action === 'BUY' ? entry - atr * 1.5 : entry + atr * 1.5;
   const tp1 = action === 'BUY' ? entry + atr * 2 : entry - atr * 2;
