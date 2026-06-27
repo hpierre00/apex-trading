@@ -6105,16 +6105,30 @@ async function connectAlpaca() {
           state.lastAsk[m.S] = m.ap;
         }
       } else if (m.T === 'error') {
-        // Alpaca auth error codes: 400 invalid syntax, 401 not authenticated,
-        // 402 auth failed, 404 auth timeout, 406 connection limit exceeded.
-        // These will not resolve with a reconnect; stop the retry loop.
-        const fatalAuthCodes = [400, 401, 402, 404, 406];
-        if (fatalAuthCodes.includes(m.code)) {
-          // Credential expired — get a fresh JWT and retry rather than stopping permanently.
-          toast(`Alpaca credential expired (${m.code}) — reconnecting with fresh token...`, 'bear');
-          state.alpaca.reconnectAttempts = 0; // reset backoff so retry is fast
+        // Alpaca WebSocket error codes:
+        //   400 invalid syntax, 402 subscription insufficient → permanent, stop retrying.
+        //   401 not authenticated, 404 auth timeout → stale JWT, retry quickly with fresh cred.
+        //   406 connection limit exceeded → old socket still alive on Alpaca's server;
+        //       must wait ~30s for TCP timeout before retrying, not 2s.
+        const code = m.code;
+        if (code === 406) {
+          // Connection limit: the previous session's socket is still registered on Alpaca's side.
+          // Set attempts=4 so scheduleReconnect() computes ~32s backoff (2^5 = 32s),
+          // giving the stale socket enough time to time out on Alpaca's server.
+          toast(`Alpaca: connection limit hit — retrying in ~30s...`, 'bear');
+          state.alpaca.reconnectAttempts = 4;
           try { ws.close(); } catch {}
-          // onclose fires next → scheduleReconnect() → connectAlpaca() fetches new JWT
+        } else if (code === 401 || code === 404) {
+          // Stale or expired JWT — get a fresh credential and retry quickly.
+          toast(`Alpaca auth error (${code}) — refreshing credential...`, 'bear');
+          state.alpaca.reconnectAttempts = 0;
+          try { ws.close(); } catch {}
+        } else if (code === 400 || code === 402) {
+          // Permanent errors: bad message syntax or insufficient subscription.
+          // Retrying won't help; stop and tell the user.
+          toast(`Alpaca auth error ${code}: ${m.msg}. Check API keys or subscription.`, 'bear');
+          state.alpaca.manualDisconnect = true;
+          try { ws.close(); } catch {}
         } else {
           toast('Alpaca error: ' + m.msg, 'bear');
         }
