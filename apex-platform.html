@@ -4058,6 +4058,11 @@ async function _logSignalMicrostructure(sym, tf, direction, confidence, signal_s
   } catch {}
 }
 function generateSignal(verdicts) {
+  // Gate: market must be open. No signals on weekends or outside 9:30–16:00 ET.
+  if (!isUSMarketOpen()) {
+    updateSignalsStrip();
+    return;
+  }
   // Gate: enforce daily signal limit for non-admin users.
   // canUse() returns true for admins and when under the plan cap.
   if (!canUse('signals')) {
@@ -4219,6 +4224,13 @@ function generateSignal(verdicts) {
 function updateSignalsStrip() {
   const strip = document.getElementById('signalsStrip');
   if (!strip) return;
+  // Market closed — weekend or outside 9:30–16:00 ET
+  if (!isUSMarketOpen()) {
+    const session = getMarketSession();
+    const sessionLabel = session === 'pre' ? 'PRE-MARKET' : session === 'after' ? 'AFTER HOURS' : 'MARKET CLOSED';
+    strip.innerHTML = `<span class="sig-pill-empty">🔒 ${sessionLabel} — Signal generation resumes at market open (9:30 AM ET)</span>`;
+    return;
+  }
   const signals = state.signals || [];
   if (!signals.length) {
     const regime = state.macroBrief?.macro_regime_score;
