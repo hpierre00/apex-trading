@@ -1143,6 +1143,7 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         <div class="tf-group" id="intradayGroup">
           <!-- Intraday bar sizes. Each picks a sensible short range to match. -->
           <button class="tf-btn" data-period="1m_1D"    data-tf="1m"  data-range="1D"  title="1 minute — scalp">1m</button>
+          <button class="tf-btn" data-period="2m_1D"    data-tf="2m"  data-range="1D"  title="2 minute — scalp">2m</button>
           <button class="tf-btn" data-period="3m_1D"    data-tf="3m"  data-range="1D"  title="3 minute — scalp">3m</button>
           <button class="tf-btn" data-period="5m_1D"    data-tf="5m"  data-range="1D"  title="5 minute — intraday">5m</button>
           <button class="tf-btn" data-period="15m_5D"   data-tf="15m" data-range="5D"  title="15 minute — intraday">15m</button>
@@ -1153,12 +1154,12 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
         <div class="tf-group" id="periodGroup">
           <!-- Period buttons for swing/position perspectives -->
           <button class="tf-btn" data-period="1D_5m"    data-tf="5m"  data-range="1D"  title="1 day — position">1D</button>
-          <button class="tf-btn" data-period="5D_15m"   data-tf="15m" data-range="5D"  title="5 day">5D</button>
+          <button class="tf-btn active" data-period="5D_15m"   data-tf="15m" data-range="5D"  title="5 day">5D</button>
           <button class="tf-btn" data-period="1M_1h"    data-tf="1h"  data-range="1M"  title="1 month">1M</button>
           <button class="tf-btn" data-period="3M_1h"    data-tf="1h"  data-range="3M"  title="3 months">3M</button>
           <button class="tf-btn" data-period="6M_1d"    data-tf="1d"  data-range="6M"  title="6 months">6M</button>
           <button class="tf-btn" data-period="YTD_1d"   data-tf="1d"  data-range="YTD" title="Year to date">YTD</button>
-          <button class="tf-btn active" data-period="1Y_1d" data-tf="1d" data-range="1Y" title="1 year">1Y</button>
+          <button class="tf-btn" data-period="1Y_1d" data-tf="1d" data-range="1Y" title="1 year">1Y</button>
           <button class="tf-btn" data-period="5Y_1w"    data-tf="1w"  data-range="5Y"  title="5 years">5Y</button>
           <button class="tf-btn" data-period="ALL_1mo"  data-tf="1mo" data-range="ALL" title="All available data">ALL</button>
         </div>
@@ -1521,7 +1522,7 @@ const PLAN_LIMITS = {
   free: {
     signalsPerDay:     3,
     agentsVisible:     2,
-    timeframes:        ['1m','5m','1d'],
+    timeframes:        ['1m','2m','5m','1d'],
     hftShield:         'score',
     macroHistory:      0,
     scannerResults:    10,
@@ -1533,7 +1534,7 @@ const PLAN_LIMITS = {
   starter: {
     signalsPerDay:     15,
     agentsVisible:     3,
-    timeframes:        ['1m','5m','15m','1h','1d'],
+    timeframes:        ['1m','2m','5m','15m','1h','1d'],
     hftShield:         'score',
     macroHistory:      3,
     scannerResults:    25,
@@ -1604,10 +1605,10 @@ const TICKERS = ['AAPL','TSLA','NVDA','MSFT','GOOGL','AMZN','META','AMD','SPY','
 
 const state = {
   symbol: 'AAPL',
-  timeframe: '1d',
+  timeframe: '15m',
   macroBrief: null,
-  range: '1Y',
-  period: '1Y_1d', // tracks merged period selection
+  range: '5D',
+  period: '5D_15m', // tracks merged period selection
   customRange: { start: null, end: null },
   // bar cache: key=`${sym}|${tf}|${range}` value={ bars, loadedAt }
   barCache: new Map(),
@@ -6109,9 +6110,11 @@ async function connectAlpaca() {
         // These will not resolve with a reconnect; stop the retry loop.
         const fatalAuthCodes = [400, 401, 402, 404, 406];
         if (fatalAuthCodes.includes(m.code)) {
-          toast(`Alpaca auth error ${m.code}: ${m.msg}. Auto-reconnect stopped.`, 'bear');
-          state.alpaca.manualDisconnect = true;
+          // Credential expired — get a fresh JWT and retry rather than stopping permanently.
+          toast(`Alpaca credential expired (${m.code}) — reconnecting with fresh token...`, 'bear');
+          state.alpaca.reconnectAttempts = 0; // reset backoff so retry is fast
           try { ws.close(); } catch {}
+          // onclose fires next → scheduleReconnect() → connectAlpaca() fetches new JWT
         } else {
           toast('Alpaca error: ' + m.msg, 'bear');
         }
@@ -6191,12 +6194,12 @@ function isUSMarketOpen() {
 // Map UI TF to Alpaca API timeframe. Alpaca supports 1Min, 5Min, 15Min, 30Min,
 // 1Hour, 2Hour, 4Hour, 1Day. Larger TFs (1w, 1mo) are aggregated client-side from 1Day bars.
 function tfToAlpaca(tf) {
-  return { '1m': '1Min', '3m': '3Min', '5m': '5Min', '15m': '15Min', '30m': '30Min',
+  return { '1m': '1Min', '2m': '2Min', '3m': '3Min', '5m': '5Min', '15m': '15Min', '30m': '30Min',
            '1h': '1Hour', '4h': '4Hour', '1d': '1Day',
            '1w': '1Day', '1mo': '1Day' }[tf] || '15Min';
 }
 function tfMinutes(tf) {
-  return { '1m': 1, '3m': 3, '5m': 5, '15m': 15, '30m': 30,
+  return { '1m': 1, '2m': 2, '3m': 3, '5m': 5, '15m': 15, '30m': 30,
            '1h': 60, '4h': 240, '1d': 1440, '1w': 10080, '1mo': 43200 }[tf] || 15;
 }
 function tfNeedsAggregation(tf) {
@@ -6930,6 +6933,9 @@ function init() {
     setTimeout(() => { resizeCanvas(); renderChart(); }, 300);
     setTimeout(() => { resizeCanvas(); renderChart(); }, 800);
   }
+  // Render immediately with seeded candle data so chart is never blank on login.
+  // Alpaca bars will replace this when the WS/REST loads real data.
+  renderChart();
   runAgents();
   // auto-connect to Alpaca — delayed 1500ms so mobile browsers complete initial render
   setTimeout(connectAlpaca, 1500);
