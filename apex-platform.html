@@ -1517,6 +1517,7 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _session = null;
 let _userPlan = 'free'; // 'free' | 'starter' | 'pro' | 'elite'
 let _isAdmin = false; // admin flag set by checkAdminRoute()
+let _planResolved = false; // true once fetchUserPlan() completes — gates plan-gated UI so the async load race never blocks admin
 // ===== PLAN LIMITS CONFIG — single source of truth =====
 const PLAN_LIMITS = {
   free: {
@@ -3545,7 +3546,9 @@ async function runAgents() {
       el.querySelector('.agent-bar-fill').style.background = v.score > 0 ? 'var(--bull)' : 'var(--bear)';
       const verdictEl = el.querySelector('.agent-verdict');
       verdictEl.innerHTML = `${v.reason}${v.source ? `<div style="color:var(--text-faint);font-size:9px;margin-top:2px">source: ${v.source}</div>` : ''}`;
-      if (_userPlan === 'free') {
+      // Only blur if plan has actually resolved to 'free' — don't blur during the async load race
+      // (admin users briefly appear as 'free' before fetchUserPlan() returns)
+      if (_userPlan === 'free' && _planResolved) {
         verdictEl.style.cssText += ';filter:blur(4px);user-select:none;cursor:pointer;';
         verdictEl.onclick = () => showUpgradeModal('AI Agent Detail', 'Starter');
       }
@@ -4001,6 +4004,7 @@ async function runSmartSignals() {
 function tfTier(tf) {
   const tiers = {
     '1m':  { confThreshold: 35, dedupBars: 15, fundWeight: 0.0, macroWeight: 0.0,  label: 'scalp' },
+    '2m':  { confThreshold: 33, dedupBars: 13, fundWeight: 0.0, macroWeight: 0.0,  label: 'scalp' },
     '3m':  { confThreshold: 32, dedupBars: 12, fundWeight: 0.0, macroWeight: 0.0,  label: 'scalp' },
     '5m':  { confThreshold: 28, dedupBars: 10, fundWeight: 0.0, macroWeight: 0.05, label: 'intraday' },
     '15m': { confThreshold: 24, dedupBars: 8,  fundWeight: 0.05, macroWeight: 0.1, label: 'intraday' },
@@ -5960,16 +5964,16 @@ async function connectAlpaca() {
   try {
     const r = await fetch('/.netlify/functions/ws-auth', { headers: { 'Authorization': 'Bearer ' + (_session?.access_token || '') }, credentials: 'same-origin' });
     if (!r.ok) {
-      // Auth failure from our own backend (env vars missing, cred endpoint broken).
-      // Don't spin the reconnect loop if the server can't hand us valid creds —
-      // retrying every 60s for 24h = ~1440 failed auth calls/day.
       state.alpaca.state = 'disconnected';
       state.alpaca.authFailures = (state.alpaca.authFailures || 0) + 1;
       updateConnPill();
-      if (state.alpaca.authFailures >= 3) {
-        // Stop auto-retry after 3 consecutive auth failures; user must click RECONNECT WS.
+      // Permanently stop ONLY on hard auth failures (401 Unauthorized, 403 Forbidden).
+      // 5xx / transient errors get retried — Netlify cold starts can cause temporary failures.
+      if (state.alpaca.authFailures >= 3 && (r.status === 401 || r.status === 403)) {
         state.alpaca.manualDisconnect = true;
-        toast('WS auth failed 3x. Check Netlify env vars, then click RECONNECT WS.', 'bear');
+        toast('WS auth failed 3x (401/403). Check Netlify env vars, then click RECONNECT WS.', 'bear');
+      } else {
+        scheduleReconnect(); // retry on 5xx, timeouts, cold starts
       }
       state.alpaca._connecting = false;
       return;
@@ -5977,10 +5981,12 @@ async function connectAlpaca() {
     creds = await r.json();
     state.alpaca.authFailures = 0; // reset on successful cred fetch
   } catch {
-    // Network error reaching ws-auth: treat as transport, keep retrying.
+    // Network error reaching ws-auth (timeout, DNS, offline): schedule retry.
+    // Previously this returned without scheduling, leaving WS permanently dead until the 90s watchdog.
     state.alpaca.state = 'disconnected';
     updateConnPill();
     state.alpaca._connecting = false;
+    scheduleReconnect(); // ← was missing — caused permanent DISCONNECTED on cold-start timeouts
     return;
   }
 
@@ -6529,7 +6535,10 @@ async function sendChat() {
   const q = input.value.trim();
   if (!q) return;
   logTelemetry('chat_sent', 'ai_chat', { messageLength: q.length, symbol: state.symbol });
-  if (!_isAdmin && (_userPlan === 'free' || _userPlan === 'starter')) {
+  // Belt-and-suspenders: treat the session email as admin even if _isAdmin hasn't resolved yet.
+  // This covers the race where the user sends a message before fetchUserPlan() completes.
+  const _chatEffectiveAdmin = _isAdmin || _session?.user?.email === 'hpierre00@gmail.com';
+  if (!_chatEffectiveAdmin && _planResolved && (_userPlan === 'free' || _userPlan === 'starter')) {
     input.value = '';
     showUpgradeModal('AI Chat', 'Pro');
     return;
@@ -7208,6 +7217,8 @@ async function fetchUserPlan() {
     }
   } catch (e) {
     console.warn('[plan] fetchUserPlan error:', e);
+  } finally {
+    _planResolved = true; // plan is settled (or failed); unlock plan-gated UI
   }
 }
 
@@ -7302,6 +7313,9 @@ function applyPlanGating() {
   // ── Admin: re-render agent cards to remove PRO lock overlays that loaded before plan resolved ──
   if (_isAdmin) {
     if (typeof renderAgents === 'function') renderAgents();
+    // Re-run agents immediately so admin sees verdicts right away — without this, the 20s interval
+    // fires next, leaving admin looking at blank PENDING cards after renderAgents() resets them.
+    if (typeof runAgents === 'function') setTimeout(runAgents, 150);
     // Restore chat placeholder so admin sees the normal prompt, not the gate message
     const chatEl = document.getElementById('chatInput');
     if (chatEl) chatEl.placeholder = '💬 Ask me about this chart, setup, or trade...';
