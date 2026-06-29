@@ -4043,7 +4043,8 @@ function updateSignalRemainingBadge() {
 // Log a signal attempt to signal_microstructure_log regardless of display gating.
 // signal_status: 'active' | 'regime_suppressed' | 'confidence_filtered'
 // Downstream evaluators (agent_performance_daily, learned_weights) must filter on signal_status='active'.
-async function _logSignalMicrostructure(sym, tf, direction, confidence, signal_status) {
+// extras: optional {entry_price, stop_price, target_price} passed for 'active' signals.
+async function _logSignalMicrostructure(sym, tf, direction, confidence, signal_status, extras = {}) {
   try {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return;
@@ -4055,17 +4056,28 @@ async function _logSignalMicrostructure(sym, tf, direction, confidence, signal_s
     const avgSpread = history.length ? history.reduce((s, v) => s + v, 0) / history.length : null;
     const spreadRatio = (currentSpread && avgSpread) ? currentSpread / avgSpread : null;
     const quality = currentSpread ? spreadQuality(sym, currentSpread) : { label: 'UNKNOWN', score: null };
-    await _supabase.from('signal_microstructure_log').insert({
-      symbol: sym, timeframe: tf, direction, confidence,
-      current_spread: currentSpread, spread_vs_avg_ratio: spreadRatio,
-      spread_quality: quality.label, time_bucket: bucket,
+    // Column names must exactly match signal_microstructure_log schema.
+    // Five fields were previously misnamed — every insert silently failed since launch.
+    const { error } = await _supabase.from('signal_microstructure_log').insert({
+      symbol: sym,
+      timeframe: tf,
+      signal_direction: direction,          // was: direction (wrong)
+      confidence_score: confidence,          // was: confidence (wrong)
+      spread_at_signal: currentSpread,       // was: current_spread (wrong)
+      spread_vs_avg_ratio: spreadRatio,
+      spread_quality_label: quality.label,   // was: spread_quality (wrong)
+      time_of_day_bucket: bucket,            // was: time_bucket (wrong)
       macro_regime_score: state.macroBrief?.macro_regime_score ?? null,
       macro_adjustment: state.macroBrief?.signal_confidence_adjustment ?? null,
       book_imbalance_ratio: state.hftShield?.imbalanceRatio ?? null,
       hft_shield_score: state.hftShield?.shieldScore ?? null,
       signal_status,
+      ...extras,
     });
-  } catch {}
+    if (error) console.warn('[signal-log] insert failed:', error.message, { sym, tf, signal_status });
+  } catch (e) {
+    console.warn('[signal-log] _logSignalMicrostructure threw:', e.message);
+  }
 }
 function generateSignal(verdicts) {
   // Gate: market must be open. No signals on weekends or outside 9:30–16:00 ET.
@@ -4228,7 +4240,12 @@ function generateSignal(verdicts) {
   }
 
   // Log to signal_microstructure_log — non-blocking. status='active' means it passed all filters.
-  _logSignalMicrostructure(signal.sym, signal.timeframe, signal.action, signal.confidence, 'active');
+  // Pass entry/stop/target so evaluate-signal-outcomes.js can score this signal against future bars.
+  _logSignalMicrostructure(signal.sym, signal.timeframe, signal.action, signal.confidence, 'active', {
+    entry_price: signal.entry,
+    stop_price: signal.stop,
+    target_price: signal.tp1,
+  });
 }
 
 function updateSignalsStrip() {
