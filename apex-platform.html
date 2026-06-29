@@ -1518,6 +1518,11 @@ let _session = null;
 let _userPlan = 'free'; // 'free' | 'starter' | 'pro' | 'elite'
 let _isAdmin = false; // admin flag set by checkAdminRoute()
 let _planResolved = false; // true once fetchUserPlan() completes — gates plan-gated UI so the async load race never blocks admin
+// Daily usage counters — loaded from localStorage and reset each calendar day.
+// These MUST be declared here; referencing them before declaration throws ReferenceError
+// in strict mode, which crashes init() before connectAlpaca() or runAgents() ever fires.
+let _dailySignalCount = 0;
+let _aiQueryCount = 0;
 // ===== PLAN LIMITS CONFIG — single source of truth =====
 const PLAN_LIMITS = {
   free: {
