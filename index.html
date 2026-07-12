@@ -23,21 +23,37 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "Tradolux",
-  "applicationCategory": "FinanceApplication",
-  "operatingSystem": "Web",
-  "offers": {
-    "@type": "AggregateOffer",
-    "lowPrice": "29",
-    "highPrice": "149",
-    "priceCurrency": "USD"
-  },
-  "description": "AI trading terminal with instant stock analysis, live trading signals, and probabilistic scenario modeling across five agents: Chart, Sentiment, Fundamental, Risk, and Macro.",
-  "url": "https://tradolux.com",
-  "featureList": ["AI stock analysis", "live trading signals", "scenario modeling", "chart intelligence", "sentiment analysis"],
-  "screenshot": "https://tradolux.com/og-image.png",
-  "applicationSubCategory": "TradingApplication"
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "Tradolux",
+      "applicationCategory": "FinanceApplication",
+      "applicationSubCategory": "TradingApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "AggregateOffer",
+        "lowPrice": "29",
+        "highPrice": "149",
+        "priceCurrency": "USD"
+      },
+      "description": "AI trading terminal with instant stock analysis, live trading signals, and probabilistic scenario modeling across five agents: Chart, Sentiment, Fundamental, Risk, and Macro.",
+      "url": "https://tradolux.com",
+      "featureList": ["AI stock analysis", "live trading signals", "scenario modeling", "chart intelligence", "sentiment analysis"],
+      "screenshot": "https://tradolux.com/og-image.png"
+    },
+    {
+      "@type": "Organization",
+      "name": "Tradolux",
+      "url": "https://tradolux.com",
+      "logo": "https://tradolux.com/og-image.png",
+      "sameAs": [
+        "https://www.facebook.com/profile.php?id=61590741387609",
+        "https://www.instagram.com/tradolux.ai/",
+        "https://www.youtube.com/@Tradolux",
+        "https://twitter.com/tradolux"
+      ]
+    }
+  ]
 }
 <\/script>
 <link rel="stylesheet" href="/css/marketing.css">
