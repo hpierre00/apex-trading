@@ -84,7 +84,6 @@
     <div class="hero-actions">
       <a href="/app" class="btn btn-primary">Start Free Trial</a>
       <a href="/market-preview" class="btn btn-secondary">View live market →</a>
-      <a href="#waitlist" class="btn btn-ghost">Analyze Your First Trade Free</a>
     </div>
   </div>
 </section>
@@ -375,25 +374,6 @@ function setBilling(mode) {
 }
 </script>
 
-<section id="waitlist">
-  <div class="container">
-    <div class="section-header">
-      <span class="eyebrow">Early Access</span>
-      <h2>Run your first AI scenario analysis free.</h2>
-      <p>Paid tiers launch soon. Join the waitlist to get early access and founding-member pricing.</p>
-    </div>
-    <div class="waitlist-box">
-      <h3>Request Early Access</h3>
-      <p>We'll email you when Pro and Essential tiers are available.</p>
-      <form class="waitlist-form" id="waitlistForm">
-        <input type="email" id="waitlistEmail" placeholder="you@example.com" required autocomplete="email">
-        <button type="submit" class="btn btn-primary">Join Waitlist</button>
-      </form>
-      <div class="waitlist-msg" id="waitlistMsg"></div>
-    </div>
-  </div>
-</section>
-
 <footer style="border-top:1px solid var(--border,#1e2d45);background:var(--bg,#0b1221);padding:48px">
   <div style="max-width:960px;margin:0 auto">
     <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:40px">
@@ -446,45 +426,6 @@ function setBilling(mode) {
     </div>
   </div>
 </footer>
-
-<script>
-(function() {
-  var form = document.getElementById('waitlistForm');
-  var input = document.getElementById('waitlistEmail');
-  var msg = document.getElementById('waitlistMsg');
-
-  form.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    var email = input.value.trim().toLowerCase();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      msg.textContent = 'Please enter a valid email address.';
-      msg.className = 'waitlist-msg err';
-      return;
-    }
-    msg.textContent = 'Sending...';
-    msg.className = 'waitlist-msg';
-    try {
-      var res = await fetch('https://soghksmuocrgtttmnete.supabase.co/functions/v1/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, source: 'landing' })
-      });
-      var data = await res.json().catch(function() { return {}; });
-      if (res.ok) {
-        msg.textContent = "You're on the list. We'll be in touch.";
-        msg.className = 'waitlist-msg ok';
-        input.value = '';
-      } else {
-        msg.textContent = data.error || 'Could not join waitlist. Please try again.';
-        msg.className = 'waitlist-msg err';
-      }
-    } catch (err) {
-      msg.textContent = 'Network error. Please try again.';
-      msg.className = 'waitlist-msg err';
-    }
-  });
-})();
-</script>
 
 </body>
 </html>
