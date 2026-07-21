@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Market Scanner — Tradolux</title>
+<meta name="description" content="Real-time market scanner: top movers, most active stocks, earnings calendar, and upcoming IPOs. Watch the market before you trade it.">
+<meta property="og:title" content="Live Market Scanner — Tradolux">
+<meta property="og:description" content="Real-time market data, top movers, and earnings calendar. Free preview.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tradolux.com/markets">
+<meta property="og:image" content="https://tradolux.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Live Market Scanner — Tradolux">
+<meta name="twitter:description" content="Real-time market scanner, top movers, earnings calendar, and upcoming IPOs. Free preview.">
+<meta name="twitter:image" content="https://tradolux.com/og-image.png">
+<link rel="canonical" href="https://tradolux.com/markets">
+<link rel="stylesheet" href="/css/marketing.css">
+<style>
+/* ── Teal brand override for this page ── */
+:root {
+  --gold:     #1a7a6e;
+  --gold-dim: #155f55;
+  --bg:       #070d1f;
+  --panel:    #0d1629;
+  --panel-2:  #111f38;
+  --border:   #1a2740;
+}
+a:hover { color: #22a090; }
+.nav-links a.cta         { background: #1a7a6e; color: #e8f5f2; }
+.nav-links a.cta:hover   { background: #22a090; color: #fff; }
+.btn-primary             { background: #1a7a6e; color: #e8f5f2; }
+.btn-primary:hover       { background: #22a090; color: #fff; }
+.section-header .eyebrow { color: #1a7a6e; }
+
+/* ── Market summary bar ── */
+.market-bar {
+  background: #080f22;
+  border-bottom: 1px solid var(--border);
+}
+.market-bar-inner {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-items: stretch;
+}
+.market-bar-inner::-webkit-scrollbar { display: none; }
+
+.ticker-pill {
+  flex: 0 0 auto;
+  padding: 10px 20px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 160px;
+}
+.ticker-pill .t-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #3a4a62;
+  font-family: monospace;
+  text-transform: uppercase;
+}
+.ticker-pill .t-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e5e9f0;
+  font-family: monospace;
+}
+.ticker-pill .t-chg {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+}
+.t-chg.bull { color: #00c076; }
+.t-chg.bear { color: #f6465d; }
+.t-chg.flat { color: #5a6678; }
+
+.bar-status {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #3a4a62;
+  font-family: monospace;
+  white-space: nowrap;
+}
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00c076;
+  flex-shrink: 0;
+  animation: livepulse 2s ease-in-out infinite;
+}
+@keyframes livepulse {
+  0%,100% { opacity:1; }
+  50%      { opacity:.35; }
+}
+
+/* ── Page layout ── */
+.preview-main {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.scanner-col {
+  flex: 0 0 60%;
+  min-width: 0;
+}
+.right-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Primary tabs ── */
+.tabs-primary {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.tab-primary-btn {
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #3a4a62;
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color .15s;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.tab-primary-btn:hover { color: #8b95a7; }
+.tab-primary-btn.active { color: #1a7a6e; border-bottom-color: #1a7a6e; }
+
+/* ── Scanner toolbar ── */
+.scanner-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tabs-secondary { display: flex; gap: 4px; }
+.tab-sec-btn {
+  padding: 5px 12px;
+  background: #0d1629;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: #3a4a62;
+  font-family: monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.tab-sec-btn:hover { color: #8b95a7; border-color: #243350; }
+.tab-sec-btn.active {
+  background: rgba(26,122,110,.12);
+  border-color: #1a7a6e;
+  color: #1a7a6e;
+}
+.scan-ts {
+  font-size: 9px;
+  color: #2a3a52;
+  font-family: monospace;
+}
+
+/* ── Scanner table ── */
+.scanner-wrap {
+  background: #080f22;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.scanner-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: monospace;
+  font-size: 12px;
+}
+.scanner-table thead th {
+  padding: 8px 10px;
+  background: #0d1629;
+  color: #2a3a52;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.scanner-table th.r, .scanner-table td.r { text-align: right; }
+.scanner-table tbody td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(26,39,64,.5);
+  color: #8b95a7;
+  vertical-align: middle;
+}
+.scanner-table tbody tr:last-child td { border-bottom: none; }
+.scanner-table tbody tr:hover td { background: rgba(26,122,110,.04); }
+.td-rank  { color: #2a3a52; font-size: 10px; width: 28px; }
+.td-sym   { font-weight: 700; color: #c8d0dd; letter-spacing: .5px; }
+.td-price { color: #e5e9f0; }
+.td-bull  { color: #00c076; font-weight: 700; }
+.td-bear  { color: #f6465d; font-weight: 700; }
+.td-vol   { color: #5a6678; }
+.td-dim   { color: #3a4a62; }
+
+/* Extended hours placeholder */
+.ext-note {
+  padding: 44px 20px;
+  text-align: center;
+}
+.ext-note strong {
+  display: block;
+  font-size: 14px;
+  color: #1a7a6e;
+  margin-bottom: 8px;
+}
+.ext-note p {
+  font-size: 13px;
+  color: #3a4a62;
+  margin-bottom: 20px;
+}
+
+/* skeleton shimmer */
+.skel {
+  display: inline-block;
+  background: linear-gradient(90deg,#0d1629 25%,#111f38 50%,#0d1629 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 3px;
+  height: 10px;
+  vertical-align: middle;
+}
+@keyframes shimmer {
+  from { background-position:-200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+/* ── Right panel cards ── */
+.panel-card {
+  background: #080f22;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.panel-card-hd {
+  padding: 9px 14px;
+  background: #0d1629;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.panel-card-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #1a7a6e;
+  text-transform: uppercase;
+  font-family: monospace;
+}
+.panel-card-sub {
+  font-size: 9px;
+  color: #2a3a52;
+  font-family: monospace;
+}
+
+/* Earnings + IPO mini tables */
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: monospace;
+  font-size: 11px;
+}
+.mini-table th {
+  padding: 6px 10px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #2a3a52;
+  border-bottom: 1px solid rgba(26,39,64,.5);
+  text-align: left;
+}
+.mini-table th.r, .mini-table td.r { text-align: right; }
+.mini-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(26,39,64,.35);
+  color: #5a6678;
+  vertical-align: middle;
+}
+.mini-table tr:last-child td { border-bottom: none; }
+.mini-table .ms   { font-weight: 700; color: #c8d0dd; }
+.mini-table .mco  { color: #8b95a7; font-size: 10px; }
+.mini-table .mbmo { color: #4c9aff; font-size: 8px; font-weight: 700; letter-spacing: .5px; }
+.mini-table .mamc { color: #e9b840; font-size: 8px; font-weight: 700; letter-spacing: .5px; }
+.mini-table .meps { color: #e5e9f0; }
+.mini-table tr.today-row td { background: rgba(26,122,110,.07); }
+.mini-table tr.today-row .ms { color: #1a7a6e; }
+
+/* CTA card */
+.cta-card {
+  background: linear-gradient(140deg,rgba(26,122,110,.14) 0%,rgba(26,122,110,.04) 100%);
+  border: 1px solid rgba(26,122,110,.3);
+  border-radius: 6px;
+  padding: 22px 18px;
+  text-align: center;
+}
+.cta-card h3 {
+  font-size: 15px;
+  color: #e5e9f0;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.cta-card .cta-sub {
+  font-size: 12px;
+  color: #5a6678;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.feature-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.ftag {
+  font-size: 9px;
+  padding: 3px 8px;
+  background: rgba(26,122,110,.1);
+  border: 1px solid rgba(26,122,110,.2);
+  border-radius: 10px;
+  color: #1a7a6e;
+  font-family: monospace;
+  letter-spacing: .5px;
+}
+.btn-cta-main {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background: #1a7a6e;
+  color: #e8f5f2;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-align: center;
+  text-decoration: none;
+  margin-bottom: 10px;
+  transition: background .15s;
+}
+.btn-cta-main:hover { background: #22a090; color: #fff; }
+.cta-signin {
+  font-size: 11px;
+  color: #3a4a62;
+  text-decoration: none;
+  display: block;
+}
+.cta-signin:hover { color: #1a7a6e; }
+
+/* ── Footer ── */
+.preview-footer {
+  background: #080f22;
+  border-top: 1px solid var(--border);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: #2a3a52;
+}
+.preview-footer a {
+  color: #3a4a62;
+  text-decoration: none;
+  margin: 0 8px;
+}
+.preview-footer a:hover { color: #1a7a6e; }
+
+/* ── Real index strip (top sticky row) ── */
+#indexRowReal {
+  position: sticky;
+  top: 0;
+  z-index: 101;
+  background: #040b1a;
+  border-bottom: 1px solid #0f1f38;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-items: center;
+}
+#indexRowReal::-webkit-scrollbar { display: none; }
+#indexRowReal .strip-label {
+  margin-left: auto;
+  padding: 7px 14px;
+  border-left: 1px solid #0f1f38;
+  font-size: 9px;
+  color: #2a3a52;
+  font-family: monospace;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* ── ETF strip (second sticky row) ── */
+#indexStrip {
+  position: sticky;
+  top: 34px;
+  z-index: 100;
+  background: #040b1a;
+  border-bottom: 1px solid #0f1f38;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-items: center;
+}
+#indexStrip::-webkit-scrollbar { display: none; }
+.idx-pill {
+  flex: 0 0 auto;
+  padding: 7px 18px;
+  border-right: 1px solid #0f1f38;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: monospace;
+  white-space: nowrap;
+}
+.idx-pill .ix-sym { font-size: 10px; font-weight: 700; color: #4a5a72; letter-spacing: 0.8px; }
+.idx-pill .ix-price { font-size: 12px; font-weight: 600; color: #c8cedd; }
+.idx-pill .ix-chg { font-size: 11px; font-weight: 700; }
+.ix-chg.bull { color: #00c076; }
+.ix-chg.bear { color: #f6465d; }
+.ix-chg.flat { color: #5a6678; }
+#indexStrip .strip-label {
+  margin-left: auto;
+  padding: 7px 14px;
+  border-left: 1px solid #0f1f38;
+  font-size: 9px;
+  color: #2a3a52;
+  font-family: monospace;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* ── Responsive ── */
+@media (max-width: 920px) {
+  .preview-main { flex-direction: column; }
+  .scanner-col, .right-col { flex: none; width: 100%; }
+}
+@media (max-width: 600px) {
+  .tab-primary-btn { padding: 8px 10px; font-size: 9px; }
+  .ticker-pill { min-width: 130px; padding: 8px 14px; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="/" class="brand">Tradolux</a>
+    <nav class="nav-links">
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/about.html">About</a>
+      <a href="/app">Sign in</a>
+      <a href="#trial" class="cta">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ── Real index strip ── -->
+<div id="indexRowReal">
+  <div class="idx-pill"><span class="ix-sym">S&amp;P 500</span><span class="ix-price" id="idx-SP500-px">—</span><span class="ix-chg flat" id="idx-SP500-chg">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">DJIA</span><span class="ix-price" id="idx-DOW-px">—</span><span class="ix-chg flat" id="idx-DOW-chg">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">NASDAQ</span><span class="ix-price" id="idx-NASDAQ-px">—</span><span class="ix-chg flat" id="idx-NASDAQ-chg">—</span></div>
+  <span class="strip-label">LIVE INDEXES</span>
+</div>
+
+<!-- ── ETF strip ── -->
+<div id="indexStrip">
+  <div class="idx-pill"><span class="ix-sym">SPY</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">QQQ</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">DIA</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">IWM</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <div class="idx-pill"><span class="ix-sym">VIX</span><span class="ix-price">—</span><span class="ix-chg flat">—</span></div>
+  <span class="strip-label">LIVE ETFs</span>
+</div>
+<p style="text-align:center;font-size:10px;color:#4a5470;padding:2px 14px 4px;margin:0;font-family:monospace;">
+  Approximate index values via ETFs: SPY (S&amp;P 500 ×10), QQQ (Nasdaq ×37.5), DIA (Dow ×100)
+  · <span id="barTs" style="color:#1a7a6e;"></span>
+</p>
+
+<!-- ── Main content ── -->
+<div class="preview-main">
+
+  <!-- LEFT: Scanner -->
+  <div class="scanner-col">
+    <div class="tabs-primary">
+      <button class="tab-primary-btn active" data-tab="regular">REGULAR HOURS</button>
+      <button class="tab-primary-btn" data-tab="pre">PRE-MARKET</button>
+      <button class="tab-primary-btn" data-tab="after">AFTER HOURS</button>
+    </div>
+
+    <div class="scanner-toolbar">
+      <div class="tabs-secondary">
+        <button class="tab-sec-btn active" data-sub="active">MOST ACTIVE</button>
+        <button class="tab-sec-btn" data-sub="volatile">MOST VOLATILE</button>
+      </div>
+      <span class="scan-ts" id="scanTs">Loading…</span>
+    </div>
+
+    <!-- Regular hours table -->
+    <div id="scannerWrap" class="scanner-wrap">
+      <table class="scanner-table">
+        <thead><tr id="scannerHeads">
+          <th>#</th><th>SYMBOL</th><th class="r">PRICE</th><th class="r">CHANGE</th><th class="r">VOLUME</th><th class="r">REL.VOL</th>
+        </tr></thead>
+        <tbody id="scannerBody">
+          <!-- skeleton rows -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Extended hours placeholder (hidden by default) -->
+    <div id="extHoursWrap" class="scanner-wrap" style="display:none">
+      <div class="ext-note">
+        <strong>Extended Hours Scanning</strong>
+        <p>Pre-market and after-hours data is available inside the<br>Tradolux terminal for Pro and Elite subscribers.</p>
+        <a href="/app" class="btn-cta-main" style="display:inline-block;width:auto;padding:10px 22px;font-size:12px;">Open Terminal →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Panels -->
+  <div class="right-col">
+
+    <!-- Earnings This Week -->
+    <div class="panel-card">
+      <div class="panel-card-hd">
+        <span class="panel-card-title">Earnings This Week</span>
+        <span class="panel-card-sub">Estimates · Dates subject to change</span>
+      </div>
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>SYM</th><th>COMPANY</th><th>DATE</th><th>TIME</th><th class="r">EST. EPS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="ms">GOOGL</td><td class="mco">Alphabet</td><td>Jul 22</td><td class="mamc">AMC</td><td class="r meps">$2.87</td>
+          </tr>
+          <tr>
+            <td class="ms">TSLA</td><td class="mco">Tesla</td><td>Jul 22</td><td class="mamc">AMC</td><td class="r meps">$0.62</td>
+          </tr>
+          <tr>
+            <td class="ms">INTC</td><td class="mco">Intel</td><td>Jul 23</td><td class="mamc">AMC</td><td class="r meps">&mdash;</td>
+          </tr>
+          <tr>
+            <td class="ms">MSFT</td><td class="mco">Microsoft</td><td>Jul 29</td><td class="mamc">AMC</td><td class="r meps">&mdash;</td>
+          </tr>
+          <tr>
+            <td class="ms">META</td><td class="mco">Meta Platforms</td><td>Jul 29</td><td class="mamc">AMC</td><td class="r meps">&mdash;</td>
+          </tr>
+          <tr>
+            <td class="ms">AAPL</td><td class="mco">Apple</td><td>Jul 30</td><td class="mamc">AMC</td><td class="r meps">&mdash;</td>
+          </tr>
+          <tr>
+            <td class="ms">AMZN</td><td class="mco">Amazon</td><td>Jul 30</td><td class="mamc">AMC</td><td class="r meps">&mdash;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Upcoming IPOs -->
+    <div class="panel-card">
+      <div class="panel-card-hd">
+        <span class="panel-card-title">Upcoming IPOs</span>
+        <span class="panel-card-sub">IPO calendar updates weekly</span>
+      </div>
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>COMPANY</th><th>TICKER</th><th>EXP. DATE</th><th class="r">PRICE RANGE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mco">Anthropic</td><td class="ms">TBD</td><td>Oct 2026 (targeted)</td><td class="r">&mdash;</td>
+          </tr>
+          <tr>
+            <td class="mco">Revolut</td><td class="ms">TBD</td><td>Q4 2026</td><td class="r">&mdash;</td>
+          </tr>
+          <tr>
+            <td class="mco">OpenAI</td><td class="ms">TBD</td><td>Late 2026 (rumored)</td><td class="r">&mdash;</td>
+          </tr>
+          <tr>
+            <td class="mco">Stripe</td><td class="ms">TBD</td><td>2026 (rumored)</td><td class="r">&mdash;</td>
+          </tr>
+          <tr>
+            <td class="mco">Databricks</td><td class="ms">TBD</td><td>2027 (delayed)</td><td class="r">&mdash;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Market News -->
+    <div class="panel-card">
+      <div class="panel-card-hd">
+        <span class="panel-card-title">Market News</span>
+        <span class="panel-card-sub" id="newsTs">Loading...</span>
+      </div>
+      <div id="newsBody" style="display:grid;gap:1px;background:var(--border);"></div>
+      <div style="padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:#3a4a62;text-align:center;">
+        Live news feed available in Pro and Elite plans →
+        <a href="/app" style="color:#1a7a6e;font-weight:600;"> Start free trial</a>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-card" id="trial">
+      <h3>You're watching the market.<br>Trade it smarter.</h3>
+      <div style="background:#0e1830;border-radius:6px;padding:10px;margin-bottom:12px;font-family:monospace;font-size:10px;">
+        <div style="color:#1a7a6e;font-weight:700;margin-bottom:6px;">⚡ LIVE AI ANALYSIS — AAPL</div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2748;padding:3px 0;">
+          <span style="color:#5a6678;">CHART INTELLIGENCE</span>
+          <span style="color:#2a9d6e;">● BULLISH</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2748;padding:3px 0;">
+          <span style="color:#5a6678;">SENTIMENT</span>
+          <span style="color:#8a92a6;">● NEUTRAL</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2748;padding:3px 0;">
+          <span style="color:#5a6678;">FUNDAMENTAL</span>
+          <span style="color:#2a9d6e;">● STRONG</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2748;padding:3px 0;">
+          <span style="color:#5a6678;">RISK MANAGEMENT</span>
+          <span style="color:#d94f4f;">● CAUTION</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;">
+          <span style="color:#5a6678;">MACRO</span>
+          <span style="color:#8a92a6;">● HEADWIND</span>
+        </div>
+      </div>
+      <p class="cta-sub">5 AI agents. Live signals. Institutional-grade analysis.<br>Built for independent traders.</p>
+      <div class="feature-tags">
+        <span class="ftag">REAL-TIME DATA</span>
+        <span class="ftag">AI ANALYSIS</span>
+        <span class="ftag">MULTI-PANE CHARTS</span>
+        <span class="ftag">LIVE SIGNALS</span>
+        <span class="ftag">INSTANT ASSESSMENT</span>
+      </div>
+      <a href="/app" class="btn-cta-main">Start 14-day free trial</a>
+      <a href="/app" class="cta-signin">Already have an account? Sign in →</a>
+    </div>
+
+  </div><!-- /right-col -->
+</div><!-- /preview-main -->
+
+<footer class="preview-footer">
+  <span>© 2026 Tradolux. Not financial advice.</span>
+  <span>
+    <a href="/legal/privacy.html">Privacy</a>
+    <a href="/legal/terms.html">Terms</a>
+    <a href="/legal/disclaimer.html">Disclaimer</a>
+    <a href="/app">Sign in</a>
+    <a href="/app">Get started</a>
+  </span>
+</footer>
+
+<script>
+(function () {
+'use strict';
+
+const INDEX_SYMS = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIXY'];
+
+const INDEX_LABELS = {
+  SPY:  'SPY (S&P ETF)',
+  QQQ:  'QQQ (Nasdaq ETF)',
+  DIA:  'DIA (Dow ETF)',
+  IWM:  'IWM (Russell ETF)',
+  VIXY: 'VIX (Vol proxy)',
+};
+
+const SCANNER_SYMS = [
+  'AAPL','TSLA','NVDA','AMD','MSFT','AMZN','META','GOOGL','NFLX','SPY',
+  'QQQ','SOXS','SOXL','TQQQ','SQQQ','PLTR','COIN','MSTR','GME','AMC',
+  'BABA','NIO','RIVN','LCID','F','GM','BAC','JPM','GS','XOM','CVX',
+  'INTC','QCOM','ARM','SMCI','MRVL'
+];
+
+const ALL_SYMS = [...new Set([...INDEX_SYMS, ...SCANNER_SYMS])];
+const ENDPOINT = '/.netlify/functions/market-snapshot';
+
+let snapshots  = {};
+let primaryTab = 'regular';
+let subTab     = 'active';
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function price(snap)  { return snap?.latestTrade?.p || snap?.dailyBar?.c || null; }
+function prev(snap)   { return snap?.prevDailyBar?.c || null; }
+function chgPct(snap) {
+  const p = price(snap), pv = prev(snap);
+  return (p && pv) ? (p - pv) / pv * 100 : null;
+}
+function vol(snap)    { return snap?.dailyBar?.v || 0; }
+function relVol(snap) {
+  const dv = snap?.dailyBar?.v || 0;
+  const pv = snap?.prevDailyBar?.v || 0;
+  return pv > 0 ? dv / pv : null;
+}
+function atrPct(snap) {
+  const h = snap?.dailyBar?.h, l = snap?.dailyBar?.l, pv = prev(snap);
+  return (h && l && pv) ? (h - l) / pv * 100 : null;
+}
+
+function fmtPrice(p)  { return p != null ? '$' + p.toFixed(2) : '—'; }
+function fmtChg(c)    {
+  if (c == null) return '—';
+  return (c >= 0 ? '+' : '') + c.toFixed(2) + '%';
+}
+function fmtVol(v) {
+  if (!v) return '—';
+  if (v >= 1e9) return (v/1e9).toFixed(1) + 'B';
+  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return (v/1e3).toFixed(0) + 'K';
+  return String(v);
+}
+function chgClass(c) {
+  if (c == null) return 'td-dim';
+  return c >= 0 ? 'td-bull' : 'td-bear';
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function ts() {
+  return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+// ── Fetch ────────────────────────────────────────────────────────────────────
+
+async function fetchAll() {
+  try {
+    // Batch into groups of 10 to avoid URL length limits
+    const BATCH_SIZE = 10;
+    const batches = [];
+    for (let i = 0; i < ALL_SYMS.length; i += BATCH_SIZE) {
+      batches.push(ALL_SYMS.slice(i, i + BATCH_SIZE));
+    }
+
+    const results = await Promise.all(
+      batches.map(batch =>
+        fetch(ENDPOINT + '?symbols=' + batch.join(','))
+          .then(r => {
+            console.log('[market-preview] batch status:', r.status, 'symbols:', batch.join(','));
+            return r.ok ? r.json() : {};
+          })
+          .catch(e => { console.warn('[market-preview] batch error:', e); return {}; })
+      )
+    );
+
+    // Merge all batch results
+    snapshots = Object.assign({}, ...results);
+    console.log('[market-preview] loaded symbols:', Object.keys(snapshots).length);
+
+    if (Object.keys(snapshots).length === 0) {
+      document.getElementById('scanTs').textContent = 'Market data temporarily unavailable. Retrying in 30s…';
+      renderPlaceholder();
+      scheduleRetry();
+      return;
+    }
+
+    renderIndexStrip();
+    renderScanner();
+    document.getElementById('scanTs').textContent = 'Updated ' + ts();
+    const barTsEl = document.getElementById('barTs');
+    if (barTsEl) barTsEl.textContent = 'Live · ' + ts();
+  } catch (e) {
+    console.warn('[market-preview] fetchAll error:', e);
+    document.getElementById('scanTs').textContent = 'Market data temporarily unavailable. Retrying in 30s…';
+    renderPlaceholder();
+    scheduleRetry();
+  }
+}
+
+let _retryTimer = null;
+function scheduleRetry() {
+  if (_retryTimer) return;
+  _retryTimer = setTimeout(() => { _retryTimer = null; fetchAll(); }, 30000);
+}
+
+function renderPlaceholder() {
+  document.getElementById('scannerBody').innerHTML =
+    `<tr><td colspan="6" style="text-align:center;padding:20px;color:#4a5470;">
+      Market data loading… Right-click → Inspect → Console for details.
+    </td></tr>` +
+    SCANNER_SYMS.slice(0, 19).map((sym, i) => `
+      <tr>
+        <td class="td-rank">${i+2}</td>
+        <td class="td-sym">${esc(sym)}</td>
+        <td class="r td-dim">—</td>
+        <td class="r td-dim">—</td>
+        <td class="r td-dim">—</td>
+        <td class="r td-dim">—</td>
+      </tr>`).join('');
+}
+
+async function fetchBarOnly() {
+  try {
+    const r = await fetch(ENDPOINT + '?symbols=' + INDEX_SYMS.join(','));
+    if (!r.ok) return;
+    const data = await r.json();
+    Object.assign(snapshots, data);
+    renderIndexStrip();
+    const barTsEl2 = document.getElementById('barTs');
+    if (barTsEl2) barTsEl2.textContent = 'Live · ' + ts();
+  } catch (e) { /* silent */ }
+}
+
+// ── Render index strip ───────────────────────────────────────────────────────
+
+const STRIP_SYMS   = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIXY'];
+const STRIP_LABELS = { SPY:'SPY', QQQ:'QQQ', DIA:'DIA', IWM:'IWM', VIXY:'VIX' };
+
+function fmtIndexVal(v) {
+  if (v == null || v === 0) return '—';
+  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function fetchIndexData() {
+  try {
+    const r = await fetch('/.netlify/functions/index-data');
+    console.log('[index-data] status:', r.status);
+    const text = await r.text();
+    console.log('[index-data] raw response:', text.substring(0, 300));
+    if (!r.ok) return;
+    const data = JSON.parse(text);
+    if (data.error) return;
+    renderIndexRow(data);
+    const barTs = document.getElementById('barTs');
+    if (barTs) barTs.textContent = 'Live · ' + ts();
+  } catch (e) { console.warn('[index-data] error:', e); }
+}
+
+const MULTIPLIERS = {
+  SP500:  10,     // SPY ~$738 × 10 ≈ S&P 500 ~7,380
+  DOW:    100,    // DIA ~$497 × 100 ≈ Dow ~49,700
+  NASDAQ: 37.5,   // QQQ ~$712 × 37.5 ≈ Nasdaq ~26,700
+  VIX:    1,      // VIXY ≈ VIX level directly
+};
+
+function renderIndexRow(data) {
+  for (const [key, item] of Object.entries(data)) {
+    const pxEl  = document.getElementById(`idx-${key}-px`);
+    const chgEl = document.getElementById(`idx-${key}-chg`);
+    if (!pxEl || !chgEl) continue;
+    const mult = MULTIPLIERS[key] || 1;
+    const displayPrice = item.price != null ? item.price * mult : null;
+    pxEl.textContent = displayPrice != null ? fmtIndexVal(displayPrice) : '—';
+    const dp = item.changePct;
+    const cc = dp == null ? 'flat' : dp >= 0 ? 'bull' : 'bear';
+    chgEl.textContent = dp != null ? (dp >= 0 ? '+' : '') + dp.toFixed(2) + '%' : '—';
+    chgEl.className = `ix-chg ${cc}`;
+  }
+}
+
+function renderIndexStrip() {
+  const strip = document.getElementById('indexStrip');
+  if (!strip) return;
+  const pills = STRIP_SYMS.map(sym => {
+    const snap = snapshots[sym];
+    const p    = price(snap);
+    const c    = chgPct(snap);
+    const cc   = c == null ? 'flat' : c >= 0 ? 'bull' : 'bear';
+    return `<div class="idx-pill">
+      <span class="ix-sym">${INDEX_LABELS[sym]}</span>
+      <span class="ix-price">${fmtPrice(p)}</span>
+      <span class="ix-chg ${cc}">${fmtChg(c)}</span>
+    </div>`;
+  }).join('');
+  strip.innerHTML = pills + `<span class="strip-label">LIVE ETFs</span>`;
+}
+
+// ── Render bar ───────────────────────────────────────────────────────────────
+
+function renderBar() {
+  const wrap = document.getElementById('marketBarInner');
+  const html = INDEX_SYMS.map(sym => {
+    const snap = snapshots[sym];
+    const p    = price(snap);
+    const c    = chgPct(snap);
+    const cc   = c == null ? 'flat' : c >= 0 ? 'bull' : 'bear';
+    return `<div class="ticker-pill">
+      <span class="t-label">${esc(INDEX_LABELS[sym])}</span>
+      <span class="t-price">${fmtPrice(p)}</span>
+      <span class="t-chg ${cc}">${fmtChg(c)}</span>
+    </div>`;
+  }).join('');
+
+  const statusDiv = `<div class="bar-status">
+    <div class="live-dot"></div>
+    <span id="barTs">${document.getElementById('barTs')?.textContent || 'Live'}</span>
+  </div>`;
+
+  wrap.innerHTML = html + statusDiv;
+}
+
+// ── Render scanner ────────────────────────────────────────────────────────────
+
+function renderSkeleton() {
+  const cols = subTab === 'active' ? 6 : 7;
+  document.getElementById('scannerBody').innerHTML =
+    Array.from({length: 20}, (_, i) => {
+      const w = [28 + (i * 7) % 22];
+      return `<tr><td class="td-rank">${i+1}</td>
+        <td class="td-sym"><span class="skel" style="width:${w}px"></span></td>
+        ${Array.from({length: cols-2}, () => `<td class="r"><span class="skel" style="width:${40+Math.floor(Math.random()*20)}px"></span></td>`).join('')}
+      </tr>`;
+    }).join('');
+}
+
+function renderScanner() {
+  if (!snapshots || Object.keys(snapshots).length === 0) {
+    renderPlaceholder();
+    return;
+  }
+
+  const scanWrap = document.getElementById('scannerWrap');
+  const extWrap  = document.getElementById('extHoursWrap');
+
+  if (primaryTab !== 'regular') {
+    scanWrap.style.display = 'none';
+    extWrap.style.display  = 'block';
+    return;
+  }
+  scanWrap.style.display = 'block';
+  extWrap.style.display  = 'none';
+
+  const rows = SCANNER_SYMS.map(sym => ({
+    sym,
+    p:   price(snapshots[sym]),
+    c:   chgPct(snapshots[sym]),
+    v:   vol(snapshots[sym]),
+    rv:  relVol(snapshots[sym]),
+    atr: atrPct(snapshots[sym]),
+    hi:  snapshots[sym]?.dailyBar?.h || null,
+    lo:  snapshots[sym]?.dailyBar?.l || null,
+  }));
+
+  if (subTab === 'active') {
+    rows.sort((a, b) => (b.v || 0) - (a.v || 0));
+    document.getElementById('scannerHeads').innerHTML =
+      '<th>#</th><th>SYMBOL</th><th class="r">PRICE</th><th class="r">CHANGE</th><th class="r">VOLUME</th><th class="r">REL.VOL</th>';
+
+    document.getElementById('scannerBody').innerHTML =
+      rows.slice(0, 20).map((r, i) => `
+        <tr>
+          <td class="td-rank">${i+1}</td>
+          <td class="td-sym">${esc(r.sym)}</td>
+          <td class="r td-price">${fmtPrice(r.p)}</td>
+          <td class="r ${chgClass(r.c)}">${fmtChg(r.c)}</td>
+          <td class="r td-vol">${fmtVol(r.v)}</td>
+          <td class="r td-dim">${r.rv != null ? r.rv.toFixed(1)+'x' : '—'}</td>
+        </tr>`).join('');
+
+  } else {
+    rows.sort((a, b) => Math.abs(b.c || 0) - Math.abs(a.c || 0));
+    document.getElementById('scannerHeads').innerHTML =
+      '<th>#</th><th>SYMBOL</th><th class="r">PRICE</th><th class="r">CHANGE</th><th class="r">ATR%</th><th class="r">SESSION HIGH</th><th class="r">SESSION LOW</th>';
+
+    document.getElementById('scannerBody').innerHTML =
+      rows.slice(0, 20).map((r, i) => `
+        <tr>
+          <td class="td-rank">${i+1}</td>
+          <td class="td-sym">${esc(r.sym)}</td>
+          <td class="r td-price">${fmtPrice(r.p)}</td>
+          <td class="r ${chgClass(r.c)}">${fmtChg(r.c)}</td>
+          <td class="r td-vol">${r.atr != null ? r.atr.toFixed(1)+'%' : '—'}</td>
+          <td class="r td-dim">${r.hi != null ? '$'+r.hi.toFixed(2) : '—'}</td>
+          <td class="r td-dim">${r.lo != null ? '$'+r.lo.toFixed(2) : '—'}</td>
+        </tr>`).join('');
+  }
+}
+
+// ── Tab wiring ────────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.tab-primary-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.tab-primary-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    primaryTab = this.dataset.tab || 'regular';
+    renderScanner();
+  });
+});
+
+document.querySelectorAll('.tab-sec-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.tab-sec-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    subTab = this.dataset.sub;
+    renderScanner();
+  });
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+
+async function fetchNews() {
+  try {
+    const r = await fetch('/.netlify/functions/news-proxy');
+    if (!r.ok) return;
+    const articles = await r.json();
+    if (!Array.isArray(articles) || !articles.length) return;
+
+    const timeAgo = (ts) => {
+      const diff = Math.floor((Date.now() - ts * 1000) / 60000);
+      if (diff < 60) return diff + 'm ago';
+      if (diff < 1440) return Math.floor(diff / 60) + 'h ago';
+      return Math.floor(diff / 1440) + 'd ago';
+    };
+
+    document.getElementById('newsBody').innerHTML = articles.map(a => `
+      <div style="background:var(--panel);padding:10px 14px;">
+        <a href="${a.url}" target="_blank" rel="noopener"
+           style="font-size:12px;color:#c8cedd;line-height:1.45;margin-bottom:5px;display:block;text-decoration:none;">
+          ${a.headline}
+        </a>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="color:#1a7a6e;font-size:10px;font-weight:700;font-family:monospace;">
+            ${(a.source || 'NEWS').toUpperCase()}
+          </span>
+          <span style="color:#3a4a62;font-size:10px;">${timeAgo(a.datetime)}</span>
+        </div>
+      </div>`).join('');
+    document.getElementById('newsTs').textContent = 'Updated ' + ts();
+  } catch (e) {
+    console.warn('[news] fetch error:', e);
+  }
+}
+
+renderSkeleton();
+fetchAll();
+fetchIndexData();
+fetchNews();
+setInterval(fetchBarOnly,   30000);  // ETF strip: 30s
+setInterval(fetchIndexData, 60000);  // real index row: 60s
+setInterval(fetchAll,       60000);  // full scanner: 60s
+setInterval(fetchNews,      60000);  // news: 60s
+
+})();
+</script>
+
+</body>
+</html>
