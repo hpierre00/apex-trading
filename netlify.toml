@@ -192,3 +192,8 @@
 [[edge_functions]]
   path = "/*"
   function = "inject-chrome"
+
+[[redirects]]
+  from = "/waitlist"
+  to = "/"
+  status = 301
