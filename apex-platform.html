@@ -6063,6 +6063,30 @@ async function connectAlpaca() {
           chartState.visibleStart = Math.max(0, total - chartState.visibleCount);
           renderChart();
         }
+        // Background-load real bars for other watchlist symbols so their
+        // chgPct is anchored to the real previous-session close, not the
+        // simulated genCandles data. Stagger requests to avoid rate limits.
+        (async () => {
+          for (const wlSym of state.watchlist) {
+            if (wlSym === state.symbol) continue; // already loaded above
+            try {
+              const wlRes = await loadAlpacaBars(wlSym, '1D', '1M');
+              if (wlRes.bars && wlRes.bars.length) {
+                state.candles[wlSym] = wlRes.bars;
+                const refClose = sessionReferenceClose(wlRes.bars) ?? wlRes.bars.at(-1).c;
+                const lastC = wlRes.bars.at(-1).c;
+                const livePx = state.prices[wlSym]?.px || lastC;
+                state.prices[wlSym] = {
+                  px: livePx,
+                  chg: livePx - refClose,
+                  chgPct: refClose ? ((livePx - refClose) / refClose) * 100 : 0
+                };
+              }
+            } catch (_) { /* non-critical */ }
+            await new Promise(r => setTimeout(r, 200)); // stagger
+          }
+          scheduleWatchlistUpdate();
+        })();
       } else if (m.T === 't') {
         if (!state.prices[m.S]) state.prices[m.S] = { px: 0, chg: 0, chgPct: 0 };
         const prevPx = state.prices[m.S].px;
