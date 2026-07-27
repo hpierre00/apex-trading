@@ -1066,20 +1066,6 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
   <!-- content populated by renderAdminDashboard() -->
 </div>
 
-<!-- ADMIN FLOATING TOGGLE — visible only for admin users -->
-<div id="adminFloatingBtn" onclick="adminToggleView()" title="Toggle Admin / App"
-  style="display:none;position:fixed;top:22px;left:22px;z-index:99999;
-         align-items:center;gap:8px;
-         background:linear-gradient(135deg,#6e1a7a,#c9a84c);
-         border:none;border-radius:40px;padding:9px 16px 9px 12px;
-         cursor:pointer;box-shadow:0 4px 20px rgba(110,26,122,0.5);
-         font-family:monospace;font-size:10px;font-weight:700;color:#fff;
-         letter-spacing:1.5px;user-select:none;transition:transform 0.15s,box-shadow 0.15s;"
-  onmouseenter="this.style.transform='scale(1.05)';this.style.boxShadow='0 6px 28px rgba(110,26,122,0.7)'"
-  onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(110,26,122,0.5)'">
-  <span id="adminFloatingIcon" style="font-size:14px;">⚙</span>
-  <span id="adminFloatingLabel">ADMIN</span>
-</div>
 
 <div class="app">
 
@@ -1092,6 +1078,20 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
     <div class="search">
       <input id="symSearch" placeholder="Search ticker..." autocomplete="off">
     </div>
+    <!-- ADMIN FLOATING TOGGLE — visible only for admin users -->
+<div id="adminFloatingBtn" onclick="adminToggleView()" title="Toggle Admin / App"
+  style="display:none;z-index:99999;
+         align-items:center;gap:8px;
+         background:linear-gradient(135deg,#6e1a7a,#c9a84c);
+         border:none;border-radius:40px;padding:9px 16px 9px 12px;
+         cursor:pointer;box-shadow:0 4px 20px rgba(110,26,122,0.5);
+         font-family:monospace;font-size:10px;font-weight:700;color:#fff;
+         letter-spacing:1.5px;user-select:none;transition:transform 0.15s,box-shadow 0.15s;"
+  onmouseenter="this.style.transform='scale(1.05)';this.style.boxShadow='0 6px 28px rgba(110,26,122,0.7)'"
+  onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(110,26,122,0.5)'">
+  <span id="adminFloatingIcon" style="font-size:14px;">⚙</span>
+  <span id="adminFloatingLabel">ADMIN</span>
+</div>
     <div class="spacer"></div>
     <div class="conn-pill sim" id="connPill">
       <span class="dot"></span><span id="connLabel">SIMULATED DATA</span>
