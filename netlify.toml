@@ -15,6 +15,9 @@
 [functions."evaluate-signal-outcomes"]
   schedule = "0,30 14-21 * * 1-5"
 
+[functions."compute-agent-performance"]
+  schedule = "0 22 * * 1-5"
+
 [functions."update-agent-weights"]
   schedule = "0 10 * * 2-6"
 

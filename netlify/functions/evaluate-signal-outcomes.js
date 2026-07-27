@@ -3,7 +3,7 @@
 // Fetches signals whose eval window has passed, pulls Polygon bars, scores outcome.
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://soghksmuocrgtttmnete.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASESKTradoLux;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
 
 const TF_MINUTES = {
