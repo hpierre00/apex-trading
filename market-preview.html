@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Demo — Tradolux AI Trading Terminal</title>
-<meta name="description" content="Watch five AI agents deliver instant stock analysis and live trading signals on AAPL in real time — chart intelligence, sentiment, risk, fundamental, and macro in one AI trading terminal. See Tradolux in action.">
-<meta property="og:title" content="Live Demo — Tradolux AI Trading Terminal">
+<title>Live Demo â Tradolux AI Trading Terminal</title>
+<meta name="description" content="Watch five AI agents deliver instant stock analysis and live trading signals on AAPL in real time â chart intelligence, sentiment, risk, fundamental, and macro in one AI trading terminal. See Tradolux in action.">
+<meta property="og:title" content="Live Demo â Tradolux AI Trading Terminal">
 <meta property="og:description" content="Five AI agents. One signal. See Tradolux deliver institutional-grade analysis in real time.">
 <meta property="og:url" content="https://tradolux.com/market-preview">
 <link rel="canonical" href="https://tradolux.com/market-preview">
@@ -38,7 +38,7 @@ html, body {
   user-select: none;
 }
 
-/* ─── LAYOUT ──────────────────────────────────────────────── */
+/* âââ LAYOUT ââââââââââââââââââââââââââââââââââââââââââââââââ */
 .demo {
   display: flex;
   flex-direction: column;
@@ -46,7 +46,7 @@ html, body {
   position: relative;
 }
 
-/* ─── HEADER ─────────────────────────────────────────────── */
+/* âââ HEADER âââââââââââââââââââââââââââââââââââââââââââââââ */
 .hdr {
   display: flex;
   align-items: center;
@@ -123,14 +123,14 @@ html, body {
 .s-sep    { color: var(--border2); }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
 
-/* ─── MAIN ───────────────────────────────────────────────── */
+/* âââ MAIN âââââââââââââââââââââââââââââââââââââââââââââââââ */
 .main {
   flex: 1;
   display: flex;
   min-height: 0;
 }
 
-/* ─── CHART PANEL ────────────────────────────────────────── */
+/* âââ CHART PANEL ââââââââââââââââââââââââââââââââââââââââââ */
 .chart-panel {
   flex: 1;
   display: flex;
@@ -210,7 +210,7 @@ canvas { display: block; flex: 1; width: 100%; }
 }
 .flash.on { opacity: 1; }
 
-/* ─── RIGHT PANEL ────────────────────────────────────────── */
+/* âââ RIGHT PANEL ââââââââââââââââââââââââââââââââââââââââââ */
 .right {
   width: 330px;
   display: flex;
@@ -218,7 +218,7 @@ canvas { display: block; flex: 1; width: 100%; }
   flex-shrink: 0;
 }
 
-/* ─── AGENTS PANEL ───────────────────────────────────────── */
+/* âââ AGENTS PANEL âââââââââââââââââââââââââââââââââââââââââ */
 .agents {
   flex: 1;
   display: flex;
@@ -336,7 +336,7 @@ canvas { display: block; flex: 1; width: 100%; }
 .bf-bull { background: var(--bull); }
 .bf-neu  { background: var(--gold); }
 
-/* ─── SIGNAL CARD ────────────────────────────────────────── */
+/* âââ SIGNAL CARD ââââââââââââââââââââââââââââââââââââââââââ */
 .sig-card {
   margin: 6px 7px 5px;
   background: linear-gradient(135deg, rgba(0,212,170,.1) 0%, rgba(0,212,170,.04) 100%);
@@ -398,7 +398,7 @@ canvas { display: block; flex: 1; width: 100%; }
 }
 .sc-meta span { color: var(--gold); font-weight: 700; }
 
-/* ─── CHAT PANEL ─────────────────────────────────────────── */
+/* âââ CHAT PANEL âââââââââââââââââââââââââââââââââââââââââââ */
 .chat {
   height: 210px;
   display: flex;
@@ -428,7 +428,7 @@ canvas { display: block; flex: 1; width: 100%; }
   gap: 6px;
   color: var(--muted);
 }
-.msg-user::before { content: '›'; color: var(--gold); font-weight: 700; flex-shrink: 0; }
+.msg-user::before { content: 'âº'; color: var(--gold); font-weight: 700; flex-shrink: 0; }
 
 .msg-ai {
   background: var(--bg3);
@@ -476,7 +476,7 @@ canvas { display: block; flex: 1; width: 100%; }
   flex-shrink: 0;
 }
 
-/* ─── CURSOR ─────────────────────────────────────────────── */
+/* âââ CURSOR âââââââââââââââââââââââââââââââââââââââââââââââ */
 .csr {
   display: inline-block;
   width: 6px; height: 11px;
@@ -487,7 +487,7 @@ canvas { display: block; flex: 1; width: 100%; }
 }
 @keyframes csrBlink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-/* ─── PROGRESS BAR ───────────────────────────────────────── */
+/* âââ PROGRESS BAR âââââââââââââââââââââââââââââââââââââââââ */
 .progress {
   position: absolute;
   bottom: 0; left: 0;
@@ -498,7 +498,7 @@ canvas { display: block; flex: 1; width: 100%; }
   z-index: 5;
 }
 
-/* ─── CTA OVERLAY ────────────────────────────────────────── */
+/* âââ CTA OVERLAY ââââââââââââââââââââââââââââââââââââââââââ */
 .cta {
   position: absolute;
   inset: 0;
@@ -589,6 +589,7 @@ canvas { display: block; flex: 1; width: 100%; }
 </head>
 <body>
 <div class="demo" id="demo">
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Live Demo: Tradolux AI Trading Terminal in Action</h1>
 
   <!-- HEADER -->
   <header class="hdr">
@@ -602,11 +603,11 @@ canvas { display: block; flex: 1; width: 100%; }
     </div>
     <div class="divider"></div>
     <div class="status">
-      <span class="s-dot s-live">●</span>LIVE
-      <span class="s-sep">·</span>
-      <span class="s-dot s-agents">●</span><span id="agentCt">0</span> AGENTS ACTIVE
-      <span class="s-sep">·</span>
-      <span class="s-dot s-mkt">●</span>MARKET OPEN
+      <span class="s-dot s-live">â</span>LIVE
+      <span class="s-sep">Â·</span>
+      <span class="s-dot s-agents">â</span><span id="agentCt">0</span> AGENTS ACTIVE
+      <span class="s-sep">Â·</span>
+      <span class="s-dot s-mkt">â</span>MARKET OPEN
     </div>
   </header>
 
@@ -627,7 +628,7 @@ canvas { display: block; flex: 1; width: 100%; }
       </div>
       <canvas id="chart"></canvas>
       <div class="sig-strip scanning" id="sigStrip">
-        <span class="sig-strip-icon">⚡</span>
+        <span class="sig-strip-icon">â¡</span>
         <span class="sig-strip-text" id="sigText">SCANNING FOR SIGNALS...</span>
         <span class="sig-tag buy" id="sigTag">BUY</span>
       </div>
@@ -636,9 +637,9 @@ canvas { display: block; flex: 1; width: 100%; }
 
       <!-- CTA -->
       <div class="cta" id="cta">
-        <div class="cta-eyebrow">INSTITUTIONAL-GRADE AI • RETAIL PRICE</div>
+        <div class="cta-eyebrow">INSTITUTIONAL-GRADE AI â¢ RETAIL PRICE</div>
         <div class="cta-title">Five AI Agents.<br><span>One Unfair Edge.</span></div>
-        <div class="cta-sub">Tradolux runs 5 simultaneous market intelligence agents in real time — giving you the signal quality of a prop desk in a single terminal.</div>
+        <div class="cta-sub">Tradolux runs 5 simultaneous market intelligence agents in real time â giving you the signal quality of a prop desk in a single terminal.</div>
         <div class="cta-stats">
           <div class="cta-stat">
             <div class="cta-stat-num">78<span>%</span></div>
@@ -653,8 +654,8 @@ canvas { display: block; flex: 1; width: 100%; }
             <div class="cta-stat-lbl">AI AGENTS LIVE</div>
           </div>
         </div>
-        <a href="/app" class="cta-btn">Try Tradolux Free →</a>
-        <button class="cta-replay" id="replayBtn">↺ Replay demo</button>
+        <a href="/app" class="cta-btn">Try Tradolux Free â</a>
+        <button class="cta-replay" id="replayBtn">âº Replay demo</button>
       </div>
     </div>
 
@@ -665,13 +666,13 @@ canvas { display: block; flex: 1; width: 100%; }
       <div class="agents">
         <div class="panel-hdr">
           <span class="ph-title">AI AGENTS</span>
-          <span class="ph-status analyzing" id="panelStatus">● ANALYZING</span>
+          <span class="ph-status analyzing" id="panelStatus">â ANALYZING</span>
         </div>
         <div class="agents-list" id="agentsList"></div>
         <!-- Signal card -->
         <div class="sig-card" id="sigCard">
           <div class="sc-hdr">
-            <div class="sc-action">⚡ BUY AAPL</div>
+            <div class="sc-action">â¡ BUY AAPL</div>
             <div class="sc-badge">78% CONFIDENCE</div>
           </div>
           <div class="sc-levels">
@@ -688,7 +689,7 @@ canvas { display: block; flex: 1; width: 100%; }
               <div class="sc-lv-val">$196.90</div>
             </div>
           </div>
-          <div class="sc-meta">Risk/Reward <span>1 : 2.1</span> · ATR-scaled stop · Timeframe: 15m</div>
+          <div class="sc-meta">Risk/Reward <span>1 : 2.1</span> Â· ATR-scaled stop Â· Timeframe: 15m</div>
         </div>
       </div>
 
@@ -696,12 +697,12 @@ canvas { display: block; flex: 1; width: 100%; }
       <div class="chat">
         <div class="panel-hdr">
           <span class="ph-title">AI CHAT</span>
-          <span style="font-size:9px;color:var(--blue);font-weight:600">● ONLINE</span>
+          <span style="font-size:9px;color:var(--blue);font-weight:600">â ONLINE</span>
         </div>
         <div class="chat-msgs" id="chatMsgs"></div>
         <div class="chat-bar">
           <div class="chat-input-fake" id="chatInput">Ask me about this chart...</div>
-          <button class="chat-send">↑</button>
+          <button class="chat-send">â</button>
         </div>
       </div>
     </div>
@@ -709,7 +710,7 @@ canvas { display: block; flex: 1; width: 100%; }
 </div>
 
 <script>
-// ─── DATA ─────────────────────────────────────────────────────────────────────
+// âââ DATA âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const TICKERS = [
   {s:'AAPL', p:'192.45', c:'+1.15%', u:1},{s:'NVDA', p:'875.30', c:'+2.84%', u:1},
   {s:'TSLA', p:'249.04', c:'+2.27%', u:1},{s:'MSFT', p:'420.63', c:'+1.06%', u:1},
@@ -721,18 +722,18 @@ const TICKERS = [
 ];
 
 const AGENTS = [
-  { id:'chart',  name:'CHART INTELLIGENCE', delay:3800, verdict:'BULLISH', vc:'v-bull', cc:'bull', detail:'SMA20 breakout · Vol +2.3× avg · ADX 34', bc:'bf-bull', bw:82 },
-  { id:'sent',   name:'SENTIMENT',          delay:5600, verdict:'BULLISH', vc:'v-bull', cc:'bull', detail:'73% call flow · P/C 0.62 · $195 sweep', bc:'bf-bull', bw:73 },
-  { id:'risk',   name:'RISK MANAGEMENT',    delay:7200, verdict:'LOW RISK',vc:'v-bull', cc:'bull', detail:'VIX 14.2 · EXCELLENT spread · HFT 91/100',bc:'bf-bull', bw:91 },
-  { id:'fund',   name:'FUNDAMENTAL',        delay:8600, verdict:'NEUTRAL', vc:'v-neu',  cc:'neu',  detail:'P/E 28.4 fair · Earnings +32 days', bc:'bf-neu',  bw:50 },
-  { id:'macro',  name:'MACRO',              delay:9800, verdict:'BULLISH', vc:'v-bull', cc:'bull', detail:'Fed pause · Credit tightening · Growth', bc:'bf-bull', bw:68 },
+  { id:'chart',  name:'CHART INTELLIGENCE', delay:3800, verdict:'BULLISH', vc:'v-bull', cc:'bull', detail:'SMA20 breakout Â· Vol +2.3Ã avg Â· ADX 34', bc:'bf-bull', bw:82 },
+  { id:'sent',   name:'SENTIMENT',          delay:5600, verdict:'BULLISH', vc:'v-bull', cc:'bull', detail:'73% call flow Â· P/C 0.62 Â· $195 sweep', bc:'bf-bull', bw:73 },
+  { id:'risk',   name:'RISK MANAGEMENT',    delay:7200, verdict:'LOW RISK',vc:'v-bull', cc:'bull', detail:'VIX 14.2 Â· EXCELLENT spread Â· HFT 91/100',bc:'bf-bull', bw:91 },
+  { id:'fund',   name:'FUNDAMENTAL',        delay:8600, verdict:'NEUTRAL', vc:'v-neu',  cc:'neu',  detail:'P/E 28.4 fair Â· Earnings +32 days', bc:'bf-neu',  bw:50 },
+  { id:'macro',  name:'MACRO',              delay:9800, verdict:'BULLISH', vc:'v-bull', cc:'bull', detail:'Fed pause Â· Credit tightening Â· Growth', bc:'bf-bull', bw:68 },
 ];
 
-const AI_RESPONSE = "Three converging signals point to an institutional buy setup: (1) AAPL broke above the 20-period SMA on 2.3× average volume — a signature of fund accumulation, not retail buying. (2) Options flow shows 73% call skew with unusual $195 strike volume through expiry. (3) Macro regime score is +3; Fed pause and tightening credit spreads historically correlate with tech sector outperformance. Entry at $192.45 gives you a clean 1:2.1 risk/reward above the $190.12 demand zone.";
+const AI_RESPONSE = "Three converging signals point to an institutional buy setup: (1) AAPL broke above the 20-period SMA on 2.3Ã average volume â a signature of fund accumulation, not retail buying. (2) Options flow shows 73% call skew with unusual $195 strike volume through expiry. (3) Macro regime score is +3; Fed pause and tightening credit spreads historically correlate with tech sector outperformance. Entry at $192.45 gives you a clean 1:2.1 risk/reward above the $190.12 demand zone.";
 
 const TOTAL = 36000;
 
-// ─── TICKER ───────────────────────────────────────────────────────────────────
+// âââ TICKER âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 (function buildTicker() {
   const el = document.getElementById('ticker');
   const items = [...TICKERS, ...TICKERS];
@@ -741,7 +742,7 @@ const TOTAL = 36000;
   ).join('');
 })();
 
-// ─── CHART ────────────────────────────────────────────────────────────────────
+// âââ CHART ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function drawChart() {
   const cvs = document.getElementById('chart');
   const panel = document.getElementById('chartPanel');
@@ -754,7 +755,7 @@ function drawChart() {
   const ctx = cvs.getContext('2d');
   const W = cvs.width, H = cvs.height;
 
-  // ── Generate pseudo-random bullish candles ──
+  // ââ Generate pseudo-random bullish candles ââ
   const candles = [];
   let price = 186.5;
   let rs = 0xcafe1234;
@@ -787,7 +788,7 @@ function drawChart() {
 
   const toY  = p => pad.t + cH - ((p - minP) / rng) * cH;
 
-  // ── Grid lines ──
+  // ââ Grid lines ââ
   ctx.strokeStyle = '#142236';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 6; i++) {
@@ -800,7 +801,7 @@ function drawChart() {
     ctx.fillText(label, W - pad.r + 4, y + 3);
   }
 
-  // ── SMA 20 ──
+  // ââ SMA 20 ââ
   const sma = candles.map((_, i) => {
     if (i < 19) return null;
     return candles.slice(i - 19, i + 1).reduce((s, c) => s + c.c, 0) / 20;
@@ -818,7 +819,7 @@ function drawChart() {
   });
   ctx.stroke();
 
-  // ── Volume bars ──
+  // ââ Volume bars ââ
   const maxV = Math.max(...candles.map(c => c.v));
   candles.forEach((c, i) => {
     const x = pad.l + i * step + (step - bW) / 2;
@@ -827,7 +828,7 @@ function drawChart() {
     ctx.fillRect(x, H - pad.b - vH, bW, vH);
   });
 
-  // ── Candles ──
+  // ââ Candles ââ
   candles.forEach((c, i) => {
     const x   = pad.l + i * step + (step - bW) / 2;
     const mx  = x + bW / 2;
@@ -851,7 +852,7 @@ function drawChart() {
     ctx.fillRect(x, bodyY, bW, bodyH);
   });
 
-  // ── Last price dashed line ──
+  // ââ Last price dashed line ââ
   const last = candles[candles.length - 1];
   const lastY = toY(last.c);
   ctx.strokeStyle = 'rgba(0,212,170,.5)';
@@ -870,14 +871,14 @@ function drawChart() {
   ctx.textAlign = 'center';
   ctx.fillText('192.45', W - pad.r + (pad.r - 2) / 2, lastY + 3.5);
 
-  // ── SMA label ──
+  // ââ SMA label ââ
   ctx.fillStyle = 'rgba(79,195,247,.7)';
   ctx.font = '9.5px SF Mono, monospace';
   ctx.textAlign = 'left';
   ctx.fillText('SMA20  190.12', pad.l + 3, pad.t + 12);
 }
 
-// ─── AGENTS ───────────────────────────────────────────────────────────────────
+// âââ AGENTS âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function buildAgents() {
   document.getElementById('agentsList').innerHTML = AGENTS.map(a => `
     <div class="ac" id="ac-${a.id}">
@@ -886,7 +887,7 @@ function buildAgents() {
         <span class="ac-verdict ${a.vc}" id="av-${a.id}"></span>
       </div>
       <div class="ac-row2">
-        <span class="ac-state pulse" id="as-${a.id}">● ANALYZING</span>
+        <span class="ac-state pulse" id="as-${a.id}">â ANALYZING</span>
         <span class="ac-detail" id="ad-${a.id}">${a.detail}</span>
       </div>
       <div class="ac-bar"><div class="ac-bar-fill ${a.bc}" id="ab-${a.id}"></div></div>
@@ -894,7 +895,7 @@ function buildAgents() {
   `).join('');
 }
 
-// ─── SEQUENCER ────────────────────────────────────────────────────────────────
+// âââ SEQUENCER ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let tids = [], iids = [];
 const at   = (ms, fn) => tids.push(setTimeout(fn, ms));
 const stop = () => { tids.forEach(clearTimeout); iids.forEach(clearInterval); tids = []; iids = []; };
@@ -912,11 +913,11 @@ function type(el, text, rate, done) {
 function run() {
   stop();
 
-  // ── Reset UI ──
+  // ââ Reset UI ââ
   document.getElementById('cta').classList.remove('show');
   document.getElementById('agentCt').textContent = '0';
   document.getElementById('panelStatus').className = 'ph-status analyzing';
-  document.getElementById('panelStatus').textContent = '● ANALYZING';
+  document.getElementById('panelStatus').textContent = 'â ANALYZING';
   const strip = document.getElementById('sigStrip');
   strip.className = 'sig-strip scanning';
   document.getElementById('sigText').textContent = 'SCANNING FOR SIGNALS...';
@@ -929,12 +930,12 @@ function run() {
   document.getElementById('flash').classList.remove('on');
   buildAgents();
 
-  // ── Progress bar ──
+  // ââ Progress bar ââ
   const prog = document.getElementById('progress');
   prog.style.transition = 'none'; prog.style.width = '0';
   at(80, () => { prog.style.transition = `width ${TOTAL}ms linear`; prog.style.width = '100%'; });
 
-  // ── Agent count ticks up 0→5 ──
+  // ââ Agent count ticks up 0â5 ââ
   at(600, () => {
     let n = 0;
     const iv = setInterval(() => {
@@ -944,34 +945,34 @@ function run() {
     iids.push(iv);
   });
 
-  // ── Strip switches to active state ──
+  // ââ Strip switches to active state ââ
   at(2200, () => {
     strip.className = 'sig-strip active';
-    document.getElementById('sigText').textContent = 'AI AGENTS SCANNING AAPL · MULTI-TIMEFRAME ANALYSIS RUNNING';
+    document.getElementById('sigText').textContent = 'AI AGENTS SCANNING AAPL Â· MULTI-TIMEFRAME ANALYSIS RUNNING';
   });
 
-  // ── Resolve agents ──
+  // ââ Resolve agents ââ
   AGENTS.forEach(a => {
     at(a.delay, () => {
       document.getElementById(`ac-${a.id}`).classList.add(a.cc);
       const v = document.getElementById(`av-${a.id}`);
       v.textContent = a.verdict; v.classList.add('show');
       const s = document.getElementById(`as-${a.id}`);
-      s.textContent = '✓ COMPLETE';
+      s.textContent = 'â COMPLETE';
       s.className = `ac-state done-${a.cc === 'bull' ? 'bull' : 'neu'}`;
       document.getElementById(`ad-${a.id}`).classList.add('show');
       at(60, () => { document.getElementById(`ab-${a.id}`).style.width = a.bw + '%'; });
     });
   });
 
-  // ── Panel status → ACTIVE ──
+  // ââ Panel status â ACTIVE ââ
   at(10600, () => {
     const ps = document.getElementById('panelStatus');
     ps.className = 'ph-status done';
-    ps.textContent = '● 5 AGENTS ACTIVE';
+    ps.textContent = 'â 5 AGENTS ACTIVE';
   });
 
-  // ── Signal fires ──
+  // ââ Signal fires ââ
   at(11800, () => {
     // Flash
     const fl = document.getElementById('flash');
@@ -980,7 +981,7 @@ function run() {
 
     // Strip fires BUY
     strip.className = 'sig-strip buy-fired';
-    document.getElementById('sigText').textContent = '⚡ BUY SIGNAL FIRED · AAPL · CONFIDENCE 78% · Entry $192.45 · Stop $190.12 · Target $196.90';
+    document.getElementById('sigText').textContent = 'â¡ BUY SIGNAL FIRED Â· AAPL Â· CONFIDENCE 78% Â· Entry $192.45 Â· Stop $190.12 Â· Target $196.90';
     document.getElementById('sigTag').classList.add('show');
 
     // Signal card appears
@@ -994,7 +995,7 @@ function run() {
     }));
   });
 
-  // ── Chat: user question ──
+  // ââ Chat: user question ââ
   at(15200, () => {
     const msgs = document.getElementById('chatMsgs');
     const um = document.createElement('div');
@@ -1004,7 +1005,7 @@ function run() {
     type(um, "What's driving the AAPL signal right now?", 42);
   });
 
-  // ── Chat: AI typing starts ──
+  // ââ Chat: AI typing starts ââ
   at(17800, () => {
     const msgs = document.getElementById('chatMsgs');
     const aim = document.createElement('div');
@@ -1015,16 +1016,16 @@ function run() {
     type(document.getElementById('aiTxt'), AI_RESPONSE, 16);
   });
 
-  // ── CTA ──
+  // ââ CTA ââ
   at(33000, () => {
     document.getElementById('cta').classList.add('show');
   });
 
-  // ── Auto-replay ──
+  // ââ Auto-replay ââ
   at(TOTAL + 800, run);
 }
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
+// âââ INIT âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 drawChart();
 buildAgents();
 window.addEventListener('resize', drawChart);
