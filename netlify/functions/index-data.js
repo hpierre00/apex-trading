@@ -21,21 +21,6 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
 
-  const params = event.queryStringParameters || {};
-  if (params.test === '1') {
-    return {
-      statusCode: 200,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status: 'ok',
-        alpaca_key_present:    !!ALPACA_KEY_ID,
-        alpaca_key_prefix:     ALPACA_KEY_ID     ? ALPACA_KEY_ID.substring(0, 4)     : 'none',
-        alpaca_secret_present: !!ALPACA_SECRET_KEY,
-        alpaca_secret_prefix:  ALPACA_SECRET_KEY ? ALPACA_SECRET_KEY.substring(0, 4) : 'none',
-      }),
-    };
-  }
-
   if (!ALPACA_KEY_ID) {
     return {
       statusCode: 500,
