@@ -1,6 +1,10 @@
 // netlify/functions/mini-analysis.js
 // Public endpoint for Chrome extension — no auth required.
-// Rate limited by Netlify's built-in DDoS protection.
+// Rate limited via a durable Postgres-backed counter (see check_and_increment_rate_limit),
+// not an in-memory Map — that resets on every cold start and isn't shared across
+// concurrent function instances, so the daily limit was effectively unenforced.
+
+const crypto = require('crypto');
 
 const SYSTEM_PROMPT = `You are a concise trading analyst for the Tradolux AI Chrome extension.
 Given a stock ticker, provide a brief multi-factor analysis.
@@ -20,8 +24,30 @@ Respond ONLY with valid JSON in this exact format:
 Verdict must be one of: BULLISH, BEARISH, NEUTRAL, STRONG, WEAK, CAUTION, HEADWIND, TAILWIND.
 Be direct and specific. No disclaimers. No markdown. Valid JSON only.`;
 
-const ipCounts = new Map();
 const DAILY_LIMIT = 10;
+const WINDOW_SECONDS = 24 * 60 * 60;
+
+async function checkRateLimit(ip) {
+  const SUPABASE_URL = 'https://soghksmuocrgtttmnete.supabase.co';
+  const svcKey = process.env.SUPABASESKTradoLux;
+  if (!svcKey) {
+    // Fail closed: if the rate limiter's own backend isn't configured, don't
+    // silently allow unlimited requests against a paid API.
+    return false;
+  }
+  const keyHash = crypto.createHash('sha256').update(`mini-analysis:${ip}`).digest('hex');
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/check_and_increment_rate_limit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': svcKey,
+      'Authorization': `Bearer ${svcKey}`,
+    },
+    body: JSON.stringify({ p_key: keyHash, p_limit: DAILY_LIMIT, p_window_seconds: WINDOW_SECONDS }),
+  });
+  if (!r.ok) return false; // fail closed on backend error
+  return r.json();
+}
 
 exports.handler = async (event) => {
   const cors = {
@@ -54,17 +80,9 @@ exports.handler = async (event) => {
   const ip = event.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || event.headers['client-ip']
     || 'unknown';
-  const now = Date.now();
-  const midnight = new Date();
-  midnight.setHours(24, 0, 0, 0);
-  const resetAt = midnight.getTime();
 
-  const record = ipCounts.get(ip) || { count: 0, resetAt };
-  if (now > record.resetAt) {
-    record.count = 0;
-    record.resetAt = resetAt;
-  }
-  if (record.count >= DAILY_LIMIT) {
+  const allowed = await checkRateLimit(ip);
+  if (!allowed) {
     return {
       statusCode: 429,
       headers: { ...cors, 'Content-Type': 'application/json' },
@@ -74,8 +92,6 @@ exports.handler = async (event) => {
       })
     };
   }
-  record.count++;
-  ipCounts.set(ip, record);
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
