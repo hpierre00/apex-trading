@@ -90,8 +90,8 @@ exports.handler = async (event) => {
 
   // ── Step 3: Spoofing risk from snapshot diff ─────────────────────────────────
   const getPrice = o => o.price || o.p || 0;
-  let spoofingRisk = 0;
-  let cancelRate = 0;
+  let spoofingRisk = null;    // null = not yet assessed (no prior snapshot to diff against)
+  let cancelRate = null;
   const prevSnapshot = snapshotCache.get(symbol);
   snapshotCache.set(symbol, { bids, asks, timestamp: Date.now() });
 
@@ -108,14 +108,23 @@ exports.handler = async (event) => {
     cancelRate = parseFloat((spoofingRisk * 0.8).toFixed(3));
   }
 
+  // spoofingRisk === null means no second snapshot was available yet (first poll
+  // for this symbol, or the cache entry expired) — this is NOT a "confirmed
+  // clean" result and must never be reported as CLEAN.
   const spoofingLabel =
+    spoofingRisk === null ? 'PENDING' :
     spoofingRisk > 0.7 ? 'SPOOFING_DETECTED' :
     spoofingRisk > 0.4 ? 'ELEVATED' : 'CLEAN';
 
   // ── Step 4: Composite HFT Shield score ──────────────────────────────────────
   const spreadScore = spreadQualityParam === 'TIGHT' ? 35 : spreadQualityParam === 'NORMAL' ? 17 : 0;
   const imbalanceScore = Math.round(Math.abs(imbalanceRatio - 0.5) / 0.5 * 30);
-  const spoofingScore = Math.round((1 - Math.min(1, spoofingRisk)) * 35);
+  // When spoofing hasn't been assessed yet, award half credit rather than full
+  // marks — treating "no data" the same as "confirmed clean" would silently
+  // inflate the score and could push an unverified read into EXECUTE territory.
+  const spoofingScore = spoofingRisk === null
+    ? Math.round(35 * 0.5)
+    : Math.round((1 - Math.min(1, spoofingRisk)) * 35);
   const shieldScore = Math.min(100, imbalanceScore + spoofingScore + spreadScore);
 
   const recommendation = shieldScore >= 60 ? 'EXECUTE' : shieldScore >= 40 ? 'WAIT' : 'AVOID';
@@ -128,8 +137,9 @@ exports.handler = async (event) => {
       symbol,
       imbalanceRatio: parseFloat(imbalanceRatio.toFixed(3)),
       imbalanceSignal,
-      spoofingRisk: parseFloat(spoofingRisk.toFixed(3)),
+      spoofingRisk: spoofingRisk === null ? null : parseFloat(spoofingRisk.toFixed(3)),
       spoofingLabel,
+      spoofingAssessed: spoofingRisk !== null,
       cancelRate,
       shieldScore,
       recommendation,
