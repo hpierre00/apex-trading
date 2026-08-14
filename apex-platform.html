@@ -8969,7 +8969,12 @@ async function adminRunMonitorNow() {
       },
       body: JSON.stringify({ manual: true }),
     });
-    const result = await res.json();
+    // Read as text first — if the function crashes Netlify returns an empty 502
+    // and calling .json() directly throws "Unexpected end of JSON input".
+    const raw = await res.text();
+    let result;
+    try { result = JSON.parse(raw); }
+    catch { throw new Error(`Monitor returned HTTP ${res.status} with non-JSON body: ${raw.slice(0,120)}`); }
     if (status) {
       const allOk = result.ok !== false;
       status.textContent = allOk ? '✅ All checks passed' : `🔴 ${result.checks?.filter(c=>!c.ok).length||1} check(s) failed`;

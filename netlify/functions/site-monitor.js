@@ -1,9 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Lazy-init: defer client creation until handler runs so a missing env var
+// doesn't crash the module at load time (which makes Netlify return an empty 502).
+let _supabase = null;
+function getSupabase() {
+  if (!_supabase) {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) throw new Error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set');
+    _supabase = createClient(url, key);
+  }
+  return _supabase;
+}
 
 const ALERT_EMAIL = 'hpierre00@gmail.com';
 const SITE_URL    = 'https://tradolux.com';
@@ -28,7 +36,7 @@ async function sendAlert(subject, body) {
 
 async function logResult(checks, hasFailure) {
   try {
-    await supabase.from('app_telemetry').insert({
+    await getSupabase().from('app_telemetry').insert({
       event_type: 'monitor_run',
       feature_name: hasFailure ? 'monitor_alert' : 'monitor_ok',
       metadata: JSON.stringify(checks),
@@ -58,7 +66,7 @@ async function checkUrl(label, url, expectStatus = 200, timeoutMs = 10000) {
 async function checkSupabase() {
   const start = Date.now();
   try {
-    const { error } = await supabase.from('profiles').select('id').limit(1);
+    const { error } = await getSupabase().from('profiles').select('id').limit(1);
     const ms = Date.now() - start;
     return { label: 'Supabase DB', ok: !error, ms, error: error?.message || null };
   } catch (e) {
@@ -76,46 +84,58 @@ export async function handler() {
   const now = new Date().toISOString();
   console.log(`[site-monitor] Starting checks at ${now}`);
 
-  const results = await Promise.all([
-    checkUrl('Homepage',          `${SITE_URL}/`),
-    checkUrl('Pricing page',      `${SITE_URL}/pricing.html`),
-    checkUrl('Admin-ops function',`${SITE_URL}/.netlify/functions/admin-ops`),
-    checkSupabase(),
-    checkPolygon()
-  ]);
+  // Top-level try-catch: always return valid JSON so the client never gets an empty body.
+  try {
+    const results = await Promise.all([
+      checkUrl('Homepage',           `${SITE_URL}/`),
+      checkUrl('Pricing page',       `${SITE_URL}/pricing.html`),
+      checkUrl('Admin-ops function', `${SITE_URL}/.netlify/functions/admin-ops`, 401), // 401 expected when unauthenticated
+      checkSupabase(),
+      checkPolygon()
+    ]);
 
-  const failures = results.filter(r => !r.ok);
-  const hasFailure = failures.length > 0;
+    const failures = results.filter(r => !r.ok);
+    const hasFailure = failures.length > 0;
 
-  console.log('[site-monitor] Results:', JSON.stringify(results, null, 2));
+    console.log('[site-monitor] Results:', JSON.stringify(results, null, 2));
 
-  if (hasFailure) {
-    const lines = [
-      `TRADOLUX MONITOR ALERT — ${now}`,
-      '',
-      `${failures.length} check(s) failed:`,
-      '',
-      ...failures.map(f => `  x ${f.label}: ${f.error || `HTTP ${f.status}`} (${f.ms}ms)`),
-      '',
-      'All checks:',
-      ...results.map(r => `  ${r.ok ? 'ok' : 'x'} ${r.label} (${r.ms}ms)${r.error ? ' — ' + r.error : ''}`),
-      '',
-      'Dashboard: https://app.netlify.com/projects/tradolux',
-      'Supabase:  https://supabase.com/dashboard/project/soghksmuocrgtttmnete'
-    ];
+    if (hasFailure) {
+      const lines = [
+        `TRADOLUX MONITOR ALERT — ${now}`,
+        '',
+        `${failures.length} check(s) failed:`,
+        '',
+        ...failures.map(f => `  x ${f.label}: ${f.error || `HTTP ${f.status}`} (${f.ms}ms)`),
+        '',
+        'All checks:',
+        ...results.map(r => `  ${r.ok ? 'ok' : 'x'} ${r.label} (${r.ms}ms)${r.error ? ' — ' + r.error : ''}`),
+        '',
+        'Dashboard: https://app.netlify.com/projects/tradolux',
+        'Supabase:  https://supabase.com/dashboard/project/soghksmuocrgtttmnete'
+      ];
+      const subject = `Tradolux Alert: ${failures.map(f => f.label).join(', ')} DOWN`;
+      await sendAlert(subject, lines.join('\n'));
+      console.error('[site-monitor] Failures detected. Alert sent.');
+    } else {
+      console.log('[site-monitor] All checks passed');
+    }
 
-    const subject = `Tradolux Alert: ${failures.map(f => f.label).join(', ')} DOWN`;
-    await sendAlert(subject, lines.join('\n'));
-    console.error('[site-monitor] Failures detected. Alert sent.');
-  } else {
-    console.log('[site-monitor] All checks passed');
+    await logResult(results, hasFailure);
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ok: !hasFailure, checks: results, ts: now })
+    };
+
+  } catch (fatalErr) {
+    // Catch anything that slipped through (e.g. env var errors, unexpected throws).
+    // Still return JSON so the client gets a parseable error rather than an empty 502.
+    console.error('[site-monitor] Fatal error:', fatalErr.message);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ok: false, error: fatalErr.message, ts: now })
+    };
   }
-
-  await logResult(results, hasFailure);
-
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ok: !hasFailure, checks: results, ts: now })
-  };
 }
