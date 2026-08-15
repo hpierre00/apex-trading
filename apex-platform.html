@@ -22,7 +22,7 @@
       "name": "What is an AI trading terminal?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "An AI trading terminal is a platform that uses artificial intelligence to analyze market data, identify trade setups, and generate real-time signals. Unlike traditional charting software, an AI trading terminal runs multiple intelligent agents simultaneously — each evaluating momentum, macro conditions, microstructure, and sentiment — to produce a composite market verdict. Tradolux is an AI trading terminal built for independent traders and investors who want institutional-grade analysis without institutional costs."
+        "text": "An AI trading terminal is a platform that uses artificial intelligence to analyze market data, identify trade setups, and generate real-time signals. Unlike traditional charting software, an AI trading terminal runs multiple intelligent agents simultaneously — each evaluating chart structure, sentiment, fundamentals, risk, and macro conditions — to produce a composite market verdict. Tradolux is an AI trading terminal built for independent traders and investors who want institutional-grade analysis without institutional costs."
       }
     },
     {
@@ -30,7 +30,7 @@
       "name": "How does AI stock analysis work?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "AI stock analysis works by processing multiple data streams — price action, volume, order flow, macroeconomic indicators, and spread quality — and running them through specialized analytical agents. Each agent evaluates the market from a different lens. The results are aggregated into a confidence score and a directional verdict. Tradolux runs five agents: Momentum, Macro, Microstructure, Contrarian, and Composite. Their outputs are weighted by historical accuracy and combined into a single signal."
+        "text": "AI stock analysis works by processing multiple data streams — price action, volume, spread quality, order-book imbalance, and macroeconomic indicators — and running them through specialized analytical agents. Each agent evaluates the market from a different lens. The results are aggregated into a confidence score and a directional verdict. Tradolux runs five agents: Chart Intelligence, Sentiment, Fundamental, Risk Management, and Macro. Their outputs are weighted by historical accuracy and combined into a single signal."
       }
     },
     {
@@ -46,7 +46,7 @@
       "name": "What is multi-agent market analysis?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Multi-agent market analysis is a method where several independent AI agents each evaluate the market through a different analytical framework, then combine their verdicts into a single composite signal. Tradolux uses five specialized agents: a Momentum agent evaluating price and volume trends, a Macro agent assessing broader economic regime, a Microstructure agent reading order flow and spread conditions, a Contrarian agent detecting potential reversals, and a Composite agent synthesizing all inputs. This approach reduces single-model bias and improves signal reliability."
+        "text": "Multi-agent market analysis is a method where several independent AI agents each evaluate the market through a different analytical framework, then combine their verdicts into a single composite signal. Tradolux uses five specialized agents: a Chart Intelligence agent evaluating price structure and momentum, a Sentiment agent reading news and market mood, a Fundamental agent assessing business quality and valuation, a Risk Management agent sizing positions against volatility, and a Macro agent assessing broader economic regime. A separate execution-scoring layer (HFT Shield) evaluates spread quality and order-book imbalance to flag favorable or unfavorable entry conditions. This approach reduces single-model bias and improves signal reliability."
       }
     },
     {
@@ -4603,6 +4603,7 @@ function renderSignalsTab() {
             const sc = shield.shieldScore;
             const shColor = sc >= 60 ? '#0ecb81' : sc >= 40 ? '#c9a84c' : '#f6465d';
             const lines = [`<div style="color:${shColor};font-size:9px;margin-top:3px;font-family:monospace">Shield: ${sc}/100 — ${shield.recommendation} · Route: ${shield.routeVia}</div>`];
+            if (shield.spoofingLabel === 'PENDING') lines.push(`<div style="color:rgba(255,255,255,0.4);font-size:9px;font-family:monospace">Spoof check pending — next poll in ~5s</div>`);
             if (sc < 50) lines.push(`<div style="color:rgba(255,255,255,0.4);font-size:9px;font-family:monospace">Execution: consider routing via IEX on IBKR to reduce HFT front-running risk</div>`);
             return lines.join('');
           })()}
@@ -8330,7 +8331,7 @@ async function renderAdminDashboard() {
           </div>
           <div style="display:flex;gap:10px;font-size:9px;color:rgba(200,215,240,0.5);">
             <span>Imbalance: ${d.imbalanceSignal}</span>
-            <span>Spoof: ${d.spoofingLabel}</span>
+            <span style="color:${d.spoofingLabel === 'PENDING' ? 'rgba(200,215,240,0.3)' : d.spoofingLabel === 'CLEAN' ? '#0ecb81' : d.spoofingLabel === 'ELEVATED' ? '#c9a84c' : d.spoofingLabel === 'SPOOFING_DETECTED' ? '#f6465d' : 'inherit'};font-weight:${d.spoofingLabel === 'PENDING' ? '400' : '700'};">Spoof: ${d.spoofingLabel}</span>
             <span>Route: ${d.routeVia}</span>
           </div>`;
       } catch {}
@@ -9271,7 +9272,7 @@ async function adminManageUser(userId, email, action) {
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#0ecb81;">Tradolux</div>
       <div style="font-size:11px;color:#5a6678;margin-top:4px;letter-spacing:1px;">AI TRADING TERMINAL</div>
-      <p style="font-size:10px;color:#3d4f62;margin:10px 0 0;line-height:1.5;letter-spacing:0;font-weight:400;font-family:sans-serif;max-width:320px;text-align:center;">Tradolux is an AI Trading Terminal that runs five simultaneous market analysis agents — Momentum, Macro, Microstructure, Contrarian, and Composite — to generate real-time trade signals and institutional-grade intelligence for independent traders.</p>
+      <p style="font-size:10px;color:#3d4f62;margin:10px 0 0;line-height:1.5;letter-spacing:0;font-weight:400;font-family:sans-serif;max-width:320px;text-align:center;">Tradolux is an AI Trading Terminal that runs five simultaneous market analysis agents — Chart Intelligence, Sentiment, Fundamental, Risk Management, and Macro — to generate real-time trade signals and institutional-grade intelligence for independent traders.</p>
     </div>
     <div id="authTabs" style="display:flex;margin-bottom:20px;border-bottom:1px solid #1e2d45;">
       <button id="tabLogin" onclick="showAuthTab('login')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid #1a7a6e;color:#1a7a6e;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>
