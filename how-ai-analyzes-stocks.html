@@ -4,18 +4,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How AI Analyzes Stocks: The 5-Agent Method Explained | Tradolux</title>
 <meta name="description" content="How AI actually analyzes a stock: five specialized agents read chart structure, sentiment, fundamentals, risk, and macro on one ticker, then combine into a probabilistic assessment. Not financial advice.">
-<meta property="og:title" content="How AI Analyzes Stocks â Tradolux">
+<meta property="og:title" content="How AI Analyzes Stocks — Tradolux">
 <meta property="og:description" content="How AI actually analyzes a stock: five specialized agents read chart structure, sentiment, fundamentals, risk, and macro on one ticker, then combine into a probabilistic assessment. Not financial advice.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://tradolux.com/how-ai-analyzes-stocks">
 <meta property="og:image" content="https://tradolux.com/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="How AI Analyzes Stocks â Tradolux">
+<meta name="twitter:title" content="How AI Analyzes Stocks — Tradolux">
 <meta name="twitter:description" content="How AI actually analyzes a stock: five specialized agents read chart structure, sentiment, fundamentals, risk, and macro on one ticker, then combine into a probabilistic assessment. Not financial advice.">
 <meta name="twitter:image" content="https://tradolux.com/og-image.png">
 <link rel="canonical" href="https://tradolux.com/how-ai-analyzes-stocks">
 <link rel="stylesheet" href="/css/marketing.css">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How does AI analyze a stock?","acceptedAnswer":{"@type":"Answer","text":"Strong AI stock analysis ingests live market data and runs it through specialized models that each answer a narrower question â chart structure, sentiment, fundamentals, risk, and macro context â then combines them into a single probabilistic assessment with a confidence score. Tradolux runs five such agents simultaneously on every ticker."}},{"@type":"Question","name":"Is AI stock analysis accurate?","acceptedAnswer":{"@type":"Answer","text":"No analysis predicts the future. Well-built AI analysis is valuable because it is fast, consistent, and explicit about probability and risk â not because it is always right. Tradolux logs and scores every observation over time so its accuracy is measured rather than claimed."}},{"@type":"Question","name":"Can ChatGPT analyze stocks?","acceptedAnswer":{"@type":"Answer","text":"A general chatbot can discuss a stock but usually has no live data, no risk framework, and no structured methodology, so its answers are fluent guesses. A purpose-built system connects to real-time data and applies a defined multi-agent process with risk attached. See the Tradolux vs ChatGPT comparison for detail."}},{"@type":"Question","name":"What data does AI use to analyze stocks?","acceptedAnswer":{"@type":"Answer","text":"Price and volume, technical indicators, options and sentiment signals, fundamental metrics like revenue and margins, and macro context such as rates and sector rotation. Tradolux uses a live market data feed with sub-second updates across its five agents."}},{"@type":"Question","name":"Does Tradolux give financial advice?","acceptedAnswer":{"@type":"Answer","text":"No. Tradolux is an analysis tool, not a financial adviser. It does not auto-trade, promise returns, or tell you what to buy. It surfaces probabilistic reads and risk so you can make your own decision. Trading involves substantial risk of loss."}}]}</script><!-- Google tag (gtag.js) -->
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How does AI analyze a stock?","acceptedAnswer":{"@type":"Answer","text":"Strong AI stock analysis ingests live market data and runs it through specialized models that each answer a narrower question — chart structure, sentiment, fundamentals, risk, and macro context — then combines them into a single probabilistic assessment with a confidence score. Tradolux runs five such agents simultaneously on every ticker."}},{"@type":"Question","name":"Is AI stock analysis accurate?","acceptedAnswer":{"@type":"Answer","text":"No analysis predicts the future. Well-built AI analysis is valuable because it is fast, consistent, and explicit about probability and risk — not because it is always right. Tradolux logs and scores every observation over time so its accuracy is measured rather than claimed."}},{"@type":"Question","name":"Can ChatGPT analyze stocks?","acceptedAnswer":{"@type":"Answer","text":"A general chatbot can discuss a stock but usually has no live data, no risk framework, and no structured methodology, so its answers are fluent guesses. A purpose-built system connects to real-time data and applies a defined multi-agent process with risk attached. See the Tradolux vs ChatGPT comparison for detail."}},{"@type":"Question","name":"What data does AI use to analyze stocks?","acceptedAnswer":{"@type":"Answer","text":"Price and volume, technical indicators, options and sentiment signals, fundamental metrics like revenue and margins, and macro context such as rates and sector rotation. Tradolux uses a live market data feed with sub-second updates across its five agents."}},{"@type":"Question","name":"Does Tradolux give financial advice?","acceptedAnswer":{"@type":"Answer","text":"No. Tradolux is an analysis tool, not a financial adviser. It does not auto-trade, promise returns, or tell you what to buy. It surfaces probabilistic reads and risk so you can make your own decision. Trading involves substantial risk of loss."}}]}</script><!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-WRQCW5CTCM"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -42,30 +42,30 @@
   <section class="hero"><div class="container">
     <span class="eyebrow">PILLAR GUIDE</span>
     <h1>How AI analyzes stocks</h1>
-    <p class="lead">âAI stock analysisâ can mean anything from a chatbot guessing to a structured multi-model read of live market data. This is how it actually works when it is done well â and where it stops.</p>
+    <p class="lead">“AI stock analysis” can mean anything from a chatbot guessing to a structured multi-model read of live market data. This is how it actually works when it is done well — and where it stops.</p>
     <div class="hero-actions"><a class="btn btn-primary" href="/app">Run a Live Analysis Free</a> <a class="btn btn-secondary" href="/how-it-works">See How It Works</a></div>
   </div></section>
   <section><div class="container">
   <h2>What "AI stock analysis" actually means</h2>
-  <p>At its weakest, AI stock analysis is a general-purpose chatbot asked "is AAPL a buy?" â no live data, no risk framework, a fluent guess. At its strongest, it is a system that ingests real-time market data, runs it through several specialized models that each answer a narrower question, and returns a combined, probabilistic read with the risk attached. The difference between the two is not the language model; it is the structure around it. This guide describes the strong version and how Tradolux implements it.</p>
+  <p>At its weakest, AI stock analysis is a general-purpose chatbot asked "is AAPL a buy?" — no live data, no risk framework, a fluent guess. At its strongest, it is a system that ingests real-time market data, runs it through several specialized models that each answer a narrower question, and returns a combined, probabilistic read with the risk attached. The difference between the two is not the language model; it is the structure around it. This guide describes the strong version and how Tradolux implements it.</p>
 
   <h2>The core idea: decompose the question</h2>
   <p>No single signal decides a trade. A chart can look bullish while the fundamentals are deteriorating and the macro tide is against you. Strong AI analysis mirrors how a disciplined desk works: it breaks "is this a good trade?" into separate questions, answers each independently, and then looks at where the answers agree and conflict. Tradolux runs five agents simultaneously on every ticker.</p>
 
   <h2>The five agents, and what each one reads</h2>
-  <h3>1. Chart intelligence â what is the tape doing?</h3>
+  <h3>1. Chart intelligence — what is the tape doing?</h3>
   <p>Price structure, support and resistance, VWAP, moving averages, and volume. It answers whether the current move has structure behind it or is noise. Detail: <a href="/agent-chart">Chart agent</a>.</p>
-  <h3>2. Sentiment â what is the crowd positioned for?</h3>
+  <h3>2. Sentiment — what is the crowd positioned for?</h3>
   <p>Social volume, news flow, and options skew, to gauge whether a name is crowded, ignored, or turning. Detail: <a href="/agent-sentiment">Sentiment agent</a>.</p>
-  <h3>3. Fundamental â does the business justify the price?</h3>
+  <h3>3. Fundamental — does the business justify the price?</h3>
   <p>Revenue growth, margins, and valuation versus sector, so a technically clean setup is not divorced from the underlying company. Detail: <a href="/agent-fundamental">Fundamental agent</a>.</p>
-  <h3>4. Risk â how much can this trade hurt you?</h3>
-  <p>ATR, the volatility regime, stop distance, and position sizing. This agent is why the output is usable rather than just interesting â every read carries its downside. More in <a href="/risk-management">risk management</a>.</p>
-  <h3>5. Macro â is the market tide with you or against you?</h3>
+  <h3>4. Risk — how much can this trade hurt you?</h3>
+  <p>ATR, the volatility regime, stop distance, and position sizing. This agent is why the output is usable rather than just interesting — every read carries its downside. More in <a href="/risk-management">risk management</a>.</p>
+  <h3>5. Macro — is the market tide with you or against you?</h3>
   <p>Rates, sector rotation, and index context. A great single-name setup fails often in a hostile tape; the macro agent keeps that in frame. Detail: <a href="/agent-macro">Macro agent</a>.</p>
 
   <h2>From five reads to one probabilistic assessment</h2>
-  <p>Each agent returns its own verdict â bullish, neutral, caution, headwind â with a one-line justification. Those are combined into a single assessment with a confidence score, so you see both the conclusion and the disagreement behind it. When conditions align, the system generates a Smart Signal from a set of detectors â power inflow, VWAP reclaim, <a href="/opening-range-breakout">opening-range breakout</a>, failed breakdown, RSI divergence, and others â each with a defined entry, target, and stop. A signal is a structured hypothesis with its risk pre-attached, not a prediction.</p>
+  <p>Each agent returns its own verdict — bullish, neutral, caution, headwind — with a one-line justification. Those are combined into a single assessment with a confidence score, so you see both the conclusion and the disagreement behind it. When conditions align, the system generates a Smart Signal from a set of detectors — power inflow, VWAP reclaim, <a href="/opening-range-breakout">opening-range breakout</a>, failed breakdown, RSI divergence, and others — each with a defined entry, target, and stop. A signal is a structured hypothesis with its risk pre-attached, not a prediction.</p>
 
   <h2>Why probabilistic, not predictive</h2>
   <p>Markets are not deterministic, so honest AI analysis outputs probabilities and risk, never certainties. Every observation Tradolux makes is logged, resolved, and scored over time, so agent and detector performance is measured rather than asserted. That feedback loop is what separates a system that learns from one that just sounds confident.</p>
@@ -77,8 +77,8 @@
   <p>See the mechanics in <a href="/how-it-works">how it works</a>, the full feature set in <a href="/features">features</a>, or how the approach compares to using a general chatbot in <a href="/vs-chatgpt">Tradolux vs ChatGPT for trading</a>.</p></div></section>
   <section class="alt"><div class="container">
     <h2>Frequently asked questions</h2>
-    <h3>How does AI analyze a stock?</h3><p>Strong AI stock analysis ingests live market data and runs it through specialized models that each answer a narrower question â chart structure, sentiment, fundamentals, risk, and macro context â then combines them into a single probabilistic assessment with a confidence score. Tradolux runs five such agents simultaneously on every ticker.</p>
-<h3>Is AI stock analysis accurate?</h3><p>No analysis predicts the future. Well-built AI analysis is valuable because it is fast, consistent, and explicit about probability and risk â not because it is always right. Tradolux logs and scores every observation over time so its accuracy is measured rather than claimed.</p>
+    <h3>How does AI analyze a stock?</h3><p>Strong AI stock analysis ingests live market data and runs it through specialized models that each answer a narrower question — chart structure, sentiment, fundamentals, risk, and macro context — then combines them into a single probabilistic assessment with a confidence score. Tradolux runs five such agents simultaneously on every ticker.</p>
+<h3>Is AI stock analysis accurate?</h3><p>No analysis predicts the future. Well-built AI analysis is valuable because it is fast, consistent, and explicit about probability and risk — not because it is always right. Tradolux logs and scores every observation over time so its accuracy is measured rather than claimed.</p>
 <h3>Can ChatGPT analyze stocks?</h3><p>A general chatbot can discuss a stock but usually has no live data, no risk framework, and no structured methodology, so its answers are fluent guesses. A purpose-built system connects to real-time data and applies a defined multi-agent process with risk attached. See the Tradolux vs ChatGPT comparison for detail.</p>
 <h3>What data does AI use to analyze stocks?</h3><p>Price and volume, technical indicators, options and sentiment signals, fundamental metrics like revenue and margins, and macro context such as rates and sector rotation. Tradolux uses a live market data feed with sub-second updates across its five agents.</p>
 <h3>Does Tradolux give financial advice?</h3><p>No. Tradolux is an analysis tool, not a financial adviser. It does not auto-trade, promise returns, or tell you what to buy. It surfaces probabilistic reads and risk so you can make your own decision. Trading involves substantial risk of loss.</p>
@@ -126,7 +126,7 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <div>Â© 2026 Tradolux. All rights reserved.</div>
+      <div>© 2026 Tradolux. All rights reserved.</div>
       <div style="max-width:560px;text-align:right;">
         Tradolux provides AI-generated market analysis for educational and informational purposes only. Not financial advice.
       </div>
