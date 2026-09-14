@@ -7089,6 +7089,10 @@ function showAuthTab(tab) {
   document.getElementById('authSubmit').dataset.mode = tab;
 }
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
+}
+
 // ===== TRIAL ABUSE PREVENTION =====
 function normalizeEmail(email) {
   if (!email) return '';
@@ -7130,15 +7134,21 @@ async function handleAuthSubmit() {
     errEl.style.display = 'block';
     return;
   }
+  if (!isValidEmail(email)) {
+    errEl.textContent = 'Please enter a valid email address.';
+    errEl.style.display = 'block';
+    return;
+  }
   document.getElementById('authSubmit').textContent = 'PLEASE WAIT...';
   document.getElementById('authSubmit').disabled = true;
   try {
     let result;
+    let normalizedEmail;
     if (mode === 'login') {
       result = await _supabase.auth.signInWithPassword({ email, password });
     } else {
       // Check for trial abuse before allowing signup
-      const normalizedEmail = normalizeEmail(email);
+      normalizedEmail = normalizeEmail(email);
       const alreadyTrialed = await hasExistingTrial(email);
       if (alreadyTrialed) {
         const errEl = document.getElementById('authError') || document.getElementById('signupError');
@@ -7189,6 +7199,11 @@ async function handleForgotPassword() {
   const okEl = document.getElementById('authSuccess');
   if (!email) {
     errEl.textContent = 'Enter your email address first.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!isValidEmail(email)) {
+    errEl.textContent = 'Please enter a valid email address.';
     errEl.style.display = 'block';
     return;
   }
@@ -9151,7 +9166,7 @@ async function adminSendInvite() {
   const statusEl = document.getElementById('inviteStatus');
   const btn   = document.getElementById('adminInviteBtn');
 
-  if (!email || !email.includes('@')) {
+  if (!isValidEmail(email)) {
     if (statusEl) { statusEl.textContent = '⚠ Enter a valid email address.'; statusEl.style.color = '#f5a623'; }
     return;
   }
