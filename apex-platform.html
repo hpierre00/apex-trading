@@ -7134,11 +7134,12 @@ async function handleAuthSubmit() {
   document.getElementById('authSubmit').disabled = true;
   try {
     let result;
+    let normalizedEmail;
     if (mode === 'login') {
       result = await _supabase.auth.signInWithPassword({ email, password });
     } else {
       // Check for trial abuse before allowing signup
-      const normalizedEmail = normalizeEmail(email);
+      normalizedEmail = normalizeEmail(email);
       const alreadyTrialed = await hasExistingTrial(email);
       if (alreadyTrialed) {
         const errEl = document.getElementById('authError') || document.getElementById('signupError');
