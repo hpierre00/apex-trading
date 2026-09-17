@@ -7173,10 +7173,12 @@ async function handleAuthSubmit() {
       errEl.style.display = 'block';
     } else if (mode === 'signup' && !result.data.session) {
       // Store normalized email for dedup tracking
-      await _supabase.from('profiles').update({
-        normalized_email: normalizedEmail,
-        trial_ends: new Date(Date.now() + 14 * 86400000).toISOString(),
-      }).eq('id', result.data.user?.id || '').catch(() => {});
+      try {
+        await _supabase.from('profiles').update({
+          normalized_email: normalizedEmail,
+          trial_ends: new Date(Date.now() + 14 * 86400000).toISOString(),
+        }).eq('id', result.data.user?.id || '');
+      } catch (_) {}
       okEl.textContent = 'Check your email to confirm your account before signing in.';
       okEl.style.display = 'block';
     } else {
