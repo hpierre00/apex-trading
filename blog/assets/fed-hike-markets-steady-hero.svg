@@ -1,0 +1,28 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1221"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0ecb81" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#0ecb81" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1280" height="720" fill="url(#bg)"/>
+
+  <!-- abstract ascending trend-line motif, lower right, low opacity -->
+  <polygon points="740,650 820,610 900,560 980,520 1060,430 1140,340 1220,260 1220,650" fill="url(#area)"/>
+  <polyline points="740,650 820,610 900,560 980,520 1060,430 1140,340 1220,260" fill="none" stroke="#0ecb81" stroke-width="5" stroke-opacity="0.35" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="740" cy="650" r="6" fill="#0ecb81" fill-opacity="0.4"/>
+  <circle cx="900" cy="560" r="6" fill="#0ecb81" fill-opacity="0.4"/>
+  <circle cx="1060" cy="430" r="6" fill="#0ecb81" fill-opacity="0.4"/>
+  <circle cx="1220" cy="260" r="7" fill="#0ecb81" fill-opacity="0.5"/>
+
+  <!-- headline, left-aligned, generous negative space -->
+  <text x="90" y="300" fill="#f5a623" font-size="90" font-weight="800">Fed Hikes,</text>
+  <text x="90" y="398" fill="#f5a623" font-size="90" font-weight="800">Markets Steady</text>
+
+  <!-- subheadline -->
+  <text x="90" y="458" fill="#0ecb81" font-size="32" font-weight="500">Rates rise for the first time since 2023</text>
+</svg>
