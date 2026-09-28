@@ -1499,6 +1499,12 @@ input, select { font-family: inherit; color: inherit; background: var(--panel-2)
       <button class="btn btn-primary" onclick="closeModal('settingsModal')">CLOSE</button>
     </div>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+      <div id="billingSection" style="display:none;margin:0 0 12px;text-align:center;">
+        <div style="font-size:10px;color:#4a5470;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Subscription</div>
+        <button onclick="openBillingPortal()"
+          style="background:#0e1830;border:1px solid #6b7a9e;color:#e8edf8;font-family:monospace;font-size:10px;font-weight:700;padding:6px 14px;border-radius:3px;cursor:pointer;letter-spacing:0.06em;">MANAGE BILLING / CANCEL</button>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:6px;">Cancel anytime. You keep access until the end of your billing period.</div>
+      </div>
       <div style="border-top:1px solid #1a2748;margin:0 0 12px;padding-top:14px;text-align:center;">
         <div style="font-size:10px;color:#4a5470;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Upgrade your plan</div>
         <div style="display:flex;gap:8px;justify-content:center;">
@@ -7254,6 +7260,31 @@ async function startCheckout(priceId) {
   }
 }
 
+async function openBillingPortal() {
+  const btn = event.currentTarget;
+  const orig = btn.textContent;
+  btn.textContent = 'LOADING...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/.netlify/functions/stripe-portal', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (_session?.access_token || '') }
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+      return;
+    }
+    console.warn('[billing] portal error:', data.error);
+    toast('Could not open billing. Email contact@tradolux.com to cancel.', 'bear');
+  } catch (e) {
+    console.warn('[billing] portal error:', e);
+    toast('Could not open billing. Email contact@tradolux.com to cancel.', 'bear');
+  }
+  btn.textContent = orig;
+  btn.disabled = false;
+}
+
 async function fetchUserPlan() {
   if (!_session?.user?.id) return;
   try {
@@ -7279,6 +7310,9 @@ async function fetchUserPlan() {
           applyPlanGating();
           return;
         }
+        // Anyone with a live Stripe subscription can manage/cancel it
+        const billingEl = document.getElementById('billingSection');
+        if (billingEl) billingEl.style.display = ['trialing', 'active', 'past_due', 'unpaid'].includes(subscription_status) ? 'block' : 'none';
         const isActive = ['trialing', 'active'].includes(subscription_status);
         _userPlan = isActive ? (plan || 'free').toLowerCase() : 'free';
         state.userPlan = _userPlan;
