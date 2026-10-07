@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 648 324" width="648" height="324" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+  <rect width="648" height="324" fill="#0b1221"/>
+  <text x="346" y="20" text-anchor="middle" font-size="13" fill="#e2e8f0">U.S. Treasury yields, October 7, 2026 (about 1:20 PM ET)</text>
+  <g stroke="#1e2d45" stroke-width="0.8">
+    <line x1="55" y1="294.1" x2="637" y2="294.1"/>
+    <line x1="55" y1="262.6" x2="637" y2="262.6"/>
+    <line x1="55" y1="231.1" x2="637" y2="231.1"/>
+    <line x1="55" y1="199.6" x2="637" y2="199.6"/>
+    <line x1="55" y1="168.0" x2="637" y2="168.0"/>
+    <line x1="55" y1="136.5" x2="637" y2="136.5"/>
+    <line x1="55" y1="105.0" x2="637" y2="105.0"/>
+    <line x1="55" y1="73.5" x2="637" y2="73.5"/>
+    <line x1="55" y1="42.0" x2="637" y2="42.0"/>
+  </g>
+  <g font-size="10" fill="#e2e8f0" text-anchor="end">
+    <text x="48" y="298">4.00</text>
+    <text x="48" y="267">4.25</text>
+    <text x="48" y="236">4.50</text>
+    <text x="48" y="204">4.75</text>
+    <text x="48" y="173">5.00</text>
+    <text x="48" y="141">5.25</text>
+    <text x="48" y="110">5.50</text>
+    <text x="48" y="78">5.75</text>
+    <text x="48" y="47">6.00</text>
+  </g>
+  <text transform="rotate(-90 20 162)" x="20" y="162" text-anchor="middle" font-size="10" fill="#e2e8f0">Yield (%)</text>
+  <rect x="81.7" y="191.0" width="105.8" height="103.1" fill="#f5a623"/>
+  <rect x="293.3" y="123.9" width="105.8" height="170.2" fill="#0ecb81"/>
+  <rect x="504.9" y="76.8" width="105.8" height="217.3" fill="#0ecb81"/>
+  <g font-size="12" font-weight="700" fill="#e2e8f0" text-anchor="middle">
+    <text x="134.6" y="184.7">4.818%</text>
+    <text x="346.2" y="117.6">5.350%</text>
+    <text x="557.8" y="70.5">5.724%</text>
+  </g>
+  <g font-size="10" fill="#e2e8f0" text-anchor="middle">
+    <text x="134.6" y="310.8">2-Year</text>
+    <text x="346.2" y="310.8">10-Year</text>
+    <text x="557.8" y="310.8">30-Year</text>
+  </g>
+</svg>
