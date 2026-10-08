@@ -41,7 +41,7 @@
   function show(t){ m.innerHTML = '<div class="msg"></div>'; m.firstChild.textContent = t; }
   if (p.get("sent")) { show("Check your inbox for a confirmation link."); f.style.display = "none"; }
   else if (p.get("confirmed")) { show("You're in. Your first issue arrives soon."); f.style.display = "none"; }
-  else if (p.get("error")) show("Something went wrong. Please try again, or email support.");
+  else if (p.get("error")) { var r = (p.get("r") || "").replace(/[^A-Za-z0-9_]/g, "").slice(0, 40); show("Something went wrong. Please try again, or email support." + (r ? " (code: " + r + ")" : "")); }
 </script>
 </body>
 </html>
