@@ -1,0 +1,14 @@
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+  <rect width="800" height="420" fill="#0b1221"/>
+  <text x="30" y="40" fill="#e2e8f0" font-size="20">Major index change, Wednesday October 7, 2026</text>
+  <line x1="30" y1="90" x2="770" y2="90" stroke="#f5a623" stroke-width="2"/>
+  <rect x="120" y="90" width="140" height="240" fill="#f6465d"/>
+  <rect x="330" y="90" width="140" height="80" fill="#f6465d"/>
+  <rect x="540" y="90" width="140" height="80" fill="#f6465d"/>
+  <text x="190" y="360" fill="#e2e8f0" font-size="26" font-weight="700" text-anchor="middle">-0.66%</text>
+  <text x="400" y="200" fill="#e2e8f0" font-size="26" font-weight="700" text-anchor="middle">-0.22%</text>
+  <text x="610" y="200" fill="#e2e8f0" font-size="26" font-weight="700" text-anchor="middle">-0.22%</text>
+  <text x="190" y="395" fill="#e2e8f0" font-size="20" text-anchor="middle">Dow</text>
+  <text x="400" y="395" fill="#e2e8f0" font-size="20" text-anchor="middle">S&amp;P 500</text>
+  <text x="610" y="395" fill="#e2e8f0" font-size="20" text-anchor="middle">Nasdaq Composite</text>
+</svg>
