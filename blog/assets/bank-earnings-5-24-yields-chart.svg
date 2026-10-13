@@ -1,0 +1,18 @@
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="800" height="420" fill="#0b1221"/>
+<text x="40" y="34" fill="#e2e8f0" font-size="17" font-weight="700">Implied earnings moves: major banks reporting Oct 13 and Oct 14, 2026</text>
+<line x1="60" y1="350" x2="780" y2="350" stroke="#1e2d45"/><text x="52" y="354" fill="#e2e8f0" font-size="12" text-anchor="end">0%</text>
+<line x1="60" y1="302" x2="780" y2="302" stroke="#1e2d45"/><text x="52" y="306" fill="#e2e8f0" font-size="12" text-anchor="end">1%</text>
+<line x1="60" y1="254" x2="780" y2="254" stroke="#1e2d45"/><text x="52" y="258" fill="#e2e8f0" font-size="12" text-anchor="end">2%</text>
+<line x1="60" y1="206" x2="780" y2="206" stroke="#1e2d45"/><text x="52" y="210" fill="#e2e8f0" font-size="12" text-anchor="end">3%</text>
+<line x1="60" y1="158" x2="780" y2="158" stroke="#1e2d45"/><text x="52" y="162" fill="#e2e8f0" font-size="12" text-anchor="end">4%</text>
+<line x1="60" y1="110" x2="780" y2="110" stroke="#1e2d45"/><text x="52" y="114" fill="#e2e8f0" font-size="12" text-anchor="end">5%</text>
+<rect x="80" y="186.8" width="60" height="163.2" fill="#f5a623"/><text x="110" y="178.8" fill="#e2e8f0" font-size="14" font-weight="700" text-anchor="middle">±3.4%</text><text x="110" y="372" fill="#e2e8f0" font-size="14" text-anchor="middle">JPM</text>
+<rect x="168" y="167.6" width="60" height="182.4" fill="#0ecb81"/><text x="198" y="159.6" fill="#e2e8f0" font-size="14" font-weight="700" text-anchor="middle">±3.8%</text><text x="198" y="372" fill="#e2e8f0" font-size="14" text-anchor="middle">BAC</text>
+<rect x="256" y="158.0" width="60" height="192.0" fill="#f5a623"/><text x="286" y="150.0" fill="#e2e8f0" font-size="14" font-weight="700" text-anchor="middle">±4.0%</text><text x="286" y="372" fill="#e2e8f0" font-size="14" text-anchor="middle">C</text>
+<rect x="344" y="143.6" width="60" height="206.4" fill="#f5a623"/><text x="374" y="135.6" fill="#e2e8f0" font-size="14" font-weight="700" text-anchor="middle">±4.3%</text><text x="374" y="372" fill="#e2e8f0" font-size="14" text-anchor="middle">GS</text>
+<rect x="432" y="143.6" width="60" height="206.4" fill="#0ecb81"/><text x="462" y="135.6" fill="#e2e8f0" font-size="14" font-weight="700" text-anchor="middle">±4.3%</text><text x="462" y="372" fill="#e2e8f0" font-size="14" text-anchor="middle">MS</text>
+<rect x="520" y="138.8" width="60" height="211.2" fill="#f5a623"/><text x="550" y="130.8" fill="#e2e8f0" font-size="14" font-weight="700" text-anchor="middle">±4.4%</text><text x="550" y="372" fill="#e2e8f0" font-size="14" text-anchor="middle">WFC</text>
+<rect x="608" y="114.8" width="60" height="235.2" fill="#0ecb81"/><text x="638" y="106.8" fill="#e2e8f0" font-size="14" font-weight="700" text-anchor="middle">±4.9%</text><text x="638" y="372" fill="#e2e8f0" font-size="14" text-anchor="middle">BLK</text>
+<rect x="696" y="114.8" width="60" height="235.2" fill="#0ecb81"/><text x="726" y="106.8" fill="#e2e8f0" font-size="14" font-weight="700" text-anchor="middle">±4.9%</text><text x="726" y="372" fill="#e2e8f0" font-size="14" text-anchor="middle">STT</text>
+<text x="40" y="404" fill="#64748b" font-size="11">Gold: reports Tuesday, Oct 13. Green: reports Wednesday, Oct 14. Source: earnings-watcher.com, as of Oct 12, 2026.</text></svg>
