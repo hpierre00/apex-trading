@@ -1,0 +1,11 @@
+<svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+  <rect width="800" height="450" fill="#0b1221"/>
+  <text x="40" y="44" fill="#e2e8f0" font-size="20">One-month performance as of October 12, 2026</text>
+  <line x1="40" y1="130" x2="760" y2="130" stroke="#64748b" stroke-width="1"/>
+  <rect x="190" y="105" width="140" height="25" fill="#0ecb81"/>
+  <text x="260" y="95" fill="#e2e8f0" font-size="26" font-weight="700" text-anchor="middle">+1.5%</text>
+  <rect x="470" y="130" width="140" height="255" fill="#f5a623"/>
+  <text x="540" y="415" fill="#e2e8f0" font-size="26" font-weight="700" text-anchor="middle">-9.7%</text>
+  <text x="260" y="160" fill="#e2e8f0" font-size="18" text-anchor="middle">S&amp;P 500</text>
+  <text x="540" y="100" fill="#e2e8f0" font-size="18" text-anchor="middle">KBW Nasdaq Bank Index</text>
+</svg>
