@@ -1,0 +1,31 @@
+<svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="1000" height="520" fill="#0b1221"/>
+<text x="30" y="36" fill="#e2e8f0" font-size="18">Thursday, Oct. 22, 2026: one-day moves, indexes (gold) and selected stocks</text>
+<text x="30" y="90" fill="#e2e8f0" font-size="15">Lam Research</text>
+<rect x="309.6" y="70" width="330.4" height="28" fill="#f6465d"/>
+<text x="301.6" y="90" fill="#e2e8f0" font-size="14" text-anchor="end">-11.8%</text>
+<text x="30" y="136" fill="#e2e8f0" font-size="15">CoreWeave</text>
+<rect x="357.2" y="116" width="282.8" height="28" fill="#f6465d"/>
+<text x="349.2" y="136" fill="#e2e8f0" font-size="14" text-anchor="end">-10.1%</text>
+<text x="30" y="182" fill="#e2e8f0" font-size="15">Meta Platforms</text>
+<rect x="444.0" y="162" width="196.0" height="28" fill="#f6465d"/>
+<text x="436.0" y="182" fill="#e2e8f0" font-size="14" text-anchor="end">-7.0%</text>
+<text x="30" y="228" fill="#e2e8f0" font-size="15">Nvidia</text>
+<rect x="516.8" y="208" width="123.2" height="28" fill="#f6465d"/>
+<text x="508.8" y="228" fill="#e2e8f0" font-size="14" text-anchor="end">-4.4%</text>
+<text x="30" y="274" fill="#e2e8f0" font-size="15">Tesla</text>
+<rect x="553.2" y="254" width="86.8" height="28" fill="#f6465d"/>
+<text x="545.2" y="274" fill="#e2e8f0" font-size="14" text-anchor="end">-3.1%</text>
+<text x="30" y="320" fill="#e2e8f0" font-size="15">Nasdaq Composite</text>
+<rect x="567.2" y="300" width="72.8" height="28" fill="#f5a623"/>
+<text x="559.2" y="320" fill="#e2e8f0" font-size="14" text-anchor="end">-2.6%</text>
+<text x="30" y="366" fill="#e2e8f0" font-size="15">S&amp;P 500</text>
+<rect x="606.4" y="346" width="33.6" height="28" fill="#f5a623"/>
+<text x="598.4" y="366" fill="#e2e8f0" font-size="14" text-anchor="end">-1.2%</text>
+<text x="30" y="412" fill="#e2e8f0" font-size="15">Dow Jones</text>
+<text x="648" y="412" fill="#e2e8f0" font-size="14" text-anchor="start">less than +0.1%</text>
+<text x="30" y="458" fill="#e2e8f0" font-size="15">Procter &amp; Gamble</text>
+<rect x="640" y="438" width="156.8" height="28" fill="#0ecb81"/>
+<text x="804.8" y="458" fill="#e2e8f0" font-size="14" text-anchor="start">+5.6%</text>
+<line x1="640" y1="60" x2="640" y2="490" stroke="#64748b"/>
+</svg>
