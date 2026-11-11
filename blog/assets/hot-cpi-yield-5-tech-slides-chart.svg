@@ -1,0 +1,29 @@
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="1000" height="560" fill="#0b1221"/>
+<text x="40" y="48" fill="#e2e8f0" font-size="24" font-weight="700">S&amp;P 500 sectors, Tuesday, November 10, 2026: one-day change</text>
+<line x1="40" y1="230" x2="960" y2="230" stroke="#64748b"/>
+<rect x="60" y="230.0" width="90" height="226.0" fill="#f5a623"/>
+<text x="105" y="478.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-1.13%</text>
+<text x="105" y="520" fill="#e2e8f0" font-size="14" text-anchor="middle">Technology</text>
+<rect x="172" y="230.0" width="90" height="50.0" fill="#f6465d"/>
+<text x="217" y="302.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-0.25%</text>
+<text x="217" y="520" fill="#e2e8f0" font-size="14" text-anchor="middle">Materials</text>
+<rect x="284" y="230.0" width="90" height="46.0" fill="#f6465d"/>
+<text x="329" y="298.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-0.23%</text>
+<text x="329" y="520" fill="#e2e8f0" font-size="14" text-anchor="middle">Utilities</text>
+<rect x="396" y="230.0" width="90" height="34.0" fill="#f6465d"/>
+<text x="441" y="286.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-0.17%</text>
+<text x="441" y="520" fill="#e2e8f0" font-size="14" text-anchor="middle">Real estate</text>
+<rect x="508" y="230.0" width="90" height="16.0" fill="#f6465d"/>
+<text x="553" y="268.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-0.08%</text>
+<text x="553" y="520" fill="#e2e8f0" font-size="14" text-anchor="middle">Industrials</text>
+<rect x="620" y="154.0" width="90" height="76.0" fill="#0ecb81"/>
+<text x="665" y="144.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">+0.38%</text>
+<text x="665" y="520" fill="#e2e8f0" font-size="14" text-anchor="middle">Comm. services</text>
+<rect x="732" y="148.0" width="90" height="82.0" fill="#0ecb81"/>
+<text x="777" y="138.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">+0.41%</text>
+<text x="777" y="520" fill="#e2e8f0" font-size="14" text-anchor="middle">Energy</text>
+<rect x="844" y="132.0" width="90" height="98.0" fill="#0ecb81"/>
+<text x="889" y="122.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">+0.49%</text>
+<text x="889" y="520" fill="#e2e8f0" font-size="14" text-anchor="middle">Financials</text>
+</svg>
