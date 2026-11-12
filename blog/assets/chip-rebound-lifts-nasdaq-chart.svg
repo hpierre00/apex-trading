@@ -1,0 +1,24 @@
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="800" height="420" fill="#0b1221"/>
+<text x="40" y="38" fill="#e2e8f0" font-size="20" font-weight="700">Chipmakers outran the indexes on Wednesday</text>
+<text x="40" y="58" fill="#64748b" font-size="13">One-day change, November 11 close (%)</text>
+<line x1="40" y1="350" x2="780" y2="350" stroke="#1e2d45"/>
+<rect x="70" y="339.0" width="80" height="11.0" fill="#0ecb81"/>
+<text x="110" y="331.0" fill="#e2e8f0" font-size="16" font-weight="700" text-anchor="middle">+0.49%</text>
+<text x="110" y="374" fill="#e2e8f0" font-size="14" text-anchor="middle">Dow</text>
+<rect x="185" y="320.7" width="80" height="29.3" fill="#0ecb81"/>
+<text x="225" y="312.7" fill="#e2e8f0" font-size="16" font-weight="700" text-anchor="middle">+1.31%</text>
+<text x="225" y="374" fill="#e2e8f0" font-size="14" text-anchor="middle">S&amp;P 500</text>
+<rect x="300" y="314.2" width="80" height="35.8" fill="#0ecb81"/>
+<text x="340" y="306.2" fill="#e2e8f0" font-size="16" font-weight="700" text-anchor="middle">+1.6%</text>
+<text x="340" y="374" fill="#e2e8f0" font-size="14" text-anchor="middle">Nasdaq</text>
+<rect x="415" y="186.5" width="80" height="163.5" fill="#f5a623"/>
+<text x="455" y="178.5" fill="#e2e8f0" font-size="16" font-weight="700" text-anchor="middle">+7.3%</text>
+<text x="455" y="374" fill="#e2e8f0" font-size="14" text-anchor="middle">AMD</text>
+<rect x="530" y="141.7" width="80" height="208.3" fill="#f5a623"/>
+<text x="570" y="133.7" fill="#e2e8f0" font-size="16" font-weight="700" text-anchor="middle">+9.3%</text>
+<text x="570" y="374" fill="#e2e8f0" font-size="14" text-anchor="middle">Marvell</text>
+<rect x="645" y="83.4" width="80" height="266.6" fill="#f5a623"/>
+<text x="685" y="75.4" fill="#e2e8f0" font-size="16" font-weight="700" text-anchor="middle">+11.9%</text>
+<text x="685" y="374" fill="#e2e8f0" font-size="14" text-anchor="middle">Micron</text>
+</svg>
