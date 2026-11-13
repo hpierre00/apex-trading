@@ -1,0 +1,50 @@
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="648pt" height="331.2pt" viewBox="0 0 648 331.2" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 331.2 L 648 331.2 L 648 0 L 0 0 z" style="fill: #0b1221"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 46.81375 289.394375 L 637.2 289.394375 L 637.2 32.6775 L 46.81375 32.6775 z" style="fill: #0b1221"/>
+   </g>
+   <g>
+    <path d="M 46.81375 50.58798 L 637.2 50.58798 " style="fill: none; stroke: #1e2d45; stroke-width: 0.6"/>
+    <path d="M 46.81375 110.289578 L 637.2 110.289578 " style="fill: none; stroke: #1e2d45; stroke-width: 0.6"/>
+    <path d="M 46.81375 169.991177 L 637.2 169.991177 " style="fill: none; stroke: #1e2d45; stroke-width: 0.6"/>
+    <path d="M 46.81375 229.692776 L 637.2 229.692776 " style="fill: none; stroke: #1e2d45; stroke-width: 0.6"/>
+    <path d="M 46.81375 289.394375 L 637.2 289.394375 " style="fill: none; stroke: #1e2d45; stroke-width: 0.6"/>
+   </g>
+   <g style="font-family: 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif; font-size: 10px; fill: #e2e8f0">
+    <text text-anchor="middle" x="108.652626" y="304">Nasdaq 100</text>
+    <text text-anchor="middle" x="225.32975" y="304">S&amp;P 500</text>
+    <text text-anchor="middle" x="342.006875" y="304">Dow</text>
+    <text text-anchor="middle" x="458.684" y="305">S&amp;P 500</text>
+    <text text-anchor="middle" x="458.684" y="317">equal-weight</text>
+    <text text-anchor="middle" x="575.361124" y="304">Small caps</text>
+    <text text-anchor="end" x="39.81375" y="54.4">0.0%</text>
+    <text text-anchor="end" x="39.81375" y="114.1">-0.5%</text>
+    <text text-anchor="end" x="39.81375" y="173.8">-1.0%</text>
+    <text text-anchor="end" x="39.81375" y="233.5">-1.5%</text>
+    <text text-anchor="end" x="39.81375" y="293.2">-2.0%</text>
+   </g>
+   <path d="M 73.649489 50.58798 L 143.655763 50.58798 L 143.655763 86.408939 L 73.649489 86.408939 z" style="fill: #f5a623"/>
+   <path d="M 190.326613 50.58798 L 260.332888 50.58798 L 260.332888 92.379099 L 190.326613 92.379099 z" style="fill: #f5a623"/>
+   <path d="M 307.003738 50.58798 L 377.010012 50.58798 L 377.010012 93.573131 L 307.003738 93.573131 z" style="fill: #f5a623"/>
+   <path d="M 423.680862 50.58798 L 493.687137 50.58798 L 493.687137 155.662794 L 423.680862 155.662794 z" style="fill: #f6465d"/>
+   <path d="M 540.357987 50.58798 L 610.364261 50.58798 L 610.364261 246.409224 L 540.357987 246.409224 z" style="fill: #f6465d"/>
+   <path d="M 46.81375 50.58798 L 637.2 50.58798 " style="fill: none; stroke: #e2e8f0; stroke-opacity: 0.6; stroke-width: 0.8"/>
+   <path d="M 46.81375 289.394375 L 46.81375 32.6775 " style="fill: none; stroke: #1e2d45; stroke-width: 0.8"/>
+   <g style="font-family: 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif; font-weight: 700; font-size: 11px; fill: #e2e8f0">
+    <text text-anchor="middle" x="108.652626" y="103.1">-0.30%</text>
+    <text text-anchor="middle" x="225.32975" y="109.1">-0.35%</text>
+    <text text-anchor="middle" x="342.006875" y="110.3">-0.36%</text>
+    <text text-anchor="middle" x="458.684" y="172.4">-0.88%</text>
+    <text text-anchor="middle" x="575.361124" y="263.1">-1.64%</text>
+   </g>
+   <text style="font-family: 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif; font-size: 13px; fill: #e2e8f0" x="46.81375" y="20.7">US equity moves, Thursday November 12, 2026 (close)</text>
+  </g>
+ </g>
+</svg>
