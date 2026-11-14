@@ -1,0 +1,23 @@
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="720" height="380" fill="#0b1221"/>
+<text x="30" y="30" fill="#e2e8f0" font-size="15">Selected tech names, one-day percent change, Nov. 13, 2026</text>
+<line x1="380" y1="50" x2="380" y2="360" stroke="#e2e8f0" stroke-opacity="0.6"/>
+<text x="100" y="84" fill="#e2e8f0" font-size="14" text-anchor="end">Cerebras</text>
+<rect x="380.0" y="60" width="224.4" height="36" fill="#0ecb81"/>
+<text x="612.4" y="84" fill="#e2e8f0" font-size="14" text-anchor="start">+11.22%</text>
+<text x="100" y="134" fill="#e2e8f0" font-size="14" text-anchor="end">Microsoft</text>
+<rect x="380.0" y="110" width="3.4" height="36" fill="#0ecb81"/>
+<text x="391.4" y="134" fill="#e2e8f0" font-size="14" text-anchor="start">+0.17%</text>
+<text x="100" y="184" fill="#e2e8f0" font-size="14" text-anchor="end">Nvidia</text>
+<rect x="339.8" y="160" width="40.2" height="36" fill="#f6465d"/>
+<text x="331.8" y="184" fill="#e2e8f0" font-size="14" text-anchor="end">-2.01%</text>
+<text x="100" y="234" fill="#e2e8f0" font-size="14" text-anchor="end">Broadcom</text>
+<rect x="284.8" y="210" width="95.2" height="36" fill="#f6465d"/>
+<text x="276.8" y="234" fill="#e2e8f0" font-size="14" text-anchor="end">-4.76%</text>
+<text x="100" y="284" fill="#e2e8f0" font-size="14" text-anchor="end">Cisco</text>
+<rect x="255.2" y="260" width="124.8" height="36" fill="#f5a623"/>
+<text x="247.2" y="284" fill="#e2e8f0" font-size="14" text-anchor="end">-6.24%</text>
+<text x="100" y="334" fill="#e2e8f0" font-size="14" text-anchor="end">AMD</text>
+<rect x="205.0" y="310" width="175.0" height="36" fill="#f6465d"/>
+<text x="197.0" y="334" fill="#e2e8f0" font-size="14" text-anchor="end">-8.75%</text>
+</svg>
