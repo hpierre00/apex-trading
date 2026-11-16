@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="720pt" height="374.4pt" viewBox="0 0 720 374.4" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <g id="figure_1">
+  <path d="M 0 374.4 L 720 374.4 L 720 0 L 0 0 z" style="fill: #0b1221"/>
+  <g id="grid" style="stroke: #1e2d45; stroke-width: 0.8">
+   <path d="M 111.14 324.77 L 111.14 37.39"/>
+   <path d="M 209.32 324.77 L 209.32 37.39"/>
+   <path d="M 307.50 324.77 L 307.50 37.39"/>
+   <path d="M 405.67 324.77 L 405.67 37.39"/>
+   <path d="M 503.85 324.77 L 503.85 37.39"/>
+   <path d="M 602.02 324.77 L 602.02 37.39"/>
+   <path d="M 700.2 324.77 L 700.2 37.39"/>
+  </g>
+  <g style="font-size: 12px; font-family: 'Inter','DejaVu Sans',Arial,Helvetica,sans-serif; fill: #e2e8f0">
+   <g text-anchor="middle">
+    <text x="111.14" y="343.4">-3.0</text>
+    <text x="209.32" y="343.4">-2.5</text>
+    <text x="307.50" y="343.4">-2.0</text>
+    <text x="405.67" y="343.4">-1.5</text>
+    <text x="503.85" y="343.4">-1.0</text>
+    <text x="602.02" y="343.4">-0.5</text>
+    <text x="700.2" y="343.4">0.0</text>
+    <text x="395.85" y="360.9" style="font-size: 11px">Percent change</text>
+   </g>
+   <g text-anchor="end">
+    <text x="84.5" y="297.3">Dow</text>
+    <text x="84.5" y="223.7">Russell 2000</text>
+    <text x="84.5" y="150.1">S&amp;P 500</text>
+    <text x="84.5" y="76.5">Nasdaq</text>
+   </g>
+  </g>
+  <path d="M 700.2 311.71 L 419.42 311.71 L 419.42 271.23 L 700.2 271.23 z" style="fill: #f5a623"/>
+  <path d="M 700.2 238.12 L 329.09 238.12 L 329.09 197.64 L 700.2 197.64 z" style="fill: #f5a623"/>
+  <path d="M 700.2 164.52 L 319.28 164.52 L 319.28 124.05 L 700.2 124.05 z" style="fill: #f5a623"/>
+  <path d="M 700.2 90.93 L 215.21 90.93 L 215.21 50.46 L 700.2 50.46 z" style="fill: #f6465d"/>
+  <path d="M 700.2 324.77 L 700.2 37.39" style="stroke: #e2e8f0; stroke-opacity: 0.5; fill: none"/>
+  <path d="M 91.51 324.77 L 700.2 324.77" style="stroke: #1e2d45; stroke-width: 0.8; fill: none"/>
+  <g style="font-weight: 700; font-size: 12px; font-family: 'Inter','DejaVu Sans',Arial,Helvetica,sans-serif; text-anchor: end; fill: #e2e8f0">
+   <text x="409.6" y="295.8">-1.43%</text>
+   <text x="319.28" y="222.2">-1.89%</text>
+   <text x="309.46" y="148.7">-1.94%</text>
+   <text x="205.39" y="75.1">-2.47%</text>
+  </g>
+  <text x="91.51" y="23.4" style="font-size: 13px; font-family: 'Inter','DejaVu Sans',Arial,Helvetica,sans-serif; fill: #e2e8f0">US index moves vs. Friday close, as of 3:54 PM ET, Nov. 16, 2026</text>
+ </g>
+</svg>
