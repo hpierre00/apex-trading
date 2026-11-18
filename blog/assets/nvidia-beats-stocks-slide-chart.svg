@@ -1,0 +1,20 @@
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="800" height="400" fill="#0b1221"/>
+<text x="40" y="36" fill="#e2e8f0" font-size="18">US equity benchmarks, Tuesday November 17, 2026 close (daily change, %)</text>
+<line x1="40" y1="100" x2="780" y2="100" stroke="#64748b"/>
+<rect x="80" y="100" width="100" height="231.0" fill="#f5a623"/>
+<text x="130.0" y="355.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-1.65%</text>
+<text x="130.0" y="88" fill="#e2e8f0" font-size="14" text-anchor="middle">Dow</text>
+<rect x="222" y="100" width="100" height="203.0" fill="#f5a623"/>
+<text x="272.0" y="327.0" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-1.45%</text>
+<text x="272.0" y="88" fill="#e2e8f0" font-size="14" text-anchor="middle">Equal-weight S&amp;P 500</text>
+<rect x="364" y="100" width="100" height="200.2" fill="#f5a623"/>
+<text x="414.0" y="324.2" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-1.43%</text>
+<text x="414.0" y="88" fill="#e2e8f0" font-size="14" text-anchor="middle">Small caps</text>
+<rect x="506" y="100" width="100" height="144.2" fill="#0ecb81"/>
+<text x="556.0" y="268.2" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-1.03%</text>
+<text x="556.0" y="88" fill="#e2e8f0" font-size="14" text-anchor="middle">S&amp;P 500</text>
+<rect x="648" y="100" width="100" height="100.8" fill="#f5a623"/>
+<text x="698.0" y="224.8" fill="#e2e8f0" font-size="18" font-weight="700" text-anchor="middle">-0.72%</text>
+<text x="698.0" y="88" fill="#e2e8f0" font-size="14" text-anchor="middle">Nasdaq 100</text>
+<text x="40" y="385" fill="#64748b" font-size="12">Source: Saxo Options Brief, November 18, 2026</text></svg>
