@@ -1,0 +1,14 @@
+<svg viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="14">
+<rect width="900" height="460" fill="#0b1221"/>
+<text x="20" y="32" fill="#f5a623" font-size="17" font-weight="700">S&amp;P 500 sector performance, November 19, 2026 session</text>
+<line x1="560" y1="48" x2="560" y2="430" stroke="#64748b"/>
+<rect x="560" y="60" width="224" height="28" fill="#0ecb81"/><text x="792" y="79" fill="#e2e8f0">+2.24%</text><text x="552" y="79" fill="#e2e8f0" text-anchor="end">Consumer Discretionary</text>
+<rect x="560" y="100" width="39" height="28" fill="#0ecb81"/><text x="607" y="119" fill="#e2e8f0">+0.39%</text><text x="552" y="119" fill="#e2e8f0" text-anchor="end">Communication Services</text>
+<rect x="560" y="140" width="17" height="28" fill="#0ecb81"/><text x="585" y="159" fill="#e2e8f0">+0.17%</text><text x="552" y="159" fill="#e2e8f0" text-anchor="end">Information Technology</text>
+<rect x="438" y="180" width="122" height="28" fill="#f6465d"/><text x="430" y="199" fill="#e2e8f0" text-anchor="end">-1.22%</text><text x="568" y="199" fill="#e2e8f0">Materials</text>
+<rect x="437" y="220" width="123" height="28" fill="#f6465d"/><text x="429" y="239" fill="#e2e8f0" text-anchor="end">-1.23%</text><text x="568" y="239" fill="#e2e8f0">Consumer Staples</text>
+<rect x="411" y="260" width="149" height="28" fill="#f6465d"/><text x="403" y="279" fill="#e2e8f0" text-anchor="end">-1.49%</text><text x="568" y="279" fill="#e2e8f0">Real Estate</text>
+<rect x="406" y="300" width="154" height="28" fill="#f6465d"/><text x="398" y="319" fill="#e2e8f0" text-anchor="end">-1.54%</text><text x="568" y="319" fill="#e2e8f0">Utilities</text>
+<rect x="342" y="340" width="218" height="28" fill="#f6465d"/><text x="334" y="359" fill="#e2e8f0" text-anchor="end">-2.18%</text><text x="568" y="359" fill="#e2e8f0">Health Care</text>
+<rect x="209" y="380" width="351" height="28" fill="#f6465d"/><text x="201" y="399" fill="#e2e8f0" text-anchor="end">-3.51%</text><text x="568" y="399" fill="#e2e8f0">Energy</text>
+</svg>
