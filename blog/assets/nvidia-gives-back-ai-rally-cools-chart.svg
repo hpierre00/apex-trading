@@ -1,0 +1,21 @@
+<svg viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="14">
+<rect width="900" height="500" fill="#0b1221"/>
+<text x="450" y="34" fill="#e2e8f0" font-size="18" text-anchor="middle">Tuesday, Nov 24: index and AI-stock moves (percent change)</text>
+<line x1="60" x2="860" y1="100" y2="100" stroke="#e2e8f0" stroke-opacity="0.5"/>
+<rect x="110" y="100" width="60" height="12" fill="#0ecb81"/>
+<text x="140" y="130" fill="#e2e8f0" text-anchor="middle">-0.5%</text>
+<text x="140" y="470" fill="#e2e8f0" text-anchor="middle">S&amp;P 500</text>
+<rect x="265" y="100" width="60" height="36" fill="#0ecb81"/>
+<text x="295" y="154" fill="#e2e8f0" text-anchor="middle">-1.5%</text>
+<text x="295" y="470" fill="#e2e8f0" text-anchor="middle">Nasdaq Comp.</text>
+<rect x="420" y="100" width="60" height="132" fill="#f5a623"/>
+<text x="450" y="250" fill="#e2e8f0" text-anchor="middle">-5.5%</text>
+<text x="450" y="470" fill="#e2e8f0" text-anchor="middle">GE Vernova</text>
+<rect x="575" y="100" width="60" height="182" fill="#f5a623"/>
+<text x="605" y="300" fill="#e2e8f0" text-anchor="middle">-7.6%</text>
+<text x="605" y="470" fill="#e2e8f0" text-anchor="middle">Nvidia</text>
+<rect x="730" y="100" width="60" height="305" fill="#f5a623"/>
+<text x="760" y="423" fill="#e2e8f0" text-anchor="middle">-12.7%</text>
+<text x="760" y="470" fill="#e2e8f0" text-anchor="middle">CoreWeave</text>
+<text x="450" y="64" fill="#64748b" font-size="12" text-anchor="middle">Green: indexes. Gold: individual stocks. Rounded figures as reported by the Associated Press.</text>
+</svg>
