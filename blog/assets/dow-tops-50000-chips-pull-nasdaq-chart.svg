@@ -1,0 +1,17 @@
+<svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="1000" height="520" fill="#0b1221"/>
+<text x="40" y="36" fill="#e2e8f0" font-size="22" font-weight="600">US index moves, Tuesday November 24, 2026 session</text>
+<line x1="40" y1="110" x2="960" y2="110" stroke="#64748b" stroke-width="1.5"/>
+<rect x="90" y="76.0" width="150" height="34.0" fill="#0ecb81"/>
+<text x="165.0" y="66.0" fill="#e2e8f0" font-size="22" font-weight="700" text-anchor="middle">+0.85%</text>
+<text x="165.0" y="500" fill="#e2e8f0" font-size="18" text-anchor="middle">Dow</text>
+<rect x="315" y="110.0" width="150" height="20.0" fill="#f6465d"/>
+<text x="390.0" y="156.0" fill="#e2e8f0" font-size="22" font-weight="700" text-anchor="middle">-0.50%</text>
+<text x="390.0" y="500" fill="#e2e8f0" font-size="18" text-anchor="middle">S&amp;P 500</text>
+<rect x="540" y="110.0" width="150" height="59.2" fill="#f6465d"/>
+<text x="615.0" y="195.2" fill="#e2e8f0" font-size="22" font-weight="700" text-anchor="middle">-1.48%</text>
+<text x="615.0" y="500" fill="#e2e8f0" font-size="18" text-anchor="middle">Nasdaq Comp.</text>
+<rect x="765" y="110.0" width="150" height="315.2" fill="#f5a623"/>
+<text x="840.0" y="451.2" fill="#e2e8f0" font-size="22" font-weight="700" text-anchor="middle">-7.88%</text>
+<text x="840.0" y="500" fill="#e2e8f0" font-size="18" text-anchor="middle">Phila. Semi Index</text>
+</svg>
