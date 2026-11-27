@@ -1,0 +1,19 @@
+<svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="1000" height="520" fill="#0b1221"/>
+<text x="40" y="36" fill="#e2e8f0" font-size="22" font-weight="600">Wednesday November 25, 2026: intraday low vs. close (approx. % change)</text>
+<line x1="40" y1="70" x2="960" y2="70" stroke="#64748b" stroke-width="1.5"/>
+<rect x="180" y="70" width="90" height="368.0" fill="#f6465d"/>
+<text x="225" y="466.0" fill="#e2e8f0" font-size="22" font-weight="700" text-anchor="middle">-4.6%</text>
+<text x="225" y="58" fill="#94a3b8" font-size="15" text-anchor="middle">Intraday low</text>
+<rect x="290" y="70" width="90" height="48.0" fill="#f5a623"/>
+<text x="335" y="146.0" fill="#e2e8f0" font-size="22" font-weight="700" text-anchor="middle">-0.6%</text>
+<text x="335" y="58" fill="#94a3b8" font-size="15" text-anchor="middle">Close</text>
+<text x="280" y="500" fill="#e2e8f0" font-size="20" text-anchor="middle">Nasdaq Comp.</text>
+<rect x="580" y="70" width="90" height="256.0" fill="#f6465d"/>
+<text x="625" y="354.0" fill="#e2e8f0" font-size="22" font-weight="700" text-anchor="middle">-3.2%</text>
+<text x="625" y="58" fill="#94a3b8" font-size="15" text-anchor="middle">Intraday low</text>
+<rect x="690" y="70" width="90" height="24.0" fill="#f5a623"/>
+<text x="735" y="122.0" fill="#e2e8f0" font-size="22" font-weight="700" text-anchor="middle">-0.3%</text>
+<text x="735" y="58" fill="#94a3b8" font-size="15" text-anchor="middle">Close</text>
+<text x="680" y="500" fill="#e2e8f0" font-size="20" text-anchor="middle">S&amp;P 500</text>
+</svg>
